@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 struct EmberJarAnimation: View {
     enum Size {
@@ -43,7 +44,7 @@ struct EmberJarAnimation: View {
     var body: some View {
         ZStack {
             // 유리병 + 코르크마개
-            Image("Jar")
+            Image.jar
                 .resizable()
                 .scaledToFit()
                 .frame(
@@ -52,7 +53,7 @@ struct EmberJarAnimation: View {
                 )
 
             // 불꽃 캐릭터
-            Image("EmberFlame")
+            Image.emberFlame
                 .resizable()
                 .scaledToFit()
                 .frame(

@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 struct HomeView: View {
     let recordStore: RecordStore
