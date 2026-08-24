@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 struct ContentView: View {
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false

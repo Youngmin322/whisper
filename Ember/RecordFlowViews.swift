@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 enum EmberJarSize {
     case welcome, hero, small, shelf

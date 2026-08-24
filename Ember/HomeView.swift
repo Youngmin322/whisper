@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 struct HomeView: View {
     let recordStore: RecordStore
@@ -128,11 +129,22 @@ struct HomeView: View {
     private var memoryCard: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("다시 만난 불꽃").font(.emberControl).foregroundStyle(Color.emberAccentText)
-                Text("그때의 결심을 오늘 다시 꺼내볼까요?").font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
-                Text("84일 전의 기록 보기").font(.emberMetadata).foregroundStyle(Color.emberTextSecondary).padding(.top, 8)
+                Text("다시 만난 불꽃")
+                    .font(.emberControl)
+                    .foregroundStyle(Color.emberAccentText)
+                
+                Text("그때의 결심을 오늘 다시 꺼내볼까요?")
+                    .font(.emberBodyEmphasis)
+                    .foregroundStyle(Color.emberTextPrimary)
+                
+                Text("84일 전의 기록 보기")
+                    .font(.emberMetadata)
+                    .foregroundStyle(Color.emberTextSecondary)
+                    .padding(.top, 8)
             }
+            
             Spacer(minLength: 4)
+            
             EmberJar(size: .small)
         }
         .padding(18)

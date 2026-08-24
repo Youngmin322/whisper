@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1D3C09333036847100A5EBD8 /* EmberCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D3C09323036847100A5EBD8 /* EmberCore */; };
 		1D97B5B8302AE9D300C4F5E8 /* EmberCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D97B5B7302AE9D300C4F5E8 /* EmberCore */; };
+		1DF412E3303BCB2F00B271A4 /* EmberDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1DF412E2303BCB2F00B271A4 /* EmberDesignSystem */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 			files = (
 				1D97B5B8302AE9D300C4F5E8 /* EmberCore in Frameworks */,
 				1D3C09333036847100A5EBD8 /* EmberCore in Frameworks */,
+				1DF412E3303BCB2F00B271A4 /* EmberDesignSystem in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				1D97B5A6302AB12500C4F5E8 /* Ember */,
+				1DF412E1303BCB2F00B271A4 /* Frameworks */,
 				1D97B5A5302AB12500C4F5E8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -63,6 +66,13 @@
 				1D97B5A4302AB12500C4F5E8 /* Ember.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		1DF412E1303BCB2F00B271A4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -87,6 +97,7 @@
 			packageProductDependencies = (
 				1D97B5B7302AE9D300C4F5E8 /* EmberCore */,
 				1D3C09323036847100A5EBD8 /* EmberCore */,
+				1DF412E2303BCB2F00B271A4 /* EmberDesignSystem */,
 			);
 			productName = Ember;
 			productReference = 1D97B5A4302AB12500C4F5E8 /* Ember.app */;
@@ -275,7 +286,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = EmberIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5R33532VPH;
@@ -308,7 +318,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = EmberIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5R33532VPH;
@@ -375,6 +384,11 @@
 		1D97B5B7302AE9D300C4F5E8 /* EmberCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = EmberCore;
+		};
+		1DF412E2303BCB2F00B271A4 /* EmberDesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../EmberCore" */;
+			productName = EmberDesignSystem;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

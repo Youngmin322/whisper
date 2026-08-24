@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 private struct EmberCardModifier: ViewModifier {
     let fill: Color
