@@ -10,6 +10,8 @@ struct HomeView: View {
     let recordStore: RecordStore
     @State private var isQuickRecordPresented = false
     @State private var isDetailRecordPresented = false
+    @State private var shouldOpenDetailAfterSheetDismisses = false
+    @State private var recordDraft = RecordDraft()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -30,19 +32,24 @@ struct HomeView: View {
         }
         .background(Color.emberBackground)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $isQuickRecordPresented) {
-            QuickRecordView { title, content in
-                recordStore.add(title: title, content: content)
-            } onOpenDetail: {
-                isDetailRecordPresented = true
-            }
+        .sheet(
+            isPresented: $isQuickRecordPresented,
+            onDismiss: openDetailAfterSheetDismissesIfNeeded
+        ) {
+            QuickRecordView(
+                draft: $recordDraft,
+                onSave: saveDraft,
+                onOpenDetail: {
+                    shouldOpenDetailAfterSheetDismisses = true
+                }
+            )
             .presentationDetents([.height(444)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
-            DetailedRecordView { title, content in
-                recordStore.add(title: title, content: content)
+            DetailedRecordView(draft: $recordDraft) {
+                saveDraft()
             }
         }
     }
@@ -153,6 +160,20 @@ struct HomeView: View {
     
     private var hasTodayRecord: Bool {
         recordStore.hasRecord(on: .now, calendar: calendar)
+    }
+
+    private func saveDraft() {
+        recordStore.add(
+            title: recordDraft.titleForSaving,
+            content: recordDraft.contentForSaving
+        )
+        recordDraft = RecordDraft()
+    }
+
+    private func openDetailAfterSheetDismissesIfNeeded() {
+        guard shouldOpenDetailAfterSheetDismisses else { return }
+        shouldOpenDetailAfterSheetDismisses = false
+        isDetailRecordPresented = true
     }
     
     private func isToday(_ weekdayIndex: Int) -> Bool {

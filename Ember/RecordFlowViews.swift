@@ -33,12 +33,11 @@ struct EmberJar: View {
 
 struct DetailedRecordView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var title = ""
-    @State private var content = ""
+    @Binding var draft: RecordDraft
     @State private var selectedEmotion = "평온"
     @State private var selectedFocus = "업무 집중 모드"
     @State private var isSaved = false
-    let onSave: (String, String) -> Void
+    let onSave: () -> Void
     
     var body: some View {
         ScrollView {
@@ -48,7 +47,7 @@ struct DetailedRecordView: View {
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.top, 12)
                 fieldLabel("제목")
-                TextField("오늘의 마음에 제목을 붙여주세요", text: $title)
+                TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
                     .font(.emberBodyLarge)
                     .padding(.horizontal, 16)
                     .frame(height: 52)
@@ -56,13 +55,13 @@ struct DetailedRecordView: View {
                 
                 fieldLabel("기록")
                 ZStack(alignment: .bottomTrailing) {
-                    TextField("오늘 있었던 일과 생각을 천천히 적어보세요", text: $content, axis: .vertical)
+                    TextField("오늘 있었던 일과 생각을 천천히 적어보세요", text: $draft.content, axis: .vertical)
                         .font(.emberBodyLarge)
                         .lineSpacing(5)
                         .lineLimit(6 ... 8)
                         .padding(18)
                         .frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
-                    Text("\(content.count) / 1,000")
+                    Text("\(draft.content.count) / 1,000")
                         .font(.emberCaption)
                         .foregroundStyle(Color.emberTextSecondary)
                         .padding(16)
@@ -107,10 +106,11 @@ struct DetailedRecordView: View {
         .background(Color.emberBackground)
         .safeAreaInset(edge: .bottom) {
             Button("기록 저장") {
-                onSave(title.isEmpty ? "오늘의 마음" : title, content)
+                onSave()
                 isSaved = true
             }
             .buttonStyle(.emberPrimary)
+            .disabled(!draft.canSave)
             .padding(.horizontal, EmberLayout.screenHorizontalPadding)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
@@ -306,7 +306,17 @@ struct FocusConnectionsView: View {
     }
 }
 
-#Preview { NavigationStack { DetailedRecordView(onSave: { _, _ in }) } }
+private struct DetailedRecordPreview: View {
+    @State private var draft = RecordDraft()
+
+    var body: some View {
+        NavigationStack {
+            DetailedRecordView(draft: $draft, onSave: {})
+        }
+    }
+}
+
+#Preview { DetailedRecordPreview() }
 
 #Preview {
     CollectionView(recordStore: RecordStore(isStoredInMemoryOnly: true))
