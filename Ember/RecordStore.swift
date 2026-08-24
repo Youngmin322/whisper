@@ -74,8 +74,16 @@ final class RecordStore {
     }
 
     @discardableResult
-    func add(title: String, content: String) -> Bool {
-        let record = EmberRecord(title: title, content: content)
+    func add(
+        title: String,
+        content: String,
+        createdAt: Date = .now
+    ) -> Bool {
+        let record = EmberRecord(
+            title: title,
+            content: content,
+            createdAt: createdAt
+        )
         modelContext.insert(record)
         return saveChanges()
     }
@@ -104,6 +112,45 @@ final class RecordStore {
 
     func hasRecord(on date: Date, calendar: Calendar = .current) -> Bool {
         records.contains { calendar.isDate($0.createdAt, inSameDayAs: date) }
+    }
+
+    func records(on date: Date, calendar: Calendar = .current) -> [EmberRecord] {
+        records.filter { calendar.isDate($0.createdAt, inSameDayAs: date) }
+    }
+
+    func resurfacingRecord(
+        on date: Date = .now,
+        minimumAgeInDays: Int = 30,
+        calendar: Calendar = .current
+    ) -> EmberRecord? {
+        let candidates = records
+            .filter {
+                daysSince($0, relativeTo: date, calendar: calendar) >= minimumAgeInDays
+            }
+            .sorted {
+                if $0.createdAt == $1.createdAt {
+                    return $0.id.uuidString < $1.id.uuidString
+                }
+                return $0.createdAt < $1.createdAt
+            }
+
+        guard !candidates.isEmpty else { return nil }
+
+        let dayOrdinal = calendar.ordinality(of: .day, in: .era, for: date) ?? 0
+        return candidates[dayOrdinal % candidates.count]
+    }
+
+    func daysSince(
+        _ record: EmberRecord,
+        relativeTo date: Date = .now,
+        calendar: Calendar = .current
+    ) -> Int {
+        let recordDay = calendar.startOfDay(for: record.createdAt)
+        let referenceDay = calendar.startOfDay(for: date)
+        return max(
+            0,
+            calendar.dateComponents([.day], from: recordDay, to: referenceDay).day ?? 0
+        )
     }
 
     private func saveChanges() -> Bool {

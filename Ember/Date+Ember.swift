@@ -26,4 +26,13 @@ extension Date {
                 .weekday(.wide)
         )
     }
+
+    var emberTimeDescription: String {
+        formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .hour()
+                .minute()
+        )
+    }
 }
