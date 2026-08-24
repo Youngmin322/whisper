@@ -34,8 +34,8 @@ struct EmberJar: View {
 struct DetailedRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var draft: RecordDraft
-    @State private var selectedEmotion: String? = EmberEmotion.calm.rawValue
-    @State private var selectedFocus: String? = "업무 집중 모드"
+    @State private var selectedEmotion: String?
+    @State private var selectedFocus: String?
     @State private var photoData: Data?
     @State private var isSaved = false
     @State private var isEmotionPickerPresented = false
