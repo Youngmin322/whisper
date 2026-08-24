@@ -11,6 +11,7 @@ struct QuickRecordView: View {
     @Binding var draft: RecordDraft
     let onSave: () -> Void
     let onOpenDetail: () -> Void
+    private let contentLimit = 280
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -28,7 +29,14 @@ struct QuickRecordView: View {
                     .lineLimit(3 ... 4)
                     .padding(16)
                     .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
-                Text("\(draft.content.count) / 280").font(.emberCaption).foregroundStyle(Color.emberTextSecondary).padding(14)
+                    .onChange(of: draft.content) { _, newValue in
+                        guard newValue.count > contentLimit else { return }
+                        draft.content = String(newValue.prefix(contentLimit))
+                    }
+                Text("\(draft.content.count) / \(contentLimit)")
+                    .font(.emberCaption)
+                    .foregroundStyle(Color.emberTextSecondary)
+                    .padding(14)
             }
             .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: EmberRadius.medium, style: .continuous))
             Button {

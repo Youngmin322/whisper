@@ -38,11 +38,12 @@ struct DetailedRecordView: View {
     @State private var selectedFocus = "업무 집중 모드"
     @State private var isSaved = false
     let onSave: () -> Void
+    private let contentLimit = 1_000
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("2026년 8월 19일 화요일")
+                Text(Date.now.emberFullDayDescription)
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.top, 12)
@@ -61,7 +62,11 @@ struct DetailedRecordView: View {
                         .lineLimit(6 ... 8)
                         .padding(18)
                         .frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
-                    Text("\(draft.content.count) / 1,000")
+                        .onChange(of: draft.content) { _, newValue in
+                            guard newValue.count > contentLimit else { return }
+                            draft.content = String(newValue.prefix(contentLimit))
+                        }
+                    Text("\(draft.content.count) / \(contentLimit.formatted())")
                         .font(.emberCaption)
                         .foregroundStyle(Color.emberTextSecondary)
                         .padding(16)

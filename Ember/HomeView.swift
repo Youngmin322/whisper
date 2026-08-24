@@ -56,7 +56,7 @@ struct HomeView: View {
     
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("8월 19일 화요일")
+            Text(Date.now.emberDayDescription)
                 .font(.emberMetadata)
                 .foregroundStyle(Color.emberTextSecondary)
             Text("오늘의 기록")
