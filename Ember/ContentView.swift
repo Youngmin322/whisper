@@ -44,10 +44,14 @@ private struct MainTabView: View {
                 }
             }
             Tab("보관함", systemImage: "archivebox.fill", value: MainTab.collection) {
-                NavigationStack { CollectionView(recordStore: recordStore) }
+                NavigationStack {
+                    CollectionView(recordStore: recordStore)
+                }
             }
             Tab("설정", systemImage: "gearshape", value: MainTab.settings) {
-                NavigationStack { SettingsView(recordStore: recordStore) }
+                NavigationStack {
+                    SettingsView()
+                }
             }
         }
         .task(consumePendingNotificationRoute)
@@ -130,7 +134,6 @@ private struct WelcomeView: View {
 }
 
 private struct SettingsView: View {
-    let recordStore: RecordStore
     @State private var notificationStatus = UNAuthorizationStatus.notDetermined
     @State private var isFocusGuidePresented = false
     @State private var notificationErrorMessage: String?
@@ -147,10 +150,6 @@ private struct SettingsView: View {
             // 스크롤되는 영역
             List {
                 Section("FocusMode") {
-                    NavigationLink("FocusMode 연결 관리") {
-                        FocusConnectionsView(recordStore: recordStore)
-                    }
-
                     LabeledContent("알림", value: notificationStatusDescription)
 
                     if notificationStatus == .notDetermined {
@@ -245,7 +244,7 @@ private struct FocusFilterGuideView: View {
                     guideStep(
                         number: 1,
                         title: "iPhone 설정에서 집중 모드 선택",
-                        description: "설정 > 집중 모드에서 업무, 운동, 독서 중 연결할 모드를 열어요."
+                        description: "설정 > 집중 모드에서 Ember와 연결할 모드를 열어요."
                     )
                     guideStep(
                         number: 2,
@@ -254,8 +253,8 @@ private struct FocusFilterGuideView: View {
                     )
                     guideStep(
                         number: 3,
-                        title: "Ember FocusMode 선택",
-                        description: "해당 집중 모드에서 다시 만날 기록 묶음을 선택하고 추가해요."
+                        title: "다시 만날 불꽃 선택",
+                        description: "이 집중 모드가 시작될 때 다시 만날 불꽃을 하나 이상 선택하고 추가해요."
                     )
                     guideStep(
                         number: 4,
@@ -302,5 +301,5 @@ private struct FocusFilterGuideView: View {
     MainTabView(recordStore: RecordStore(isStoredInMemoryOnly: true))
 }
 #Preview("설정") {
-    SettingsView(recordStore: RecordStore(isStoredInMemoryOnly: true))
+    SettingsView()
 }

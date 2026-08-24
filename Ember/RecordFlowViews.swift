@@ -23,7 +23,7 @@ struct EmberJar: View {
     let size: EmberJarSize
     
     var body: some View {
-        Image("Ember")
+        Image.ember
             .resizable()
             .scaledToFit()
             .frame(width: size.dimensions.width, height: size.dimensions.height)
@@ -35,11 +35,10 @@ struct DetailedRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var draft: RecordDraft
     @State private var selectedEmotion: String?
-    @State private var selectedFocus: String?
     @State private var photoData: Data?
     @State private var isSaved = false
     @State private var isEmotionPickerPresented = false
-    let onSave: (String?, String?, Data?) -> Void
+    let onSave: (String?, Data?) -> Void
     private let contentLimit = 1_000
     
     var body: some View {
@@ -87,29 +86,7 @@ struct DetailedRecordView: View {
 
                 PhotoAttachmentEditor(photoData: $photoData)
                 
-                NavigationLink {
-                    FocusModePicker(selectedFocus: $selectedFocus)
-                } label: {
-                    HStack(spacing: 16) {
-                        EmberJar(size: .small)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(selectedFocus ?? "FocusMode 선택")
-                                .font(.emberBodyEmphasis)
-                                .foregroundStyle(Color.emberTextPrimary)
-                            Text("기록을 FocusMode와 연결해요").font(.emberMetadata).foregroundStyle(Color.emberTextSecondary)
-                        }
-                        Spacer()
-                        Text(selectedFocus == nil ? "선택" : "연결됨")
-                            .font(.emberCaption)
-                            .foregroundStyle(Color.emberAccentText)
-                    }
-                    .padding(.horizontal, 12)
-                    .frame(height: 96)
-                    .background(Color.emberSurfaceFocus, in: RoundedRectangle(cornerRadius: EmberRadius.large, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                
-                Label("FocusMode가 시작되면 이 기록을 알림으로 다시 만나요.", systemImage: "bell")
+                Label("저장한 뒤 iPhone 집중 모드 필터에서 이 불꽃을 직접 연결할 수 있어요.", systemImage: "bell")
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.horizontal, 16)
@@ -123,7 +100,7 @@ struct DetailedRecordView: View {
         .background(Color.emberBackground)
         .safeAreaInset(edge: .bottom) {
             Button("기록 저장") {
-                onSave(selectedFocus, selectedEmotion, photoData)
+                onSave(selectedEmotion, photoData)
                 isSaved = true
             }
             .buttonStyle(.emberPrimary)
@@ -135,7 +112,7 @@ struct DetailedRecordView: View {
         .navigationTitle("상세 기록")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isSaved) {
-            SavedRecordSheet(focusMode: selectedFocus) {
+            SavedRecordSheet {
                 dismiss()
             }
             .presentationDetents([.height(312)])
@@ -172,7 +149,6 @@ struct DetailedRecordView: View {
 }
 
 private struct SavedRecordSheet: View {
-    let focusMode: String?
     let onHome: () -> Void
     
     var body: some View {
@@ -180,7 +156,7 @@ private struct SavedRecordSheet: View {
             Text("오늘의 불꽃을 담았어요")
                 .font(.emberNavigationTitle)
                 .foregroundStyle(Color.emberTextPrimary)
-            Text(savedDescription)
+            Text("기록은 보관함에서 언제든 다시 꺼내보고\niPhone 집중 모드 필터에도 연결할 수 있어요.")
                 .font(.emberBody)
                 .foregroundStyle(Color.emberTextSecondary)
                 .multilineTextAlignment(.center)
@@ -194,70 +170,11 @@ private struct SavedRecordSheet: View {
         .padding(.top, 10)
         .background(Color.emberSurfaceDefault)
     }
-
-    private var savedDescription: String {
-        guard let focusMode else {
-            return "기록은 보관함에서\n언제든 다시 꺼내볼 수 있어요."
-        }
-        return "\(focusMode)가 시작되면\n이 기록을 다시 알려드릴게요."
-    }
-}
-
-struct FocusModePicker: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var selectedFocus: String?
-    private let modes = ["업무 집중 모드", "운동", "독서"]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("FocusMode 연결")
-                .font(.emberScreenTitle)
-                .padding(.top, 12)
-            Text("이 기록을 다시 만날 FocusMode를 선택해요.")
-                .font(.emberBody)
-                .foregroundStyle(Color.emberTextSecondary)
-            Button {
-                selectedFocus = nil
-                dismiss()
-            } label: {
-                focusModeRow(title: "연결 안 함", isSelected: selectedFocus == nil)
-            }
-            .buttonStyle(.plain)
-
-            ForEach(modes, id: \.self) { mode in
-                Button {
-                    selectedFocus = mode
-                    dismiss()
-                } label: {
-                    focusModeRow(title: mode, isSelected: selectedFocus == mode)
-                }
-                .buttonStyle(.plain)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, EmberLayout.screenHorizontalPadding)
-        .background(Color.emberBackground)
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func focusModeRow(title: String, isSelected: Bool) -> some View {
-        HStack(spacing: 16) {
-            EmberJar(size: .small)
-            Text(title).font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
-            Spacer()
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isSelected ? Color.emberAccent : Color.emberTextSecondary)
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 84)
-        .background(Color.emberSurfaceDefault, in: RoundedRectangle(cornerRadius: EmberRadius.large, style: .continuous))
-    }
 }
 
 struct CollectionView: View {
     let recordStore: RecordStore
     @State private var searchText = ""
-    @State private var selectedFocus: String?
     @State private var selectedEmotion: String?
     
     var body: some View {
@@ -370,19 +287,6 @@ struct CollectionView: View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
                 Menu {
-                    Button("전체 FocusMode") { selectedFocus = nil }
-                    ForEach(EmberFocusMode.allCases, id: \.self) { mode in
-                        Button(mode.rawValue) { selectedFocus = mode.rawValue }
-                    }
-                } label: {
-                    filterChip(
-                        title: selectedFocus ?? "FocusMode",
-                        systemImage: "moon.stars",
-                        isActive: selectedFocus != nil
-                    )
-                }
-
-                Menu {
                     Button("전체 감정") { selectedEmotion = nil }
                     ForEach(EmberEmotion.allCases) { emotion in
                         Button(emotion.rawValue) {
@@ -430,7 +334,6 @@ struct CollectionView: View {
 
     private var hasActiveFilters: Bool {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-            selectedFocus != nil ||
             selectedEmotion != nil
     }
 
@@ -441,15 +344,13 @@ struct CollectionView: View {
             let matchesSearch = query.isEmpty ||
                 record.title.localizedCaseInsensitiveContains(query) ||
                 record.content.localizedCaseInsensitiveContains(query)
-            let matchesFocus = selectedFocus == nil || record.focusMode == selectedFocus
             let matchesEmotion = selectedEmotion == nil || record.emotion == selectedEmotion
-            return matchesSearch && matchesFocus && matchesEmotion
+            return matchesSearch && matchesEmotion
         }
     }
 
     private func resetFilters() {
         searchText = ""
-        selectedFocus = nil
         selectedEmotion = nil
     }
     
@@ -466,83 +367,15 @@ struct CollectionView: View {
     }
 }
 
-struct FocusConnectionsView: View {
-    let recordStore: RecordStore
-    @State private var selectedFocus = "업무 집중 모드"
-    @State private var isPersistenceErrorPresented = false
-    private let modes = ["업무 집중 모드", "운동", "독서"]
-    
-    var body: some View {
-        List {
-            Section {
-                Text("필요한 기록을 직접 골라 연결해요. 모드가 시작되면 알림으로 다시 만나요.")
-                    .font(.emberBody)
-                    .foregroundStyle(Color.emberTextSecondary)
-                    .listRowBackground(Color.clear)
-
-                Picker("FocusMode", selection: $selectedFocus) {
-                    ForEach(modes, id: \.self) { mode in
-                        Text("\(mode) · \(recordStore.records(linkedTo: mode).count)")
-                            .tag(mode)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-            Section("이 모드에서 다시 만날 기록") {
-                if recordStore.records.isEmpty {
-                    Text("연결할 기록이 아직 없어요.")
-                        .font(.emberBody)
-                        .foregroundStyle(Color.emberTextSecondary)
-                } else {
-                    ForEach(recordStore.records) { record in
-                        Button {
-                            toggleConnection(for: record)
-                        } label: {
-                            HStack(alignment: .top, spacing: 12) {
-                                EmberJar(size: .small)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(record.title).font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
-                                    Text(record.content).font(.emberMetadata).foregroundStyle(Color.emberTextSecondary).lineLimit(2)
-                                }
-                                Spacer()
-                                Image(systemName: isConnected(record) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(isConnected(record) ? Color.emberAccent : Color.emberTextSecondary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.emberBackground)
-        .navigationTitle("FocusMode 연결")
-        .navigationBarTitleDisplayMode(.inline)
-        .alert("연결을 저장할 수 없어요", isPresented: $isPersistenceErrorPresented) {
-            Button("확인", role: .cancel) {}
-        } message: {
-            Text("잠시 후 다시 시도해 주세요.")
-        }
-    }
-
-    private func isConnected(_ record: EmberRecord) -> Bool {
-        record.focusMode == selectedFocus
-    }
-
-    private func toggleConnection(for record: EmberRecord) {
-        let focusMode = isConnected(record) ? nil : selectedFocus
-        if !recordStore.setFocusMode(focusMode, for: record) {
-            isPersistenceErrorPresented = true
-        }
-    }
-}
-
 private struct DetailedRecordPreview: View {
     @State private var draft = RecordDraft()
 
     var body: some View {
         NavigationStack {
-            DetailedRecordView(draft: $draft, onSave: { _, _, _ in })
+            DetailedRecordView(
+                draft: $draft,
+                onSave: { _, _ in }
+            )
         }
     }
 }

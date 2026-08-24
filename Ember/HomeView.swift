@@ -48,9 +48,8 @@ struct HomeView: View {
             .presentationCornerRadius(28)
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
-            DetailedRecordView(draft: $recordDraft) { focusMode, emotion, photoData in
+            DetailedRecordView(draft: $recordDraft) { emotion, photoData in
                 saveDraft(
-                    focusMode: focusMode,
                     emotion: emotion,
                     photoData: photoData
                 )
@@ -257,14 +256,12 @@ struct HomeView: View {
     }
 
     private func saveDraft(
-        focusMode: String? = nil,
         emotion: String? = nil,
         photoData: Data? = nil
     ) {
         recordStore.add(
             title: recordDraft.titleForSaving,
             content: recordDraft.contentForSaving,
-            focusMode: focusMode,
             emotion: emotion,
             photoData: photoData
         )
