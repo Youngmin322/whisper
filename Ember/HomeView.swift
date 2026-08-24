@@ -38,7 +38,7 @@ struct HomeView: View {
         ) {
             QuickRecordView(
                 draft: $recordDraft,
-                onSave: saveDraft,
+                onSave: { saveDraft() },
                 onOpenDetail: {
                     shouldOpenDetailAfterSheetDismisses = true
                 }
@@ -49,7 +49,7 @@ struct HomeView: View {
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
             DetailedRecordView(draft: $recordDraft) {
-                saveDraft()
+                saveDraft(focusMode: $0)
             }
         }
     }
@@ -252,10 +252,11 @@ struct HomeView: View {
         recordStore.hasRecord(on: .now, calendar: calendar)
     }
 
-    private func saveDraft() {
+    private func saveDraft(focusMode: String? = nil) {
         recordStore.add(
             title: recordDraft.titleForSaving,
-            content: recordDraft.contentForSaving
+            content: recordDraft.contentForSaving,
+            focusMode: focusMode
         )
         recordDraft = RecordDraft()
     }

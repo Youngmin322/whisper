@@ -14,19 +14,22 @@ final class EmberRecord {
     var content: String
     var createdAt: Date
     var updatedAt: Date
+    var focusMode: String?
 
     init(
         id: UUID = UUID(),
         title: String,
         content: String,
         createdAt: Date = .now,
-        updatedAt: Date? = nil
+        updatedAt: Date? = nil,
+        focusMode: String? = nil
     ) {
         self.id = id
         self.title = title
         self.content = content
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
+        self.focusMode = focusMode
     }
 }
 
@@ -77,12 +80,14 @@ final class RecordStore {
     func add(
         title: String,
         content: String,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        focusMode: String? = nil
     ) -> Bool {
         let record = EmberRecord(
             title: title,
             content: content,
-            createdAt: createdAt
+            createdAt: createdAt,
+            focusMode: focusMode
         )
         modelContext.insert(record)
         return saveChanges()
@@ -116,6 +121,17 @@ final class RecordStore {
 
     func records(on date: Date, calendar: Calendar = .current) -> [EmberRecord] {
         records.filter { calendar.isDate($0.createdAt, inSameDayAs: date) }
+    }
+
+    func records(linkedTo focusMode: String) -> [EmberRecord] {
+        records.filter { $0.focusMode == focusMode }
+    }
+
+    @discardableResult
+    func setFocusMode(_ focusMode: String?, for record: EmberRecord) -> Bool {
+        record.focusMode = focusMode
+        record.updatedAt = .now
+        return saveChanges()
     }
 
     func resurfacingRecord(

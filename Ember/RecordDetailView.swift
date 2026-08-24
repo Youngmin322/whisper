@@ -111,6 +111,21 @@ struct RecordDetailView: View {
                     cornerRadius: EmberRadius.large
                 )
                 .textSelection(.enabled)
+
+            if let focusMode = record.focusMode {
+                Label(focusMode, systemImage: "moon.stars.fill")
+                    .font(.emberMetadata)
+                    .foregroundStyle(Color.emberAccentText)
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(
+                        Color.emberSurfaceFocus,
+                        in: RoundedRectangle(
+                            cornerRadius: EmberRadius.medium,
+                            style: .continuous
+                        )
+                    )
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
