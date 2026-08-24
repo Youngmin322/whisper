@@ -73,17 +73,25 @@ final class RecordStore {
         records.first
     }
 
-    func add(title: String, content: String) {
+    @discardableResult
+    func add(title: String, content: String) -> Bool {
         let record = EmberRecord(title: title, content: content)
         modelContext.insert(record)
+        return saveChanges()
+    }
 
-        do {
-            try modelContext.save()
-            reload()
-        } catch {
-            modelContext.rollback()
-            persistenceError = error.localizedDescription
-        }
+    @discardableResult
+    func update(_ record: EmberRecord, title: String, content: String) -> Bool {
+        record.title = title
+        record.content = content
+        record.updatedAt = .now
+        return saveChanges()
+    }
+
+    @discardableResult
+    func delete(_ record: EmberRecord) -> Bool {
+        modelContext.delete(record)
+        return saveChanges()
     }
 
     func recordCount(inWeekOf date: Date = .now, calendar: Calendar = .current) -> Int {
@@ -96,6 +104,20 @@ final class RecordStore {
 
     func hasRecord(on date: Date, calendar: Calendar = .current) -> Bool {
         records.contains { calendar.isDate($0.createdAt, inSameDayAs: date) }
+    }
+
+    private func saveChanges() -> Bool {
+        do {
+            try modelContext.save()
+            reload()
+            return true
+        } catch {
+            let errorMessage = error.localizedDescription
+            modelContext.rollback()
+            reload()
+            persistenceError = errorMessage
+            return false
+        }
     }
 
     private func reload() {

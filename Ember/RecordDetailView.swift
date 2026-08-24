@@ -1,0 +1,234 @@
+//
+//  RecordDetailView.swift
+//  Ember
+//
+
+import SwiftUI
+import EmberDesignSystem
+
+struct RecordDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let record: EmberRecord
+    let recordStore: RecordStore
+
+    @State private var draft: RecordDraft
+    @State private var isEditing = false
+    @State private var isDeleteConfirmationPresented = false
+    @State private var isPersistenceErrorPresented = false
+
+    private let contentLimit = 1_000
+
+    init(record: EmberRecord, recordStore: RecordStore) {
+        self.record = record
+        self.recordStore = recordStore
+        _draft = State(
+            initialValue: RecordDraft(
+                title: record.title,
+                content: record.content
+            )
+        )
+    }
+
+    var body: some View {
+        ScrollView {
+            Group {
+                if isEditing {
+                    editingContent
+                } else {
+                    readingContent
+                }
+            }
+            .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .scrollIndicators(.hidden)
+        .background(Color.emberBackground)
+        .navigationTitle("기록")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                if isEditing {
+                    Button("취소", action: cancelEditing)
+                }
+            }
+
+            ToolbarItem(placement: .confirmationAction) {
+                if isEditing {
+                    Button("저장", action: saveChanges)
+                        .disabled(!draft.canSave)
+                } else {
+                    Menu {
+                        Button("수정", systemImage: "pencil", action: startEditing)
+                        Button(
+                            "삭제",
+                            systemImage: "trash",
+                            role: .destructive
+                        ) {
+                            isDeleteConfirmationPresented = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("기록 메뉴")
+                }
+            }
+        }
+        .alert("이 기록을 삭제할까요?", isPresented: $isDeleteConfirmationPresented) {
+            Button("취소", role: .cancel) {}
+            Button("삭제", role: .destructive, action: deleteRecord)
+        } message: {
+            Text("삭제한 기록은 다시 복구할 수 없어요.")
+        }
+        .alert("변경사항을 저장할 수 없어요", isPresented: $isPersistenceErrorPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("잠시 후 다시 시도해 주세요.")
+        }
+    }
+
+    private var readingContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text(record.createdAt.emberFullDayDescription)
+                .font(.emberMetadata)
+                .foregroundStyle(Color.emberTextSecondary)
+
+            Text(record.title)
+                .font(.emberScreenTitle)
+                .foregroundStyle(Color.emberTextPrimary)
+
+            Text(record.content)
+                .font(.emberBodyLarge)
+                .foregroundStyle(Color.emberTextPrimary)
+                .lineSpacing(6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(18)
+                .emberCardStyle(
+                    fill: .emberSurfaceDefault,
+                    border: .emberBorderSubtle,
+                    cornerRadius: EmberRadius.large
+                )
+                .textSelection(.enabled)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var editingContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(record.createdAt.emberFullDayDescription)
+                .font(.emberMetadata)
+                .foregroundStyle(Color.emberTextSecondary)
+
+            fieldLabel("제목")
+            TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
+                .font(.emberBodyLarge)
+                .padding(.horizontal, 16)
+                .frame(height: 52)
+                .background(
+                    Color.emberSurfaceSubtle,
+                    in: RoundedRectangle(
+                        cornerRadius: EmberRadius.medium,
+                        style: .continuous
+                    )
+                )
+
+            fieldLabel("기록")
+            ZStack(alignment: .bottomTrailing) {
+                TextField(
+                    "오늘 있었던 일과 생각을 천천히 적어보세요",
+                    text: $draft.content,
+                    axis: .vertical
+                )
+                .font(.emberBodyLarge)
+                .lineSpacing(5)
+                .lineLimit(8 ... 14)
+                .padding(18)
+                .frame(maxWidth: .infinity, minHeight: 240, alignment: .topLeading)
+                .onChange(of: draft.content) { _, newValue in
+                    guard newValue.count > contentLimit else { return }
+                    draft.content = String(newValue.prefix(contentLimit))
+                }
+
+                Text("\(draft.content.count) / \(contentLimit.formatted())")
+                    .font(.emberCaption)
+                    .foregroundStyle(Color.emberTextSecondary)
+                    .padding(16)
+            }
+            .background(
+                Color.emberSurfaceSubtle,
+                in: RoundedRectangle(
+                    cornerRadius: EmberRadius.medium,
+                    style: .continuous
+                )
+            )
+        }
+    }
+
+    private func fieldLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.emberFieldLabel)
+            .foregroundStyle(Color.emberTextPrimary)
+    }
+
+    private func startEditing() {
+        resetDraft()
+        isEditing = true
+    }
+
+    private func cancelEditing() {
+        resetDraft()
+        isEditing = false
+    }
+
+    private func resetDraft() {
+        draft = RecordDraft(title: record.title, content: record.content)
+    }
+
+    private func saveChanges() {
+        let didSave = recordStore.update(
+            record,
+            title: draft.titleForSaving,
+            content: draft.contentForSaving
+        )
+
+        if didSave {
+            resetDraft()
+            isEditing = false
+        } else {
+            isPersistenceErrorPresented = true
+        }
+    }
+
+    private func deleteRecord() {
+        if recordStore.delete(record) {
+            dismiss()
+        } else {
+            isPersistenceErrorPresented = true
+        }
+    }
+}
+
+private struct RecordDetailPreview: View {
+    private let recordStore: RecordStore
+    private let record: EmberRecord
+
+    init() {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        store.add(
+            title: "오늘의 작은 결심",
+            content: "조급해하지 말고 지금 할 수 있는 한 가지에 집중해 보기로 했다."
+        )
+        recordStore = store
+        record = store.records[0]
+    }
+
+    var body: some View {
+        NavigationStack {
+            RecordDetailView(record: record, recordStore: recordStore)
+        }
+    }
+}
+
+#Preview { RecordDetailPreview() }

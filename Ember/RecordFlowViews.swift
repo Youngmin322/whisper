@@ -239,9 +239,20 @@ struct CollectionView: View {
                             alignment: .leading,
                             spacing: 14
                         ) {
-                            ForEach(shelf.records) { _ in
-                                EmberJar(size: .shelf)
-                                    .frame(maxWidth: .infinity)
+                            ForEach(shelf.records) { record in
+                                NavigationLink {
+                                    RecordDetailView(
+                                        record: record,
+                                        recordStore: recordStore
+                                    )
+                                } label: {
+                                    EmberJar(size: .shelf)
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(
+                                    "\(record.title), \(record.createdAt.emberFullDayDescription)"
+                                )
                             }
                         }
                         Rectangle().fill(Color.emberDivider).frame(height: 1)
