@@ -17,6 +17,7 @@ struct RecordDetailView: View {
     @State private var isDeleteConfirmationPresented = false
     @State private var isPersistenceErrorPresented = false
     @State private var selectedEmotion: String?
+    @State private var photoData: Data?
     @State private var isEmotionPickerPresented = false
 
     private let contentLimit = 1_000
@@ -31,6 +32,7 @@ struct RecordDetailView: View {
             )
         )
         _selectedEmotion = State(initialValue: record.emotion)
+        _photoData = State(initialValue: record.photoData)
     }
 
     var body: some View {
@@ -133,6 +135,10 @@ struct RecordDetailView: View {
                 )
                 .textSelection(.enabled)
 
+            if let photoData = record.photoData {
+                RecordPhotoView(photoData: photoData)
+            }
+
             if let focusMode = record.focusMode {
                 Label(focusMode, systemImage: "moon.stars.fill")
                     .font(.emberMetadata)
@@ -229,6 +235,9 @@ struct RecordDetailView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            fieldLabel("사진")
+            PhotoAttachmentEditor(photoData: $photoData)
         }
     }
 
@@ -251,6 +260,7 @@ struct RecordDetailView: View {
     private func resetDraft() {
         draft = RecordDraft(title: record.title, content: record.content)
         selectedEmotion = record.emotion
+        photoData = record.photoData
     }
 
     private func saveChanges() {
@@ -258,7 +268,8 @@ struct RecordDetailView: View {
             record,
             title: draft.titleForSaving,
             content: draft.contentForSaving,
-            emotion: selectedEmotion
+            emotion: selectedEmotion,
+            photoData: photoData
         )
 
         if didSave {

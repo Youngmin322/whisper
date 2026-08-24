@@ -16,6 +16,7 @@ final class EmberRecord {
     var updatedAt: Date
     var focusMode: String?
     var emotion: String?
+    @Attribute(.externalStorage) var photoData: Data?
 
     init(
         id: UUID = UUID(),
@@ -24,7 +25,8 @@ final class EmberRecord {
         createdAt: Date = .now,
         updatedAt: Date? = nil,
         focusMode: String? = nil,
-        emotion: String? = nil
+        emotion: String? = nil,
+        photoData: Data? = nil
     ) {
         self.id = id
         self.title = title
@@ -33,6 +35,7 @@ final class EmberRecord {
         self.updatedAt = updatedAt ?? createdAt
         self.focusMode = focusMode
         self.emotion = emotion
+        self.photoData = photoData
     }
 }
 
@@ -85,14 +88,16 @@ final class RecordStore {
         content: String,
         createdAt: Date = .now,
         focusMode: String? = nil,
-        emotion: String? = nil
+        emotion: String? = nil,
+        photoData: Data? = nil
     ) -> Bool {
         let record = EmberRecord(
             title: title,
             content: content,
             createdAt: createdAt,
             focusMode: focusMode,
-            emotion: emotion
+            emotion: emotion,
+            photoData: photoData
         )
         modelContext.insert(record)
         return saveChanges()
@@ -103,11 +108,13 @@ final class RecordStore {
         _ record: EmberRecord,
         title: String,
         content: String,
-        emotion: String?
+        emotion: String?,
+        photoData: Data?
     ) -> Bool {
         record.title = title
         record.content = content
         record.emotion = emotion
+        record.photoData = photoData
         record.updatedAt = .now
         return saveChanges()
     }

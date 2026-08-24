@@ -36,9 +36,10 @@ struct DetailedRecordView: View {
     @Binding var draft: RecordDraft
     @State private var selectedEmotion: String? = EmberEmotion.calm.rawValue
     @State private var selectedFocus: String? = "업무 집중 모드"
+    @State private var photoData: Data?
     @State private var isSaved = false
     @State private var isEmotionPickerPresented = false
-    let onSave: (String?, String?) -> Void
+    let onSave: (String?, String?, Data?) -> Void
     private let contentLimit = 1_000
     
     var body: some View {
@@ -82,8 +83,9 @@ struct DetailedRecordView: View {
                     ) {
                         isEmotionPickerPresented = true
                     }
-                    recordChip(icon: "photo", title: "사진") {}
                 }
+
+                PhotoAttachmentEditor(photoData: $photoData)
                 
                 NavigationLink {
                     FocusModePicker(selectedFocus: $selectedFocus)
@@ -121,7 +123,7 @@ struct DetailedRecordView: View {
         .background(Color.emberBackground)
         .safeAreaInset(edge: .bottom) {
             Button("기록 저장") {
-                onSave(selectedFocus, selectedEmotion)
+                onSave(selectedFocus, selectedEmotion, photoData)
                 isSaved = true
             }
             .buttonStyle(.emberPrimary)
@@ -254,15 +256,20 @@ struct FocusModePicker: View {
 
 struct CollectionView: View {
     let recordStore: RecordStore
+    @State private var searchText = ""
+    @State private var selectedFocus: String?
+    @State private var selectedEmotion: String?
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("불꽃 보관함")
                 .font(.emberScreenTitle)
                 .padding(.top, 18)
-            
+
+            searchField
+            filterBar
+
             ScrollView {
-                
                 if recordStore.records.isEmpty {
                     ContentUnavailableView(
                         "아직 담긴 불꽃이 없어요",
@@ -270,7 +277,18 @@ struct CollectionView: View {
                         description: Text("오늘의 마음을 기록하면 이곳에 하나씩 쌓여요.")
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
+                } else if filteredRecords.isEmpty {
+                    ContentUnavailableView {
+                        Label("조건에 맞는 불꽃이 없어요", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("검색어나 필터를 바꿔 다시 찾아보세요.")
+                    } actions: {
+                        Button("검색 조건 초기화", action: resetFilters)
+                            .buttonStyle(.bordered)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 360)
                 }
+
                 ForEach(monthlyShelves, id: \.title) { shelf in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(shelf.title).font(.emberSectionTitle)
@@ -286,8 +304,18 @@ struct CollectionView: View {
                                         recordStore: recordStore
                                     )
                                 } label: {
-                                    EmberJar(size: .shelf)
-                                        .frame(maxWidth: .infinity)
+                                    ZStack(alignment: .bottomTrailing) {
+                                        EmberJar(size: .shelf)
+
+                                        if record.photoData != nil {
+                                            Image(systemName: "photo.fill")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundStyle(Color.white)
+                                                .frame(width: 20, height: 20)
+                                                .background(Color.emberAccent, in: Circle())
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(
@@ -299,7 +327,6 @@ struct CollectionView: View {
                     }
                 }
             }
-            
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 30)
@@ -307,12 +334,132 @@ struct CollectionView: View {
         .background(Color.emberBackground)
         .navigationBarHidden(true)
     }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Color.emberTextSecondary)
+
+            TextField("제목이나 내용 검색", text: $searchText)
+                .font(.emberBody)
+                .textInputAutocapitalization(.never)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Color.emberTextSecondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("검색어 지우기")
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 48)
+        .background(
+            Color.emberSurfaceSubtle,
+            in: RoundedRectangle(
+                cornerRadius: EmberRadius.medium,
+                style: .continuous
+            )
+        )
+    }
+
+    private var filterBar: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                Menu {
+                    Button("전체 FocusMode") { selectedFocus = nil }
+                    ForEach(EmberFocusMode.allCases, id: \.self) { mode in
+                        Button(mode.rawValue) { selectedFocus = mode.rawValue }
+                    }
+                } label: {
+                    filterChip(
+                        title: selectedFocus ?? "FocusMode",
+                        systemImage: "moon.stars",
+                        isActive: selectedFocus != nil
+                    )
+                }
+
+                Menu {
+                    Button("전체 감정") { selectedEmotion = nil }
+                    ForEach(EmberEmotion.allCases) { emotion in
+                        Button(emotion.rawValue) {
+                            selectedEmotion = emotion.rawValue
+                        }
+                    }
+                } label: {
+                    filterChip(
+                        title: selectedEmotion ?? "감정",
+                        systemImage: "face.smiling",
+                        isActive: selectedEmotion != nil
+                    )
+                }
+
+                if hasActiveFilters {
+                    Button("초기화", action: resetFilters)
+                        .font(.emberCaption)
+                        .foregroundStyle(Color.emberAccentText)
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private func filterChip(
+        title: String,
+        systemImage: String,
+        isActive: Bool
+    ) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+            Text(title)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 9, weight: .bold))
+        }
+        .font(.emberCaption)
+        .foregroundStyle(isActive ? Color.emberAccentText : Color.emberTextSecondary)
+        .padding(.horizontal, 12)
+        .frame(height: 36)
+        .background(
+            isActive ? Color.emberSurfaceFocus : Color.emberSurfaceSubtle,
+            in: Capsule()
+        )
+    }
+
+    private var hasActiveFilters: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            selectedFocus != nil ||
+            selectedEmotion != nil
+    }
+
+    private var filteredRecords: [EmberRecord] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return recordStore.records.filter { record in
+            let matchesSearch = query.isEmpty ||
+                record.title.localizedCaseInsensitiveContains(query) ||
+                record.content.localizedCaseInsensitiveContains(query)
+            let matchesFocus = selectedFocus == nil || record.focusMode == selectedFocus
+            let matchesEmotion = selectedEmotion == nil || record.emotion == selectedEmotion
+            return matchesSearch && matchesFocus && matchesEmotion
+        }
+    }
+
+    private func resetFilters() {
+        searchText = ""
+        selectedFocus = nil
+        selectedEmotion = nil
+    }
     
     private var monthlyShelves: [(title: String, records: [EmberRecord])] {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
         formatter.dateFormat = "yyyy년 M월"
-        let grouped = Dictionary(grouping: recordStore.records) { formatter.string(from: $0.createdAt) }
+        let grouped = Dictionary(grouping: filteredRecords) {
+            formatter.string(from: $0.createdAt)
+        }
         return grouped
             .map { (title: $0.key, records: $0.value.sorted { $0.createdAt > $1.createdAt }) }
             .sorted { $0.records.first!.createdAt > $1.records.first!.createdAt }
@@ -395,7 +542,7 @@ private struct DetailedRecordPreview: View {
 
     var body: some View {
         NavigationStack {
-            DetailedRecordView(draft: $draft, onSave: { _, _ in })
+            DetailedRecordView(draft: $draft, onSave: { _, _, _ in })
         }
     }
 }
