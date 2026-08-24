@@ -16,6 +16,8 @@ struct RecordDetailView: View {
     @State private var isEditing = false
     @State private var isDeleteConfirmationPresented = false
     @State private var isPersistenceErrorPresented = false
+    @State private var selectedEmotion: String?
+    @State private var isEmotionPickerPresented = false
 
     private let contentLimit = 1_000
 
@@ -28,6 +30,7 @@ struct RecordDetailView: View {
                 content: record.content
             )
         )
+        _selectedEmotion = State(initialValue: record.emotion)
     }
 
     var body: some View {
@@ -87,6 +90,12 @@ struct RecordDetailView: View {
         } message: {
             Text("잠시 후 다시 시도해 주세요.")
         }
+        .sheet(isPresented: $isEmotionPickerPresented) {
+            EmotionPickerView(selectedEmotion: $selectedEmotion)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+        }
     }
 
     private var readingContent: some View {
@@ -98,6 +107,18 @@ struct RecordDetailView: View {
             Text(record.title)
                 .font(.emberScreenTitle)
                 .foregroundStyle(Color.emberTextPrimary)
+
+            if let emotion = record.emotion {
+                Label(emotion, systemImage: emotionSystemImage(for: emotion))
+                    .font(.emberMetadata)
+                    .foregroundStyle(Color.emberAccentText)
+                    .padding(.horizontal, 14)
+                    .frame(height: 40)
+                    .background(
+                        Color.emberSurfaceHighlight,
+                        in: Capsule()
+                    )
+            }
 
             Text(record.content)
                 .font(.emberBodyLarge)
@@ -178,6 +199,36 @@ struct RecordDetailView: View {
                     style: .continuous
                 )
             )
+
+            fieldLabel("감정")
+            Button {
+                isEmotionPickerPresented = true
+            } label: {
+                HStack {
+                    Label(
+                        selectedEmotion ?? "선택 안 함",
+                        systemImage: selectedEmotion.map(emotionSystemImage) ?? "circle.dashed"
+                    )
+                    .font(.emberBodyEmphasis)
+                    .foregroundStyle(Color.emberTextPrimary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.emberTextSecondary)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 52)
+                .background(
+                    Color.emberSurfaceSubtle,
+                    in: RoundedRectangle(
+                        cornerRadius: EmberRadius.medium,
+                        style: .continuous
+                    )
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -199,13 +250,15 @@ struct RecordDetailView: View {
 
     private func resetDraft() {
         draft = RecordDraft(title: record.title, content: record.content)
+        selectedEmotion = record.emotion
     }
 
     private func saveChanges() {
         let didSave = recordStore.update(
             record,
             title: draft.titleForSaving,
-            content: draft.contentForSaving
+            content: draft.contentForSaving,
+            emotion: selectedEmotion
         )
 
         if didSave {
@@ -222,6 +275,10 @@ struct RecordDetailView: View {
         } else {
             isPersistenceErrorPresented = true
         }
+    }
+
+    private func emotionSystemImage(for emotion: String) -> String {
+        EmberEmotion(rawValue: emotion)?.systemImage ?? "face.smiling"
     }
 }
 

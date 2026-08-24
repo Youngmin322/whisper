@@ -34,10 +34,11 @@ struct EmberJar: View {
 struct DetailedRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var draft: RecordDraft
-    @State private var selectedEmotion = "평온"
+    @State private var selectedEmotion: String? = EmberEmotion.calm.rawValue
     @State private var selectedFocus: String? = "업무 집중 모드"
     @State private var isSaved = false
-    let onSave: (String?) -> Void
+    @State private var isEmotionPickerPresented = false
+    let onSave: (String?, String?) -> Void
     private let contentLimit = 1_000
     
     var body: some View {
@@ -75,8 +76,13 @@ struct DetailedRecordView: View {
                 
                 fieldLabel("기록에 더하기")
                 HStack(spacing: 10) {
-                    recordChip(icon: "face.smiling", title: selectedEmotion)
-                    recordChip(icon: "photo", title: "사진")
+                    recordChip(
+                        icon: "face.smiling",
+                        title: selectedEmotion ?? "감정"
+                    ) {
+                        isEmotionPickerPresented = true
+                    }
+                    recordChip(icon: "photo", title: "사진") {}
                 }
                 
                 NavigationLink {
@@ -115,7 +121,7 @@ struct DetailedRecordView: View {
         .background(Color.emberBackground)
         .safeAreaInset(edge: .bottom) {
             Button("기록 저장") {
-                onSave(selectedFocus)
+                onSave(selectedFocus, selectedEmotion)
                 isSaved = true
             }
             .buttonStyle(.emberPrimary)
@@ -134,14 +140,24 @@ struct DetailedRecordView: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
         }
+        .sheet(isPresented: $isEmotionPickerPresented) {
+            EmotionPickerView(selectedEmotion: $selectedEmotion)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+        }
     }
     
     private func fieldLabel(_ title: String) -> some View {
         Text(title).font(.emberFieldLabel).foregroundStyle(Color.emberTextPrimary)
     }
     
-    private func recordChip(icon: String, title: String) -> some View {
-        Button {} label: {
+    private func recordChip(
+        icon: String,
+        title: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             Label(title, systemImage: icon)
                 .font(.emberControl)
                 .foregroundStyle(Color.emberTextPrimary)
@@ -379,7 +395,7 @@ private struct DetailedRecordPreview: View {
 
     var body: some View {
         NavigationStack {
-            DetailedRecordView(draft: $draft, onSave: { _ in })
+            DetailedRecordView(draft: $draft, onSave: { _, _ in })
         }
     }
 }

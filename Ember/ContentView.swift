@@ -26,18 +26,70 @@ struct ContentView: View {
 
 private struct MainTabView: View {
     let recordStore: RecordStore
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var selectedTab = MainTab.home
+    @State private var homePath = NavigationPath()
 
     var body: some View {
-        TabView {
-            Tab("기록", systemImage: "flame.fill") {
-                NavigationStack { HomeView(recordStore: recordStore) }
+        TabView(selection: $selectedTab) {
+            Tab("기록", systemImage: "flame.fill", value: MainTab.home) {
+                NavigationStack(path: $homePath) {
+                    HomeView(recordStore: recordStore)
+                        .navigationDestination(for: UUID.self) { recordID in
+                            NotificationRecordDestination(
+                                recordID: recordID,
+                                recordStore: recordStore
+                            )
+                        }
+                }
             }
-            Tab("보관함", systemImage: "archivebox.fill") {
+            Tab("보관함", systemImage: "archivebox.fill", value: MainTab.collection) {
                 NavigationStack { CollectionView(recordStore: recordStore) }
             }
-            Tab("설정", systemImage: "gearshape") {
+            Tab("설정", systemImage: "gearshape", value: MainTab.settings) {
                 NavigationStack { SettingsView(recordStore: recordStore) }
             }
+        }
+        .task(consumePendingNotificationRoute)
+        .onReceive(NotificationCenter.default.publisher(for: EmberNotificationRoute.didSelectRecord)) { _ in
+            consumePendingNotificationRoute()
+        }
+        .onChange(of: scenePhase) { _, newValue in
+            guard newValue == .active else { return }
+            consumePendingNotificationRoute()
+        }
+    }
+
+    private func consumePendingNotificationRoute() {
+        guard let recordID = EmberNotificationRoute.consumePendingRecordID() else { return }
+        selectedTab = .home
+        homePath = NavigationPath()
+        homePath.append(recordID)
+    }
+}
+
+private enum MainTab: Hashable {
+    case home
+    case collection
+    case settings
+}
+
+private struct NotificationRecordDestination: View {
+    let recordID: UUID
+    let recordStore: RecordStore
+
+    var body: some View {
+        if let record = recordStore.record(withID: recordID) {
+            RecordDetailView(record: record, recordStore: recordStore)
+        } else {
+            ContentUnavailableView(
+                "기록을 찾을 수 없어요",
+                systemImage: "flame",
+                description: Text("삭제되었거나 더 이상 존재하지 않는 기록이에요.")
+            )
+            .navigationTitle("기록")
+            .navigationBarTitleDisplayMode(.inline)
+            .background(Color.emberBackground)
         }
     }
 }

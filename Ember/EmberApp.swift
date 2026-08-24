@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct EmberApp: App {
+    @UIApplicationDelegateAdaptor(EmberAppDelegate.self) private var appDelegate
+
     var body: some Scene {
         WindowGroup {
             ContentView()

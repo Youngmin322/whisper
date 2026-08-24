@@ -15,6 +15,7 @@ final class EmberRecord {
     var createdAt: Date
     var updatedAt: Date
     var focusMode: String?
+    var emotion: String?
 
     init(
         id: UUID = UUID(),
@@ -22,7 +23,8 @@ final class EmberRecord {
         content: String,
         createdAt: Date = .now,
         updatedAt: Date? = nil,
-        focusMode: String? = nil
+        focusMode: String? = nil,
+        emotion: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -30,6 +32,7 @@ final class EmberRecord {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.focusMode = focusMode
+        self.emotion = emotion
     }
 }
 
@@ -81,22 +84,30 @@ final class RecordStore {
         title: String,
         content: String,
         createdAt: Date = .now,
-        focusMode: String? = nil
+        focusMode: String? = nil,
+        emotion: String? = nil
     ) -> Bool {
         let record = EmberRecord(
             title: title,
             content: content,
             createdAt: createdAt,
-            focusMode: focusMode
+            focusMode: focusMode,
+            emotion: emotion
         )
         modelContext.insert(record)
         return saveChanges()
     }
 
     @discardableResult
-    func update(_ record: EmberRecord, title: String, content: String) -> Bool {
+    func update(
+        _ record: EmberRecord,
+        title: String,
+        content: String,
+        emotion: String?
+    ) -> Bool {
         record.title = title
         record.content = content
+        record.emotion = emotion
         record.updatedAt = .now
         return saveChanges()
     }
@@ -125,6 +136,10 @@ final class RecordStore {
 
     func records(linkedTo focusMode: String) -> [EmberRecord] {
         records.filter { $0.focusMode == focusMode }
+    }
+
+    func record(withID id: UUID) -> EmberRecord? {
+        records.first { $0.id == id }
     }
 
     @discardableResult
