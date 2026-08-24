@@ -106,7 +106,9 @@ private struct SettingsView: View {
     }
 }
 #Preview("첫 실행") { WelcomeView(onStart: {}) }
-#Preview("앱") { MainTabView(recordStore: RecordStore()) }
+#Preview("앱") {
+    MainTabView(recordStore: RecordStore(isStoredInMemoryOnly: true))
+}
 #Preview("설정") {
     SettingsView()
 }

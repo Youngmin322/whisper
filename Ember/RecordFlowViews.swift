@@ -309,5 +309,5 @@ struct FocusConnectionsView: View {
 #Preview { NavigationStack { DetailedRecordView(onSave: { _, _ in }) } }
 
 #Preview {
-    CollectionView(recordStore: RecordStore())
+    CollectionView(recordStore: RecordStore(isStoredInMemoryOnly: true))
 }

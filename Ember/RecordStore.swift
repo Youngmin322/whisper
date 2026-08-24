@@ -5,8 +5,32 @@
 
 import Foundation
 import Observation
+import SwiftData
 
-struct EmberRecord: Codable, Identifiable, Hashable {
+@Model
+final class EmberRecord {
+    @Attribute(.unique) var id: UUID
+    var title: String
+    var content: String
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        content: String,
+        createdAt: Date = .now,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.content = content
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
+    }
+}
+
+private struct LegacyEmberRecord: Codable {
     let id: UUID
     let title: String
     let content: String
@@ -16,35 +40,50 @@ struct EmberRecord: Codable, Identifiable, Hashable {
 @MainActor
 @Observable
 final class RecordStore {
-    private(set) var records: [EmberRecord] {
-        didSet { persist() }
-    }
+    private(set) var records: [EmberRecord] = []
+    private(set) var persistenceError: String?
 
-    private let storageKey = "ember.records"
+    @ObservationIgnored private let modelContainer: ModelContainer
+    @ObservationIgnored private let modelContext: ModelContext
+    @ObservationIgnored private let legacyStorageKey = "ember.records"
 
-    init() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let savedRecords = try? JSONDecoder().decode([EmberRecord].self, from: data)
-        else {
-            records = []
-            return
+    init(isStoredInMemoryOnly: Bool = false) {
+        let configuration = ModelConfiguration(
+            isStoredInMemoryOnly: isStoredInMemoryOnly
+        )
+
+        do {
+            modelContainer = try ModelContainer(
+                for: EmberRecord.self,
+                configurations: configuration
+            )
+        } catch {
+            fatalError("SwiftData 저장소를 만들 수 없습니다: \(error.localizedDescription)")
         }
-        records = savedRecords
+
+        modelContext = modelContainer.mainContext
+        reload()
+
+        if !isStoredInMemoryOnly {
+            migrateLegacyRecordsIfNeeded()
+        }
     }
 
     var latestRecord: EmberRecord? {
-        records.max(by: { $0.createdAt < $1.createdAt })
+        records.first
     }
 
     func add(title: String, content: String) {
-        records.append(
-            EmberRecord(
-                id: UUID(),
-                title: title,
-                content: content,
-                createdAt: .now
-            )
-        )
+        let record = EmberRecord(title: title, content: content)
+        modelContext.insert(record)
+
+        do {
+            try modelContext.save()
+            reload()
+        } catch {
+            modelContext.rollback()
+            persistenceError = error.localizedDescription
+        }
     }
 
     func recordCount(inWeekOf date: Date = .now, calendar: Calendar = .current) -> Int {
@@ -59,8 +98,50 @@ final class RecordStore {
         records.contains { calendar.isDate($0.createdAt, inSameDayAs: date) }
     }
 
-    private func persist() {
-        guard let data = try? JSONEncoder().encode(records) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+    private func reload() {
+        let descriptor = FetchDescriptor<EmberRecord>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+
+        do {
+            records = try modelContext.fetch(descriptor)
+            persistenceError = nil
+        } catch {
+            records = []
+            persistenceError = error.localizedDescription
+        }
+    }
+
+    private func migrateLegacyRecordsIfNeeded() {
+        guard let data = UserDefaults.standard.data(forKey: legacyStorageKey),
+              let legacyRecords = try? JSONDecoder().decode([LegacyEmberRecord].self, from: data)
+        else {
+            return
+        }
+
+        let existingIDs = Set(records.map(\.id))
+        let recordsToMigrate = legacyRecords.filter { !existingIDs.contains($0.id) }
+
+        for record in recordsToMigrate {
+            modelContext.insert(
+                EmberRecord(
+                    id: record.id,
+                    title: record.title,
+                    content: record.content,
+                    createdAt: record.createdAt
+                )
+            )
+        }
+
+        do {
+            if !recordsToMigrate.isEmpty {
+                try modelContext.save()
+            }
+            UserDefaults.standard.removeObject(forKey: legacyStorageKey)
+            reload()
+        } catch {
+            modelContext.rollback()
+            persistenceError = error.localizedDescription
+        }
     }
 }

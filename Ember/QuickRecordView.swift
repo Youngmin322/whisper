@@ -57,7 +57,6 @@ struct QuickRecordView: View {
         .padding(.horizontal, EmberLayout.sheetHorizontalPadding)
         .padding(.top, 8)
         .padding(.bottom, 22)
-        .background(Color.emberSurfaceDefault)
     }
 }
 

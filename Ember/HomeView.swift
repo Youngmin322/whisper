@@ -178,4 +178,8 @@ struct HomeView: View {
     }
 }
 
-#Preview { NavigationStack { HomeView(recordStore: RecordStore()) } }
+#Preview {
+    NavigationStack {
+        HomeView(recordStore: RecordStore(isStoredInMemoryOnly: true))
+    }
+}
