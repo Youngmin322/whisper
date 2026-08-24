@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss

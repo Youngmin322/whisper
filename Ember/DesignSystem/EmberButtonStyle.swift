@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import EmberDesignSystem
 
 enum EmberButtonSize {
     case compact
