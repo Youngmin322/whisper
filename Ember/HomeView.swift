@@ -65,18 +65,18 @@ struct HomeView: View {
                     Text("오늘 떠오른 마음")
                         .font(.emberControl)
                         .foregroundStyle(Color.emberAccentText)
-
+                    
                     Text("지금 가장 마음에 남는 것은 무엇인가요?")
                         .font(.emberBodyEmphasis)
                         .foregroundStyle(Color.emberTextPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-
+                
                 Spacer()
-
+                
                 EmberJarAnimation(size: .home)
             }
-
+            
             Button {
                 isQuickRecordPresented = true
             } label: {
