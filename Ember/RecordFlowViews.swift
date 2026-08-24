@@ -33,22 +33,22 @@ struct EmberJar: View {
 
 struct DetailedRecordView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var title = ""
-    @State private var content = ""
+    @Binding var draft: RecordDraft
     @State private var selectedEmotion = "평온"
-    @State private var selectedFocus = "업무 집중 모드"
+    @State private var selectedFocus: String? = "업무 집중 모드"
     @State private var isSaved = false
-    let onSave: (String, String) -> Void
+    let onSave: (String?) -> Void
+    private let contentLimit = 1_000
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("2026년 8월 19일 화요일")
+                Text(Date.now.emberFullDayDescription)
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.top, 12)
                 fieldLabel("제목")
-                TextField("오늘의 마음에 제목을 붙여주세요", text: $title)
+                TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
                     .font(.emberBodyLarge)
                     .padding(.horizontal, 16)
                     .frame(height: 52)
@@ -56,13 +56,17 @@ struct DetailedRecordView: View {
                 
                 fieldLabel("기록")
                 ZStack(alignment: .bottomTrailing) {
-                    TextField("오늘 있었던 일과 생각을 천천히 적어보세요", text: $content, axis: .vertical)
+                    TextField("오늘 있었던 일과 생각을 천천히 적어보세요", text: $draft.content, axis: .vertical)
                         .font(.emberBodyLarge)
                         .lineSpacing(5)
                         .lineLimit(6 ... 8)
                         .padding(18)
                         .frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
-                    Text("\(content.count) / 1,000")
+                        .onChange(of: draft.content) { _, newValue in
+                            guard newValue.count > contentLimit else { return }
+                            draft.content = String(newValue.prefix(contentLimit))
+                        }
+                    Text("\(draft.content.count) / \(contentLimit.formatted())")
                         .font(.emberCaption)
                         .foregroundStyle(Color.emberTextSecondary)
                         .padding(16)
@@ -81,11 +85,15 @@ struct DetailedRecordView: View {
                     HStack(spacing: 16) {
                         EmberJar(size: .small)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(selectedFocus).font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
+                            Text(selectedFocus ?? "FocusMode 선택")
+                                .font(.emberBodyEmphasis)
+                                .foregroundStyle(Color.emberTextPrimary)
                             Text("기록을 FocusMode와 연결해요").font(.emberMetadata).foregroundStyle(Color.emberTextSecondary)
                         }
                         Spacer()
-                        Text("연결됨").font(.emberCaption).foregroundStyle(Color.emberAccentText)
+                        Text(selectedFocus == nil ? "선택" : "연결됨")
+                            .font(.emberCaption)
+                            .foregroundStyle(Color.emberAccentText)
                     }
                     .padding(.horizontal, 12)
                     .frame(height: 96)
@@ -107,10 +115,11 @@ struct DetailedRecordView: View {
         .background(Color.emberBackground)
         .safeAreaInset(edge: .bottom) {
             Button("기록 저장") {
-                onSave(title.isEmpty ? "오늘의 마음" : title, content)
+                onSave(selectedFocus)
                 isSaved = true
             }
             .buttonStyle(.emberPrimary)
+            .disabled(!draft.canSave)
             .padding(.horizontal, EmberLayout.screenHorizontalPadding)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
@@ -118,7 +127,7 @@ struct DetailedRecordView: View {
         .navigationTitle("상세 기록")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isSaved) {
-            SavedRecordSheet {
+            SavedRecordSheet(focusMode: selectedFocus) {
                 dismiss()
             }
             .presentationDetents([.height(312)])
@@ -145,6 +154,7 @@ struct DetailedRecordView: View {
 }
 
 private struct SavedRecordSheet: View {
+    let focusMode: String?
     let onHome: () -> Void
     
     var body: some View {
@@ -152,7 +162,7 @@ private struct SavedRecordSheet: View {
             Text("오늘의 불꽃을 담았어요")
                 .font(.emberNavigationTitle)
                 .foregroundStyle(Color.emberTextPrimary)
-            Text("업무 집중 모드가 시작되면\n이 기록을 다시 알려드릴게요.")
+            Text(savedDescription)
                 .font(.emberBody)
                 .foregroundStyle(Color.emberTextSecondary)
                 .multilineTextAlignment(.center)
@@ -166,11 +176,18 @@ private struct SavedRecordSheet: View {
         .padding(.top, 10)
         .background(Color.emberSurfaceDefault)
     }
+
+    private var savedDescription: String {
+        guard let focusMode else {
+            return "기록은 보관함에서\n언제든 다시 꺼내볼 수 있어요."
+        }
+        return "\(focusMode)가 시작되면\n이 기록을 다시 알려드릴게요."
+    }
 }
 
 struct FocusModePicker: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var selectedFocus: String
+    @Binding var selectedFocus: String?
     private let modes = ["업무 집중 모드", "운동", "독서"]
     
     var body: some View {
@@ -181,21 +198,20 @@ struct FocusModePicker: View {
             Text("이 기록을 다시 만날 FocusMode를 선택해요.")
                 .font(.emberBody)
                 .foregroundStyle(Color.emberTextSecondary)
+            Button {
+                selectedFocus = nil
+                dismiss()
+            } label: {
+                focusModeRow(title: "연결 안 함", isSelected: selectedFocus == nil)
+            }
+            .buttonStyle(.plain)
+
             ForEach(modes, id: \.self) { mode in
                 Button {
                     selectedFocus = mode
                     dismiss()
                 } label: {
-                    HStack(spacing: 16) {
-                        EmberJar(size: .small)
-                        Text(mode).font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
-                        Spacer()
-                        Image(systemName: selectedFocus == mode ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(selectedFocus == mode ? Color.emberAccent : Color.emberTextSecondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(height: 84)
-                    .background(Color.emberSurfaceDefault, in: RoundedRectangle(cornerRadius: EmberRadius.large, style: .continuous))
+                    focusModeRow(title: mode, isSelected: selectedFocus == mode)
                 }
                 .buttonStyle(.plain)
             }
@@ -204,6 +220,19 @@ struct FocusModePicker: View {
         .padding(.horizontal, EmberLayout.screenHorizontalPadding)
         .background(Color.emberBackground)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func focusModeRow(title: String, isSelected: Bool) -> some View {
+        HStack(spacing: 16) {
+            EmberJar(size: .small)
+            Text(title).font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
+            Spacer()
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isSelected ? Color.emberAccent : Color.emberTextSecondary)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 84)
+        .background(Color.emberSurfaceDefault, in: RoundedRectangle(cornerRadius: EmberRadius.large, style: .continuous))
     }
 }
 
@@ -234,9 +263,20 @@ struct CollectionView: View {
                             alignment: .leading,
                             spacing: 14
                         ) {
-                            ForEach(shelf.records) { _ in
-                                EmberJar(size: .shelf)
-                                    .frame(maxWidth: .infinity)
+                            ForEach(shelf.records) { record in
+                                NavigationLink {
+                                    RecordDetailView(
+                                        record: record,
+                                        recordStore: recordStore
+                                    )
+                                } label: {
+                                    EmberJar(size: .shelf)
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(
+                                    "\(record.title), \(record.createdAt.emberFullDayDescription)"
+                                )
                             }
                         }
                         Rectangle().fill(Color.emberDivider).frame(height: 1)
@@ -264,12 +304,10 @@ struct CollectionView: View {
 }
 
 struct FocusConnectionsView: View {
-    @State private var enabled = Set(["결심"])
-    private let records = [
-        ("결심", "이번 주에는 기초를 단단히 익히자."),
-        ("마음가짐", "조급해하지 말고 한 가지에 집중하기."),
-        ("동기", "내가 만든 작은 변화도 충분히 의미 있다.")
-    ]
+    let recordStore: RecordStore
+    @State private var selectedFocus = "업무 집중 모드"
+    @State private var isPersistenceErrorPresented = false
+    private let modes = ["업무 집중 모드", "운동", "독서"]
     
     var body: some View {
         List {
@@ -278,36 +316,76 @@ struct FocusConnectionsView: View {
                     .font(.emberBody)
                     .foregroundStyle(Color.emberTextSecondary)
                     .listRowBackground(Color.clear)
+
+                Picker("FocusMode", selection: $selectedFocus) {
+                    ForEach(modes, id: \.self) { mode in
+                        Text("\(mode) · \(recordStore.records(linkedTo: mode).count)")
+                            .tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
             }
             Section("이 모드에서 다시 만날 기록") {
-                ForEach(records, id: \.0) { record in
-                    Button {
-                        if enabled.contains(record.0) { enabled.remove(record.0) } else { enabled.insert(record.0) }
-                    } label: {
-                        HStack(alignment: .top, spacing: 12) {
-                            EmberJar(size: .small)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(record.0).font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
-                                Text(record.1).font(.emberMetadata).foregroundStyle(Color.emberTextSecondary)
+                if recordStore.records.isEmpty {
+                    Text("연결할 기록이 아직 없어요.")
+                        .font(.emberBody)
+                        .foregroundStyle(Color.emberTextSecondary)
+                } else {
+                    ForEach(recordStore.records) { record in
+                        Button {
+                            toggleConnection(for: record)
+                        } label: {
+                            HStack(alignment: .top, spacing: 12) {
+                                EmberJar(size: .small)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(record.title).font(.emberBodyEmphasis).foregroundStyle(Color.emberTextPrimary)
+                                    Text(record.content).font(.emberMetadata).foregroundStyle(Color.emberTextSecondary).lineLimit(2)
+                                }
+                                Spacer()
+                                Image(systemName: isConnected(record) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(isConnected(record) ? Color.emberAccent : Color.emberTextSecondary)
                             }
-                            Spacer()
-                            Image(systemName: enabled.contains(record.0) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(enabled.contains(record.0) ? Color.emberAccent : Color.emberTextSecondary)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.emberBackground)
-        .navigationTitle("업무 집중 모드")
+        .navigationTitle("FocusMode 연결")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("연결을 저장할 수 없어요", isPresented: $isPersistenceErrorPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("잠시 후 다시 시도해 주세요.")
+        }
+    }
+
+    private func isConnected(_ record: EmberRecord) -> Bool {
+        record.focusMode == selectedFocus
+    }
+
+    private func toggleConnection(for record: EmberRecord) {
+        let focusMode = isConnected(record) ? nil : selectedFocus
+        if !recordStore.setFocusMode(focusMode, for: record) {
+            isPersistenceErrorPresented = true
+        }
     }
 }
 
-#Preview { NavigationStack { DetailedRecordView(onSave: { _, _ in }) } }
+private struct DetailedRecordPreview: View {
+    @State private var draft = RecordDraft()
+
+    var body: some View {
+        NavigationStack {
+            DetailedRecordView(draft: $draft, onSave: { _ in })
+        }
+    }
+}
+
+#Preview { DetailedRecordPreview() }
 
 #Preview {
-    CollectionView(recordStore: RecordStore())
+    CollectionView(recordStore: RecordStore(isStoredInMemoryOnly: true))
 }

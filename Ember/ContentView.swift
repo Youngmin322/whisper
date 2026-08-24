@@ -5,6 +5,8 @@
 
 import SwiftUI
 import EmberDesignSystem
+import UserNotifications
+import UIKit
 
 struct ContentView: View {
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
@@ -34,7 +36,7 @@ private struct MainTabView: View {
                 NavigationStack { CollectionView(recordStore: recordStore) }
             }
             Tab("설정", systemImage: "gearshape") {
-                NavigationStack { SettingsView() }
+                NavigationStack { SettingsView(recordStore: recordStore) }
             }
         }
     }
@@ -76,6 +78,11 @@ private struct WelcomeView: View {
 }
 
 private struct SettingsView: View {
+    let recordStore: RecordStore
+    @State private var notificationStatus = UNAuthorizationStatus.notDetermined
+    @State private var isFocusGuidePresented = false
+    @State private var notificationErrorMessage: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 고정 헤더
@@ -89,7 +96,21 @@ private struct SettingsView: View {
             List {
                 Section("FocusMode") {
                     NavigationLink("FocusMode 연결 관리") {
-                        FocusConnectionsView()
+                        FocusConnectionsView(recordStore: recordStore)
+                    }
+
+                    LabeledContent("알림", value: notificationStatusDescription)
+
+                    if notificationStatus == .notDetermined {
+                        Button("집중 모드 알림 허용") {
+                            Task { await requestNotificationAuthorization() }
+                        }
+                    } else if notificationStatus == .denied {
+                        Button("알림 설정 열기", action: openAppSettings)
+                    }
+
+                    Button("iPhone 집중 모드에 연결하기") {
+                        isFocusGuidePresented = true
                     }
                 }
 
@@ -103,10 +124,131 @@ private struct SettingsView: View {
         }
         .background(Color.emberBackground)
         .navigationBarHidden(true)
+        .task {
+            await refreshNotificationStatus()
+        }
+        .sheet(isPresented: $isFocusGuidePresented) {
+            FocusFilterGuideView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+        }
+        .alert(
+            "알림을 설정할 수 없어요",
+            isPresented: Binding(
+                get: { notificationErrorMessage != nil },
+                set: { if !$0 { notificationErrorMessage = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(notificationErrorMessage ?? "잠시 후 다시 시도해 주세요.")
+        }
+    }
+
+    private var notificationStatusDescription: String {
+        switch notificationStatus {
+        case .authorized: "허용됨"
+        case .provisional: "조용히 허용됨"
+        case .denied: "허용 안 됨"
+        case .notDetermined: "설정 필요"
+        case .ephemeral: "일시 허용"
+        @unknown default: "확인 필요"
+        }
+    }
+
+    private func requestNotificationAuthorization() async {
+        do {
+            _ = try await UNUserNotificationCenter.current().requestAuthorization(
+                options: [.alert, .sound]
+            )
+            await refreshNotificationStatus()
+        } catch {
+            notificationErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshNotificationStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        notificationStatus = settings.authorizationStatus
+    }
+
+    private func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+}
+
+private struct FocusFilterGuideView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("집중 모드가 시작될 때 Ember가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요.")
+                        .font(.emberBody)
+                        .foregroundStyle(Color.emberTextSecondary)
+
+                    guideStep(
+                        number: 1,
+                        title: "iPhone 설정에서 집중 모드 선택",
+                        description: "설정 > 집중 모드에서 업무, 운동, 독서 중 연결할 모드를 열어요."
+                    )
+                    guideStep(
+                        number: 2,
+                        title: "집중 모드 필터에 Ember 추가",
+                        description: "화면 아래의 필터 추가를 누르고 Ember를 선택해요."
+                    )
+                    guideStep(
+                        number: 3,
+                        title: "Ember FocusMode 선택",
+                        description: "해당 집중 모드에서 다시 만날 기록 묶음을 선택하고 추가해요."
+                    )
+                    guideStep(
+                        number: 4,
+                        title: "Ember 알림 허용",
+                        description: "집중 모드의 알림 허용 앱에 Ember를 넣으면 시작과 함께 알림을 받을 수 있어요."
+                    )
+                }
+                .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+                .padding(.vertical, 20)
+            }
+            .background(Color.emberBackground)
+            .navigationTitle("집중 모드 연결 방법")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("완료") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func guideStep(number: Int, title: String, description: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Text("\(number)")
+                .font(.emberControl)
+                .foregroundStyle(Color.white)
+                .frame(width: 30, height: 30)
+                .background(Color.emberAccent, in: Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.emberBodyEmphasis)
+                    .foregroundStyle(Color.emberTextPrimary)
+                Text(description)
+                    .font(.emberMetadata)
+                    .foregroundStyle(Color.emberTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 #Preview("첫 실행") { WelcomeView(onStart: {}) }
-#Preview("앱") { MainTabView(recordStore: RecordStore()) }
+#Preview("앱") {
+    MainTabView(recordStore: RecordStore(isStoredInMemoryOnly: true))
+}
 #Preview("설정") {
-    SettingsView()
+    SettingsView(recordStore: RecordStore(isStoredInMemoryOnly: true))
 }

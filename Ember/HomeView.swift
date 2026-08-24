@@ -10,6 +10,8 @@ struct HomeView: View {
     let recordStore: RecordStore
     @State private var isQuickRecordPresented = false
     @State private var isDetailRecordPresented = false
+    @State private var shouldOpenDetailAfterSheetDismisses = false
+    @State private var recordDraft = RecordDraft()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -30,26 +32,31 @@ struct HomeView: View {
         }
         .background(Color.emberBackground)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $isQuickRecordPresented) {
-            QuickRecordView { title, content in
-                recordStore.add(title: title, content: content)
-            } onOpenDetail: {
-                isDetailRecordPresented = true
-            }
+        .sheet(
+            isPresented: $isQuickRecordPresented,
+            onDismiss: openDetailAfterSheetDismissesIfNeeded
+        ) {
+            QuickRecordView(
+                draft: $recordDraft,
+                onSave: { saveDraft() },
+                onOpenDetail: {
+                    shouldOpenDetailAfterSheetDismisses = true
+                }
+            )
             .presentationDetents([.height(444)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
-            DetailedRecordView { title, content in
-                recordStore.add(title: title, content: content)
+            DetailedRecordView(draft: $recordDraft) {
+                saveDraft(focusMode: $0)
             }
         }
     }
     
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("8월 19일 화요일")
+            Text(Date.now.emberDayDescription)
                 .font(.emberMetadata)
                 .foregroundStyle(Color.emberTextSecondary)
             Text("오늘의 기록")
@@ -65,18 +72,18 @@ struct HomeView: View {
                     Text("오늘 떠오른 마음")
                         .font(.emberControl)
                         .foregroundStyle(Color.emberAccentText)
-
+                    
                     Text("지금 가장 마음에 남는 것은 무엇인가요?")
                         .font(.emberBodyEmphasis)
                         .foregroundStyle(Color.emberTextPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-
+                
                 Spacer()
-
+                
                 EmberJarAnimation(size: .home)
             }
-
+            
             Button {
                 isQuickRecordPresented = true
             } label: {
@@ -104,43 +111,104 @@ struct HomeView: View {
                     .foregroundStyle(Color.emberTextSecondary)
             }
             HStack(spacing: 0) {
-                ForEach(Array(["월", "화", "수", "목", "금", "토", "일"].enumerated()), id: \.offset) { index, day in
-                    VStack(spacing: 7) {
-                        Text(day).font(.emberCaption).foregroundStyle(Color.emberTextSecondary)
-                        ZStack {
-                            Circle().fill(isToday(index) ? Color.emberAccent : Color.emberSurfaceSubtle).frame(width: 28, height: 28)
-                            if hasRecord(onWeekdayIndex: index) {
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(isToday(index) ? Color.white : Color.emberAccent)
-                            } else if isToday(index) {
-                                Image(systemName: "plus").font(.system(size: 13, weight: .bold)).foregroundStyle(Color.white)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
+                ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
+                    rhythmDay(date: date, title: weekdayTitles[index])
+                        .frame(maxWidth: .infinity)
                 }
             }
         }
         .padding(16)
         .emberCardStyle(fill: .emberSurfaceDefault, border: .emberBorderSubtle, cornerRadius: EmberRadius.large)
     }
+
+    @ViewBuilder
+    private func rhythmDay(date: Date, title: String) -> some View {
+        if recordStore.hasRecord(on: date, calendar: calendar) {
+            NavigationLink {
+                DayRecordsView(date: date, recordStore: recordStore)
+            } label: {
+                rhythmDayLabel(date: date, title: title)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(date.emberFullDayDescription) 기록 보기")
+        } else if calendar.isDateInToday(date) {
+            Button {
+                isQuickRecordPresented = true
+            } label: {
+                rhythmDayLabel(date: date, title: title)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("오늘 기록하기")
+        } else {
+            rhythmDayLabel(date: date, title: title)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(date.emberFullDayDescription), 기록 없음")
+        }
+    }
+
+    private func rhythmDayLabel(date: Date, title: String) -> some View {
+        let isToday = calendar.isDateInToday(date)
+        let hasRecord = recordStore.hasRecord(on: date, calendar: calendar)
+
+        return VStack(spacing: 7) {
+            Text(title)
+                .font(.emberCaption)
+                .foregroundStyle(Color.emberTextSecondary)
+
+            ZStack {
+                Circle()
+                    .fill(isToday ? Color.emberAccent : Color.emberSurfaceSubtle)
+                    .frame(width: 28, height: 28)
+
+                if hasRecord {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isToday ? Color.white : Color.emberAccent)
+                } else if isToday {
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.white)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+    }
     
+    @ViewBuilder
     private var memoryCard: some View {
+        if let record = recordStore.resurfacingRecord() {
+            NavigationLink {
+                RecordDetailView(record: record, recordStore: recordStore)
+            } label: {
+                resurfacingCard(for: record)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("다시 만난 불꽃, \(record.title)")
+        } else {
+            waitingMemoryCard
+        }
+    }
+
+    private func resurfacingCard(for record: EmberRecord) -> some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("다시 만난 불꽃")
                     .font(.emberControl)
                     .foregroundStyle(Color.emberAccentText)
                 
-                Text("그때의 결심을 오늘 다시 꺼내볼까요?")
+                Text(record.title)
                     .font(.emberBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
-                
-                Text("84일 전의 기록 보기")
+
+                Text(record.content)
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
-                    .padding(.top, 8)
+                    .lineLimit(2)
+
+                Text("\(recordStore.daysSince(record))일 전의 기록 보기")
+                    .font(.emberMetadata)
+                    .foregroundStyle(Color.emberTextSecondary)
+                    .padding(.top, 4)
             }
             
             Spacer(minLength: 4)
@@ -149,33 +217,94 @@ struct HomeView: View {
         }
         .padding(18)
         .emberCardStyle(fill: .emberSurfaceSubtle, border: .emberBorderSubtle, cornerRadius: EmberRadius.large)
+        .contentShape(Rectangle())
+    }
+
+    private var waitingMemoryCard: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("다시 만난 불꽃")
+                    .font(.emberControl)
+                    .foregroundStyle(Color.emberAccentText)
+
+                Text("아직 잠든 불꽃이 없어요")
+                    .font(.emberBodyEmphasis)
+                    .foregroundStyle(Color.emberTextPrimary)
+
+                Text("30일이 지난 기록을 이곳에서 다시 만나요.")
+                    .font(.emberMetadata)
+                    .foregroundStyle(Color.emberTextSecondary)
+            }
+
+            Spacer(minLength: 4)
+
+            EmberJar(size: .small)
+        }
+        .padding(18)
+        .emberCardStyle(
+            fill: .emberSurfaceSubtle,
+            border: .emberBorderSubtle,
+            cornerRadius: EmberRadius.large
+        )
     }
     
     private var hasTodayRecord: Bool {
         recordStore.hasRecord(on: .now, calendar: calendar)
     }
-    
-    private func isToday(_ weekdayIndex: Int) -> Bool {
-        weekdayIndex == mondayBasedWeekdayIndex(for: .now)
+
+    private func saveDraft(focusMode: String? = nil) {
+        recordStore.add(
+            title: recordDraft.titleForSaving,
+            content: recordDraft.contentForSaving,
+            focusMode: focusMode
+        )
+        recordDraft = RecordDraft()
     }
-    
-    private func hasRecord(onWeekdayIndex weekdayIndex: Int) -> Bool {
-        guard let week = calendar.dateInterval(of: .weekOfYear, for: .now),
-              let date = calendar.date(byAdding: .day, value: weekdayIndex, to: week.start)
-        else {
-            return false
-        }
-        return recordStore.hasRecord(on: date, calendar: calendar)
+
+    private func openDetailAfterSheetDismissesIfNeeded() {
+        guard shouldOpenDetailAfterSheetDismisses else { return }
+        shouldOpenDetailAfterSheetDismisses = false
+        isDetailRecordPresented = true
     }
     
     private var calendar: Calendar {
         Calendar(identifier: .iso8601)
     }
-    
-    private func mondayBasedWeekdayIndex(for date: Date) -> Int {
-        let weekday = calendar.component(.weekday, from: date)
-        return weekday == 1 ? 6 : weekday - 2
+
+    private var weekdayTitles: [String] {
+        ["월", "화", "수", "목", "금", "토", "일"]
+    }
+
+    private var weekDates: [Date] {
+        guard let week = calendar.dateInterval(of: .weekOfYear, for: .now) else {
+            return []
+        }
+
+        return (0..<7).compactMap {
+            calendar.date(byAdding: .day, value: $0, to: week.start)
+        }
     }
 }
 
-#Preview { NavigationStack { HomeView(recordStore: RecordStore()) } }
+private struct HomePreview: View {
+    private let recordStore: RecordStore
+
+    init() {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let oldDate = Calendar.current.date(byAdding: .day, value: -84, to: .now) ?? .now
+        store.add(
+            title: "그때의 작은 결심",
+            content: "조급해하지 말고 오늘 할 수 있는 한 가지에 집중하자.",
+            createdAt: oldDate
+        )
+        recordStore = store
+    }
+
+    var body: some View {
+        NavigationStack {
+            HomeView(recordStore: recordStore)
+        }
+    }
+}
+
+#Preview { HomePreview() }
