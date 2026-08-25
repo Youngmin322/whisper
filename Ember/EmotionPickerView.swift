@@ -56,7 +56,6 @@ struct EmotionPickerView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(Color.emberBackground)
             .navigationTitle("지금의 감정")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

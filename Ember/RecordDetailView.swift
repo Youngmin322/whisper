@@ -104,9 +104,10 @@ struct RecordDetailView: View {
         }
         .sheet(isPresented: $isEmotionPickerPresented) {
             EmotionPickerView(selectedEmotion: $selectedEmotion)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(.clear)
         }
     }
 

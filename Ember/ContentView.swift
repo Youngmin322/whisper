@@ -182,9 +182,10 @@ private struct SettingsView: View {
         }
         .sheet(isPresented: $isFocusGuidePresented) {
             FocusFilterGuideView()
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(.clear)
         }
         .alert(
             "알림을 설정할 수 없어요",
@@ -267,7 +268,6 @@ private struct FocusFilterGuideView: View {
                 .padding(.horizontal, EmberLayout.screenHorizontalPadding)
                 .padding(.vertical, 20)
             }
-            .background(Color.emberBackground)
             .navigationTitle("집중 모드 연결 방법")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

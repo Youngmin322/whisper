@@ -49,6 +49,7 @@ struct HomeView: View {
             .presentationDetents([.height(444)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
+            .presentationBackground(.clear)
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
             DetailedRecordView(draft: $recordDraft) { emotion, photoData in
@@ -72,6 +73,7 @@ struct HomeView: View {
             .presentationDetents([.height(430)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
+            .presentationBackground(.clear)
         }
         .onChange(of: isDetailRecordPresented) { _, isPresented in
             guard !isPresented else { return }

@@ -118,12 +118,14 @@ struct DetailedRecordView: View {
             .presentationDetents([.height(312)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
+            .presentationBackground(.clear)
         }
         .sheet(isPresented: $isEmotionPickerPresented) {
             EmotionPickerView(selectedEmotion: $selectedEmotion)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(.clear)
         }
     }
     
@@ -168,7 +170,6 @@ private struct SavedRecordSheet: View {
         }
         .padding(.horizontal, EmberLayout.sheetHorizontalPadding)
         .padding(.top, 10)
-        .background(Color.emberSurfaceDefault)
     }
 }
 

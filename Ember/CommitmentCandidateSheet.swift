@@ -63,6 +63,5 @@ struct CommitmentCandidateSheet: View {
         .padding(.horizontal, EmberLayout.sheetHorizontalPadding)
         .padding(.top, 12)
         .padding(.bottom, 20)
-        .background(Color.emberSurfaceDefault)
     }
 }
