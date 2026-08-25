@@ -15,6 +15,8 @@ final class EmberRecord {
     var createdAt: Date
     var updatedAt: Date
     var focusMode: String?
+    var emotion: String?
+    @Attribute(.externalStorage) var photoData: Data?
 
     init(
         id: UUID = UUID(),
@@ -22,7 +24,9 @@ final class EmberRecord {
         content: String,
         createdAt: Date = .now,
         updatedAt: Date? = nil,
-        focusMode: String? = nil
+        focusMode: String? = nil,
+        emotion: String? = nil,
+        photoData: Data? = nil
     ) {
         self.id = id
         self.title = title
@@ -30,7 +34,69 @@ final class EmberRecord {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.focusMode = focusMode
+        self.emotion = emotion
+        self.photoData = photoData
     }
+}
+
+@Model
+final class EmberCommitment {
+    @Attribute(.unique) var id: UUID
+    @Attribute(.unique) var sourceRecordID: UUID
+    var name: String
+    var quote: String
+    var topicsStorage: String
+    var createdAt: Date
+    var lastContinuedAt: Date?
+    var nextReminderAt: Date?
+    var continuationCount: Int
+    var isActive: Bool
+
+    init(
+        id: UUID = UUID(),
+        sourceRecordID: UUID,
+        name: String,
+        quote: String,
+        topics: [String],
+        createdAt: Date = .now,
+        lastContinuedAt: Date? = nil,
+        nextReminderAt: Date? = nil,
+        continuationCount: Int = 0,
+        isActive: Bool = true
+    ) {
+        self.id = id
+        self.sourceRecordID = sourceRecordID
+        self.name = name
+        self.quote = quote
+        topicsStorage = topics.joined(separator: "\u{001F}")
+        self.createdAt = createdAt
+        self.lastContinuedAt = lastContinuedAt
+        self.nextReminderAt = nextReminderAt
+        self.continuationCount = continuationCount
+        self.isActive = isActive
+    }
+
+    var topics: [String] {
+        topicsStorage
+            .split(separator: "\u{001F}")
+            .map(String.init)
+    }
+}
+
+struct CommitmentSnapshot: Sendable {
+    let id: UUID
+    let name: String
+    let quote: String
+    let topics: [String]
+}
+
+struct CommitmentReminderPlan: Sendable {
+    let id: UUID
+    let sourceRecordID: UUID
+    let name: String
+    let quote: String
+    let anchorDate: Date
+    let dayOffsets: [Int]
 }
 
 private struct LegacyEmberRecord: Codable {
@@ -44,6 +110,7 @@ private struct LegacyEmberRecord: Codable {
 @Observable
 final class RecordStore {
     private(set) var records: [EmberRecord] = []
+    private(set) var commitments: [EmberCommitment] = []
     private(set) var persistenceError: String?
 
     @ObservationIgnored private let modelContainer: ModelContainer
@@ -58,6 +125,7 @@ final class RecordStore {
         do {
             modelContainer = try ModelContainer(
                 for: EmberRecord.self,
+                EmberCommitment.self,
                 configurations: configuration
             )
         } catch {
@@ -81,30 +149,156 @@ final class RecordStore {
         title: String,
         content: String,
         createdAt: Date = .now,
-        focusMode: String? = nil
+        focusMode: String? = nil,
+        emotion: String? = nil,
+        photoData: Data? = nil
     ) -> Bool {
+        addAndReturn(
+            title: title,
+            content: content,
+            createdAt: createdAt,
+            focusMode: focusMode,
+            emotion: emotion,
+            photoData: photoData
+        ) != nil
+    }
+
+    @discardableResult
+    func addAndReturn(
+        title: String,
+        content: String,
+        createdAt: Date = .now,
+        focusMode: String? = nil,
+        emotion: String? = nil,
+        photoData: Data? = nil
+    ) -> EmberRecord? {
         let record = EmberRecord(
             title: title,
             content: content,
             createdAt: createdAt,
-            focusMode: focusMode
+            focusMode: focusMode,
+            emotion: emotion,
+            photoData: photoData
         )
         modelContext.insert(record)
-        return saveChanges()
+        guard saveChanges() else { return nil }
+        return self.record(withID: record.id)
     }
 
     @discardableResult
-    func update(_ record: EmberRecord, title: String, content: String) -> Bool {
+    func update(
+        _ record: EmberRecord,
+        title: String,
+        content: String,
+        emotion: String?,
+        photoData: Data?
+    ) -> Bool {
         record.title = title
         record.content = content
+        record.emotion = emotion
+        record.photoData = photoData
         record.updatedAt = .now
         return saveChanges()
     }
 
     @discardableResult
     func delete(_ record: EmberRecord) -> Bool {
+        let relatedCommitments = commitments.filter { $0.sourceRecordID == record.id }
+        let commitmentIDs = relatedCommitments.map(\.id)
+        relatedCommitments.forEach(modelContext.delete)
         modelContext.delete(record)
-        return saveChanges()
+        let didSave = saveChanges()
+
+        if didSave {
+            Task {
+                await CommitmentReminderScheduler.cancel(commitmentIDs: commitmentIDs)
+            }
+        }
+
+        return didSave
+    }
+
+    var activeCommitmentSnapshots: [CommitmentSnapshot] {
+        commitments
+            .filter(\.isActive)
+            .prefix(8)
+            .map {
+                CommitmentSnapshot(
+                    id: $0.id,
+                    name: $0.name,
+                    quote: $0.quote,
+                    topics: $0.topics
+                )
+            }
+    }
+
+    func commitment(sourceRecordID: UUID) -> EmberCommitment? {
+        commitments.first { $0.sourceRecordID == sourceRecordID && $0.isActive }
+    }
+
+    @discardableResult
+    func rememberCommitment(
+        sourceRecordID: UUID,
+        name: String,
+        quote: String,
+        topics: [String],
+        now: Date = .now
+    ) -> CommitmentReminderPlan? {
+        if let existing = commitment(sourceRecordID: sourceRecordID) {
+            return reminderPlan(for: existing, anchorDate: now, dayOffsets: [7, 21, 60])
+        }
+
+        let commitment = EmberCommitment(
+            sourceRecordID: sourceRecordID,
+            name: name,
+            quote: quote,
+            topics: topics,
+            createdAt: now,
+            nextReminderAt: Calendar.current.date(byAdding: .day, value: 7, to: now)
+        )
+        modelContext.insert(commitment)
+
+        guard saveChanges(),
+              let saved = self.commitment(sourceRecordID: sourceRecordID)
+        else {
+            return nil
+        }
+
+        return reminderPlan(for: saved, anchorDate: now, dayOffsets: [7, 21, 60])
+    }
+
+    func continueCommitment(_ id: UUID, now: Date = .now) -> CommitmentReminderPlan? {
+        guard let commitment = commitments.first(where: { $0.id == id && $0.isActive }) else {
+            return nil
+        }
+
+        commitment.lastContinuedAt = now
+        commitment.continuationCount += 1
+        commitment.nextReminderAt = Calendar.current.date(byAdding: .day, value: 14, to: now)
+
+        guard saveChanges(),
+              let saved = commitments.first(where: { $0.id == id })
+        else {
+            return nil
+        }
+
+        return reminderPlan(for: saved, anchorDate: now, dayOffsets: [14, 35, 90])
+    }
+
+    @discardableResult
+    func forgetCommitment(_ commitment: EmberCommitment) -> Bool {
+        commitment.isActive = false
+        commitment.nextReminderAt = nil
+        let commitmentID = commitment.id
+        let didSave = saveChanges()
+
+        if didSave {
+            Task {
+                await CommitmentReminderScheduler.cancel(commitmentIDs: [commitmentID])
+            }
+        }
+
+        return didSave
     }
 
     func recordCount(inWeekOf date: Date = .now, calendar: Calendar = .current) -> Int {
@@ -125,6 +319,10 @@ final class RecordStore {
 
     func records(linkedTo focusMode: String) -> [EmberRecord] {
         records.filter { $0.focusMode == focusMode }
+    }
+
+    func record(withID id: UUID) -> EmberRecord? {
+        records.first { $0.id == id }
     }
 
     @discardableResult
@@ -190,11 +388,32 @@ final class RecordStore {
 
         do {
             records = try modelContext.fetch(descriptor)
+            commitments = try modelContext.fetch(
+                FetchDescriptor<EmberCommitment>(
+                    sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+                )
+            )
             persistenceError = nil
         } catch {
             records = []
+            commitments = []
             persistenceError = error.localizedDescription
         }
+    }
+
+    private func reminderPlan(
+        for commitment: EmberCommitment,
+        anchorDate: Date,
+        dayOffsets: [Int]
+    ) -> CommitmentReminderPlan {
+        CommitmentReminderPlan(
+            id: commitment.id,
+            sourceRecordID: commitment.sourceRecordID,
+            name: commitment.name,
+            quote: commitment.quote,
+            anchorDate: anchorDate,
+            dayOffsets: dayOffsets
+        )
     }
 
     private func migrateLegacyRecordsIfNeeded() {

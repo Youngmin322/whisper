@@ -12,6 +12,9 @@ struct HomeView: View {
     @State private var isDetailRecordPresented = false
     @State private var shouldOpenDetailAfterSheetDismisses = false
     @State private var recordDraft = RecordDraft()
+    @State private var pendingCommitmentCandidate: CommitmentCandidate?
+    @State private var presentedCommitmentCandidate: CommitmentCandidate?
+    @State private var isReminderUnavailablePresented = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -46,11 +49,40 @@ struct HomeView: View {
             .presentationDetents([.height(444)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
+            .presentationBackground(.clear)
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
-            DetailedRecordView(draft: $recordDraft) {
-                saveDraft(focusMode: $0)
+            DetailedRecordView(draft: $recordDraft) { emotion, photoData in
+                saveDraft(
+                    emotion: emotion,
+                    photoData: photoData
+                )
             }
+        }
+        .sheet(item: $presentedCommitmentCandidate) { candidate in
+            CommitmentCandidateSheet(
+                candidate: candidate,
+                onRemember: {
+                    remember(candidate)
+                    presentedCommitmentCandidate = nil
+                },
+                onDismiss: {
+                    presentedCommitmentCandidate = nil
+                }
+            )
+            .presentationDetents([.height(430)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(.clear)
+        }
+        .onChange(of: isDetailRecordPresented) { _, isPresented in
+            guard !isPresented else { return }
+            presentPendingCommitmentCandidateIfPossible()
+        }
+        .alert("알림을 켜야 다시 건넬 수 있어요", isPresented: $isReminderUnavailablePresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("결심은 기억해 두었어요. 설정에서 알림을 허용하면 앱을 열지 않아도 다시 만날 수 있어요.")
         }
     }
     
@@ -176,36 +208,37 @@ struct HomeView: View {
     
     @ViewBuilder
     private var memoryCard: some View {
-        if let record = recordStore.resurfacingRecord() {
+        if let commitment = dueCommitment,
+           let record = recordStore.record(withID: commitment.sourceRecordID) {
             NavigationLink {
                 RecordDetailView(record: record, recordStore: recordStore)
             } label: {
-                resurfacingCard(for: record)
+                resurfacingCard(for: commitment)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("다시 만난 불꽃, \(record.title)")
+            .accessibilityLabel("다시 만난 불꽃, \(commitment.name)")
         } else {
             waitingMemoryCard
         }
     }
 
-    private func resurfacingCard(for record: EmberRecord) -> some View {
-        HStack(spacing: 14) {
+    private func resurfacingCard(for commitment: EmberCommitment) -> some View {
+        return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("다시 만난 불꽃")
                     .font(.emberControl)
                     .foregroundStyle(Color.emberAccentText)
                 
-                Text(record.title)
+                Text(commitment.name)
                     .font(.emberBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
 
-                Text(record.content)
+                Text("“\(commitment.quote)”")
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .lineLimit(2)
 
-                Text("\(recordStore.daysSince(record))일 전의 기록 보기")
+                Text("그 마음은 지금도 남아 있나요?")
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.top, 4)
@@ -221,17 +254,27 @@ struct HomeView: View {
     }
 
     private var waitingMemoryCard: some View {
-        HStack(spacing: 14) {
+        let activeCommitmentCount = recordStore.commitments.filter(\.isActive).count
+
+        return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("다시 만난 불꽃")
+                Text("Whisper가 기억하는 불꽃")
                     .font(.emberControl)
                     .foregroundStyle(Color.emberAccentText)
 
-                Text("아직 잠든 불꽃이 없어요")
+                Text(
+                    activeCommitmentCount == 0
+                        ? "아직 기억 중인 결심이 없어요"
+                        : "\(activeCommitmentCount)개의 불꽃을 기억하고 있어요"
+                )
                     .font(.emberBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
 
-                Text("30일이 지난 기록을 이곳에서 다시 만나요.")
+                Text(
+                    activeCommitmentCount == 0
+                        ? "기록 속 결심이 보이면 기억할지 물어볼게요."
+                        : "잊힐 만한 간격으로 다시 건넬게요."
+                )
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
             }
@@ -247,24 +290,109 @@ struct HomeView: View {
             cornerRadius: EmberRadius.large
         )
     }
+
+    private var dueCommitment: EmberCommitment? {
+        recordStore.commitments.first {
+            $0.isActive && ($0.nextReminderAt ?? .distantFuture) <= .now
+        }
+    }
     
     private var hasTodayRecord: Bool {
         recordStore.hasRecord(on: .now, calendar: calendar)
     }
 
-    private func saveDraft(focusMode: String? = nil) {
-        recordStore.add(
-            title: recordDraft.titleForSaving,
-            content: recordDraft.contentForSaving,
-            focusMode: focusMode
-        )
+    private func saveDraft(
+        emotion: String? = nil,
+        photoData: Data? = nil
+    ) {
+        let title = recordDraft.titleForSaving
+        let content = recordDraft.contentForSaving
+        let existingCommitments = recordStore.activeCommitmentSnapshots
+
+        guard let savedRecord = recordStore.addAndReturn(
+            title: title,
+            content: content,
+            emotion: emotion,
+            photoData: photoData
+        ) else {
+            return
+        }
+
         recordDraft = RecordDraft()
+        analyzeSavedRecord(
+            savedRecord,
+            title: title,
+            content: content,
+            existingCommitments: existingCommitments
+        )
     }
 
     private func openDetailAfterSheetDismissesIfNeeded() {
-        guard shouldOpenDetailAfterSheetDismisses else { return }
-        shouldOpenDetailAfterSheetDismisses = false
-        isDetailRecordPresented = true
+        if shouldOpenDetailAfterSheetDismisses {
+            shouldOpenDetailAfterSheetDismisses = false
+            isDetailRecordPresented = true
+        } else {
+            presentPendingCommitmentCandidateIfPossible()
+        }
+    }
+
+    private func analyzeSavedRecord(
+        _ record: EmberRecord,
+        title: String,
+        content: String,
+        existingCommitments: [CommitmentSnapshot]
+    ) {
+        Task {
+            let analysis = await CommitmentAnalyzer().analyze(
+                recordID: record.id,
+                title: title,
+                content: content,
+                activeCommitments: existingCommitments
+            )
+
+            if let continuedCommitmentID = analysis.continuedCommitmentID,
+               let plan = recordStore.continueCommitment(continuedCommitmentID) {
+                _ = try? await CommitmentReminderScheduler.schedule(plan)
+            }
+
+            pendingCommitmentCandidate = analysis.candidate
+            presentPendingCommitmentCandidateIfPossible()
+        }
+    }
+
+    private func presentPendingCommitmentCandidateIfPossible() {
+        guard !isQuickRecordPresented,
+              !isDetailRecordPresented,
+              presentedCommitmentCandidate == nil,
+              let candidate = pendingCommitmentCandidate
+        else {
+            return
+        }
+
+        pendingCommitmentCandidate = nil
+        presentedCommitmentCandidate = candidate
+    }
+
+    private func remember(_ candidate: CommitmentCandidate) {
+        guard let plan = recordStore.rememberCommitment(
+            sourceRecordID: candidate.sourceRecordID,
+            name: candidate.name,
+            quote: candidate.quote,
+            topics: candidate.topics
+        ) else {
+            return
+        }
+
+        Task {
+            do {
+                let didSchedule = try await CommitmentReminderScheduler.schedule(plan)
+                if !didSchedule {
+                    isReminderUnavailablePresented = true
+                }
+            } catch {
+                isReminderUnavailablePresented = true
+            }
+        }
     }
     
     private var calendar: Calendar {
@@ -297,6 +425,15 @@ private struct HomePreview: View {
             content: "조급해하지 말고 오늘 할 수 있는 한 가지에 집중하자.",
             createdAt: oldDate
         )
+        if let record = store.latestRecord {
+            _ = store.rememberCommitment(
+                sourceRecordID: record.id,
+                name: "오늘 할 수 있는 한 가지",
+                quote: record.content,
+                topics: ["집중", "작은 시작"],
+                now: oldDate
+            )
+        }
         recordStore = store
     }
 
