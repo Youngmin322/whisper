@@ -340,9 +340,19 @@ struct RecordDetailView: View {
     }
 
     private func continueCommitment(_ commitment: EmberCommitment) {
-        guard let plan = recordStore.continueCommitment(commitment.id) else { return }
+        guard let context = recordStore.reminderPlanningContext(for: commitment.id) else { return }
 
         Task {
+            let timing = await CommitmentAnalyzer().replanReminder(
+                for: context,
+                eventDescription: "사용자가 이 결심을 이어가겠다고 표시했습니다."
+            )
+            guard let plan = recordStore.continueCommitment(
+                commitment.id,
+                reminderTiming: timing
+            ) else {
+                return
+            }
             _ = try? await CommitmentReminderScheduler.schedule(plan)
         }
     }

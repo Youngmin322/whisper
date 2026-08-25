@@ -18,21 +18,11 @@ enum CommitmentReminderScheduler {
         let showPreview = UserDefaults.standard.bool(forKey: showPreviewStorageKey)
         let calendar = Calendar.current
 
-        for (index, dayOffset) in plan.dayOffsets.enumerated() {
-            guard let reminderDay = calendar.date(
-                byAdding: .day,
-                value: dayOffset,
-                to: plan.anchorDate
-            ) else {
-                continue
-            }
-
-            var dateComponents = calendar.dateComponents(
-                [.year, .month, .day],
-                from: reminderDay
+        for (index, reminderDate) in plan.reminderDates.enumerated() {
+            let dateComponents = calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute],
+                from: reminderDate
             )
-            dateComponents.hour = 19
-            dateComponents.minute = 0
 
             let content = UNMutableNotificationContent()
             content.title = "과거의 불꽃"

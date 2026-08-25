@@ -65,10 +65,33 @@ private struct MainTabView: View {
     }
     
     private func consumePendingNotificationRoute() {
-        guard let recordID = EmberNotificationRoute.consumePendingRecordID() else { return }
-        selectedTab = .home
-        homePath = NavigationPath()
-        homePath.append(recordID)
+        if let recordID = EmberNotificationRoute.consumePendingRecordID() {
+            selectedTab = .home
+            homePath = NavigationPath()
+            homePath.append(recordID)
+        }
+
+        if let commitmentID = EmberNotificationRoute.consumePendingCommitmentID() {
+            replanOpenedCommitment(commitmentID)
+        }
+    }
+
+    private func replanOpenedCommitment(_ commitmentID: UUID) {
+        guard let context = recordStore.reminderPlanningContext(for: commitmentID) else { return }
+
+        Task {
+            let timing = await CommitmentAnalyzer().replanReminder(
+                for: context,
+                eventDescription: "사용자가 리마인드 알림을 열었습니다."
+            )
+            guard let plan = recordStore.rescheduleCommitment(
+                commitmentID,
+                reminderTiming: timing
+            ) else {
+                return
+            }
+            _ = try? await CommitmentReminderScheduler.schedule(plan)
+        }
     }
 }
 

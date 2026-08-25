@@ -88,6 +88,20 @@ struct CommitmentSnapshot: Sendable {
     let name: String
     let quote: String
     let topics: [String]
+    let createdAt: Date
+    let lastContinuedAt: Date?
+    let continuationCount: Int
+}
+
+struct ReminderRecordSnapshot: Sendable {
+    let title: String
+    let content: String
+    let createdAt: Date
+}
+
+struct CommitmentReminderPlanningContext: Sendable {
+    let commitment: CommitmentSnapshot
+    let recentRecords: [ReminderRecordSnapshot]
 }
 
 struct CommitmentReminderPlan: Sendable {
@@ -95,8 +109,7 @@ struct CommitmentReminderPlan: Sendable {
     let sourceRecordID: UUID
     let name: String
     let quote: String
-    let anchorDate: Date
-    let dayOffsets: [Int]
+    let reminderDates: [Date]
 }
 
 private struct LegacyEmberRecord: Codable {
@@ -227,7 +240,10 @@ final class RecordStore {
                     id: $0.id,
                     name: $0.name,
                     quote: $0.quote,
-                    topics: $0.topics
+                    topics: $0.topics,
+                    createdAt: $0.createdAt,
+                    lastContinuedAt: $0.lastContinuedAt,
+                    continuationCount: $0.continuationCount
                 )
             }
     }
@@ -242,11 +258,21 @@ final class RecordStore {
         name: String,
         quote: String,
         topics: [String],
+        reminderTiming: CommitmentReminderTiming,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
         if let existing = commitment(sourceRecordID: sourceRecordID) {
-            return reminderPlan(for: existing, anchorDate: now, dayOffsets: [7, 21, 60])
+            let plan = reminderPlan(for: existing, anchorDate: now, timing: reminderTiming)
+            existing.nextReminderAt = plan.reminderDates.first
+            guard saveChanges(),
+                  let saved = self.commitment(sourceRecordID: sourceRecordID)
+            else {
+                return nil
+            }
+            return reminderPlan(for: saved, anchorDate: now, timing: reminderTiming)
         }
+
+        let reminderDates = makeReminderDates(anchorDate: now, timing: reminderTiming)
 
         let commitment = EmberCommitment(
             sourceRecordID: sourceRecordID,
@@ -254,7 +280,7 @@ final class RecordStore {
             quote: quote,
             topics: topics,
             createdAt: now,
-            nextReminderAt: Calendar.current.date(byAdding: .day, value: 7, to: now)
+            nextReminderAt: reminderDates.first
         )
         modelContext.insert(commitment)
 
@@ -264,17 +290,25 @@ final class RecordStore {
             return nil
         }
 
-        return reminderPlan(for: saved, anchorDate: now, dayOffsets: [7, 21, 60])
+        return reminderPlan(
+            for: saved,
+            anchorDate: now,
+            timing: reminderTiming
+        )
     }
 
-    func continueCommitment(_ id: UUID, now: Date = .now) -> CommitmentReminderPlan? {
+    func continueCommitment(
+        _ id: UUID,
+        reminderTiming: CommitmentReminderTiming,
+        now: Date = .now
+    ) -> CommitmentReminderPlan? {
         guard let commitment = commitments.first(where: { $0.id == id && $0.isActive }) else {
             return nil
         }
 
         commitment.lastContinuedAt = now
         commitment.continuationCount += 1
-        commitment.nextReminderAt = Calendar.current.date(byAdding: .day, value: 14, to: now)
+        commitment.nextReminderAt = makeReminderDates(anchorDate: now, timing: reminderTiming).first
 
         guard saveChanges(),
               let saved = commitments.first(where: { $0.id == id })
@@ -282,7 +316,61 @@ final class RecordStore {
             return nil
         }
 
-        return reminderPlan(for: saved, anchorDate: now, dayOffsets: [14, 35, 90])
+        return reminderPlan(
+            for: saved,
+            anchorDate: now,
+            timing: reminderTiming
+        )
+    }
+
+    func rescheduleCommitment(
+        _ id: UUID,
+        reminderTiming: CommitmentReminderTiming,
+        now: Date = .now
+    ) -> CommitmentReminderPlan? {
+        guard let commitment = commitments.first(where: { $0.id == id && $0.isActive }) else {
+            return nil
+        }
+
+        commitment.nextReminderAt = makeReminderDates(anchorDate: now, timing: reminderTiming).first
+
+        guard saveChanges(),
+              let saved = commitments.first(where: { $0.id == id })
+        else {
+            return nil
+        }
+
+        return reminderPlan(for: saved, anchorDate: now, timing: reminderTiming)
+    }
+
+    func reminderPlanningContext(for commitmentID: UUID) -> CommitmentReminderPlanningContext? {
+        guard let commitment = commitments.first(where: { $0.id == commitmentID && $0.isActive }) else {
+            return nil
+        }
+
+        let snapshot = CommitmentSnapshot(
+            id: commitment.id,
+            name: commitment.name,
+            quote: commitment.quote,
+            topics: commitment.topics,
+            createdAt: commitment.createdAt,
+            lastContinuedAt: commitment.lastContinuedAt,
+            continuationCount: commitment.continuationCount
+        )
+        let recentRecords = records
+            .prefix(3)
+            .map {
+                ReminderRecordSnapshot(
+                    title: $0.title,
+                    content: $0.content,
+                    createdAt: $0.createdAt
+                )
+            }
+
+        return CommitmentReminderPlanningContext(
+            commitment: snapshot,
+            recentRecords: recentRecords
+        )
     }
 
     @discardableResult
@@ -404,16 +492,24 @@ final class RecordStore {
     private func reminderPlan(
         for commitment: EmberCommitment,
         anchorDate: Date,
-        dayOffsets: [Int]
+        timing: CommitmentReminderTiming
     ) -> CommitmentReminderPlan {
         CommitmentReminderPlan(
             id: commitment.id,
             sourceRecordID: commitment.sourceRecordID,
             name: commitment.name,
             quote: commitment.quote,
-            anchorDate: anchorDate,
-            dayOffsets: dayOffsets
+            reminderDates: makeReminderDates(anchorDate: anchorDate, timing: timing)
         )
+    }
+
+    private func makeReminderDates(
+        anchorDate: Date,
+        timing: CommitmentReminderTiming
+    ) -> [Date] {
+        timing.offsetsInHours.map {
+            anchorDate.addingTimeInterval(TimeInterval($0 * 60 * 60))
+        }
     }
 
     private func migrateLegacyRecordsIfNeeded() {

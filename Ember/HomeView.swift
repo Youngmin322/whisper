@@ -351,7 +351,10 @@ struct HomeView: View {
             )
 
             if let continuedCommitmentID = analysis.continuedCommitmentID,
-               let plan = recordStore.continueCommitment(continuedCommitmentID) {
+               let plan = recordStore.continueCommitment(
+                continuedCommitmentID,
+                reminderTiming: analysis.continuedReminderTiming
+               ) {
                 _ = try? await CommitmentReminderScheduler.schedule(plan)
             }
 
@@ -378,7 +381,8 @@ struct HomeView: View {
             sourceRecordID: candidate.sourceRecordID,
             name: candidate.name,
             quote: candidate.quote,
-            topics: candidate.topics
+            topics: candidate.topics,
+            reminderTiming: candidate.reminderTiming
         ) else {
             return
         }
@@ -431,6 +435,7 @@ private struct HomePreview: View {
                 name: "오늘 할 수 있는 한 가지",
                 quote: record.content,
                 topics: ["집중", "작은 시작"],
+                reminderTiming: .fallback,
                 now: oldDate
             )
         }

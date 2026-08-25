@@ -9,10 +9,16 @@ import UserNotifications
 enum EmberNotificationRoute {
     static let didSelectRecord = Notification.Name("EmberDidSelectNotificationRecord")
     private static let pendingRecordIDKey = "ember.notification.pendingRecordID"
+    private static let pendingCommitmentIDKey = "ember.notification.pendingCommitmentID"
 
     @MainActor
-    static func store(_ recordID: UUID) {
+    static func store(_ recordID: UUID, commitmentID: UUID?) {
         UserDefaults.standard.set(recordID.uuidString, forKey: pendingRecordIDKey)
+        if let commitmentID {
+            UserDefaults.standard.set(commitmentID.uuidString, forKey: pendingCommitmentIDKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: pendingCommitmentIDKey)
+        }
         NotificationCenter.default.post(name: didSelectRecord, object: nil)
     }
 
@@ -26,6 +32,18 @@ enum EmberNotificationRoute {
 
         UserDefaults.standard.removeObject(forKey: pendingRecordIDKey)
         return recordID
+    }
+
+    @MainActor
+    static func consumePendingCommitmentID() -> UUID? {
+        guard let value = UserDefaults.standard.string(forKey: pendingCommitmentIDKey),
+              let commitmentID = UUID(uuidString: value)
+        else {
+            return nil
+        }
+
+        UserDefaults.standard.removeObject(forKey: pendingCommitmentIDKey)
+        return commitmentID
     }
 }
 
@@ -55,6 +73,8 @@ final class EmberAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
             return
         }
 
-        EmberNotificationRoute.store(recordID)
+        let commitmentID = (response.notification.request.content.userInfo["commitmentID"] as? String)
+            .flatMap(UUID.init(uuidString:))
+        EmberNotificationRoute.store(recordID, commitmentID: commitmentID)
     }
 }
