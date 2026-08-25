@@ -11,7 +11,7 @@ import UIKit
 struct ContentView: View {
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
     @State private var recordStore = RecordStore()
-
+    
     var body: some View {
         Group {
             if hasSeenWelcome {
@@ -29,7 +29,7 @@ private struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = MainTab.home
     @State private var homePath = NavigationPath()
-
+    
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("기록", systemImage: "flame.fill", value: MainTab.home) {
@@ -63,7 +63,7 @@ private struct MainTabView: View {
             consumePendingNotificationRoute()
         }
     }
-
+    
     private func consumePendingNotificationRoute() {
         guard let recordID = EmberNotificationRoute.consumePendingRecordID() else { return }
         selectedTab = .home
@@ -81,7 +81,7 @@ private enum MainTab: Hashable {
 private struct NotificationRecordDestination: View {
     let recordID: UUID
     let recordStore: RecordStore
-
+    
     var body: some View {
         if let record = recordStore.record(withID: recordID) {
             RecordDetailView(record: record, recordStore: recordStore)
@@ -100,12 +100,12 @@ private struct NotificationRecordDestination: View {
 
 private struct WelcomeView: View {
     let onStart: () -> Void
-
+    
     var body: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 54)
             EmberJar(size: .welcome).padding(.bottom, 10)
-            Text("Ember")
+            Text("Whisper")
                 .font(.emberBrand)
                 .foregroundStyle(Color.emberTextPrimary)
             Text("내가 쓴 마음을\n필요한 순간 다시 만나요")
@@ -114,7 +114,7 @@ private struct WelcomeView: View {
                 .multilineTextAlignment(.center)
                 .lineSpacing(7)
                 .padding(.top, 20)
-            Text("결심과 생각을 기록하고 FocusMode에 연결하면\n집중을 시작할 때 다시 알려드려요.")
+            Text("기록 속 결심을 Whisper가 기억하고\n잊힐 만한 순간 다시 건넬게요.")
                 .font(.emberBody)
                 .foregroundStyle(Color.emberTextSecondary)
                 .multilineTextAlignment(.center)
@@ -122,10 +122,6 @@ private struct WelcomeView: View {
                 .padding(.top, 42)
             Spacer()
             Button("시작하기", action: onStart).buttonStyle(.emberPrimary)
-            Text("기록은 기기에 안전하게 보관돼요")
-                .font(.emberCaption)
-                .foregroundStyle(Color.emberTextSecondary)
-                .padding(.top, 14)
         }
         .padding(.horizontal, EmberLayout.screenHorizontalPadding)
         .padding(.bottom, 26)
@@ -134,10 +130,12 @@ private struct WelcomeView: View {
 }
 
 private struct SettingsView: View {
+    @AppStorage(CommitmentReminderScheduler.showPreviewStorageKey)
+    private var showCommitmentPreview = false
     @State private var notificationStatus = UNAuthorizationStatus.notDetermined
     @State private var isFocusGuidePresented = false
     @State private var notificationErrorMessage: String?
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 고정 헤더
@@ -146,25 +144,29 @@ private struct SettingsView: View {
                 .padding(.horizontal, EmberLayout.screenHorizontalPadding)
                 .padding(.top, 18)
                 .padding(.bottom, 24)
-
+            
             // 스크롤되는 영역
             List {
-                Section("FocusMode") {
+                Section("다시 만나는 불꽃") {
                     LabeledContent("알림", value: notificationStatusDescription)
-
+                    
+                    Toggle("새 알림에 기록 내용 표시", isOn: $showCommitmentPreview)
+                    
                     if notificationStatus == .notDetermined {
-                        Button("집중 모드 알림 허용") {
+                        Button("다시 만나기 알림 허용") {
                             Task { await requestNotificationAuthorization() }
                         }
                     } else if notificationStatus == .denied {
                         Button("알림 설정 열기", action: openAppSettings)
                     }
-
+                }
+                
+                Section("FocusMode") {
                     Button("iPhone 집중 모드에 연결하기") {
                         isFocusGuidePresented = true
                     }
                 }
-
+                
                 Section("앱 정보") {
                     LabeledContent("기록 저장", value: "이 기기")
                 }
@@ -196,7 +198,7 @@ private struct SettingsView: View {
             Text(notificationErrorMessage ?? "잠시 후 다시 시도해 주세요.")
         }
     }
-
+    
     private var notificationStatusDescription: String {
         switch notificationStatus {
         case .authorized: "허용됨"
@@ -207,7 +209,7 @@ private struct SettingsView: View {
         @unknown default: "확인 필요"
         }
     }
-
+    
     private func requestNotificationAuthorization() async {
         do {
             _ = try await UNUserNotificationCenter.current().requestAuthorization(
@@ -218,12 +220,12 @@ private struct SettingsView: View {
             notificationErrorMessage = error.localizedDescription
         }
     }
-
+    
     private func refreshNotificationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         notificationStatus = settings.authorizationStatus
     }
-
+    
     private func openAppSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
@@ -232,24 +234,24 @@ private struct SettingsView: View {
 
 private struct FocusFilterGuideView: View {
     @Environment(\.dismiss) private var dismiss
-
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("집중 모드가 시작될 때 Ember가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요.")
+                    Text("집중 모드가 시작될 때 Whisper가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요.")
                         .font(.emberBody)
                         .foregroundStyle(Color.emberTextSecondary)
-
+                    
                     guideStep(
                         number: 1,
                         title: "iPhone 설정에서 집중 모드 선택",
-                        description: "설정 > 집중 모드에서 Ember와 연결할 모드를 열어요."
+                        description: "설정 > 집중 모드에서 Whisper와 연결할 모드를 열어요."
                     )
                     guideStep(
                         number: 2,
-                        title: "집중 모드 필터에 Ember 추가",
-                        description: "화면 아래의 필터 추가를 누르고 Ember를 선택해요."
+                        title: "집중 모드 필터에 Whisper 추가",
+                        description: "화면 아래의 필터 추가를 누르고 Whisper를 선택해요."
                     )
                     guideStep(
                         number: 3,
@@ -258,8 +260,8 @@ private struct FocusFilterGuideView: View {
                     )
                     guideStep(
                         number: 4,
-                        title: "Ember 알림 허용",
-                        description: "집중 모드의 알림 허용 앱에 Ember를 넣으면 시작과 함께 알림을 받을 수 있어요."
+                        title: "Whisper 알림 허용",
+                        description: "집중 모드의 알림 허용 앱에 Whisper를 넣으면 시작과 함께 알림을 받을 수 있어요."
                     )
                 }
                 .padding(.horizontal, EmberLayout.screenHorizontalPadding)
@@ -275,7 +277,7 @@ private struct FocusFilterGuideView: View {
             }
         }
     }
-
+    
     private func guideStep(number: Int, title: String, description: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Text("\(number)")
@@ -283,11 +285,12 @@ private struct FocusFilterGuideView: View {
                 .foregroundStyle(Color.white)
                 .frame(width: 30, height: 30)
                 .background(Color.emberAccent, in: Circle())
-
+            
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
                     .font(.emberBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
+                
                 Text(description)
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)

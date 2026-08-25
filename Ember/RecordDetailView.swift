@@ -19,6 +19,7 @@ struct RecordDetailView: View {
     @State private var selectedEmotion: String?
     @State private var photoData: Data?
     @State private var isEmotionPickerPresented = false
+    @State private var isForgetCommitmentConfirmationPresented = false
 
     private let contentLimit = 1_000
 
@@ -92,6 +93,15 @@ struct RecordDetailView: View {
         } message: {
             Text("잠시 후 다시 시도해 주세요.")
         }
+        .alert(
+            "이 불꽃을 그만 기억할까요?",
+            isPresented: $isForgetCommitmentConfirmationPresented
+        ) {
+            Button("취소", role: .cancel) {}
+            Button("그만 기억하기", role: .destructive, action: forgetCommitment)
+        } message: {
+            Text("예약된 다시 만나기 알림도 함께 사라져요. 기록은 그대로 남아 있어요.")
+        }
         .sheet(isPresented: $isEmotionPickerPresented) {
             EmotionPickerView(selectedEmotion: $selectedEmotion)
                 .presentationDetents([.medium])
@@ -134,6 +144,10 @@ struct RecordDetailView: View {
                     cornerRadius: EmberRadius.large
                 )
                 .textSelection(.enabled)
+
+            if let commitment = recordStore.commitment(sourceRecordID: record.id) {
+                commitmentCard(commitment)
+            }
 
             if let photoData = record.photoData {
                 RecordPhotoView(photoData: photoData)
@@ -247,6 +261,42 @@ struct RecordDetailView: View {
             .foregroundStyle(Color.emberTextPrimary)
     }
 
+    private func commitmentCard(_ commitment: EmberCommitment) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Whisper가 기억 중인 불꽃", systemImage: "sparkles")
+                .font(.emberControl)
+                .foregroundStyle(Color.emberAccentText)
+
+            Text("“\(commitment.quote)”")
+                .font(.emberBody)
+                .foregroundStyle(Color.emberTextPrimary)
+                .lineSpacing(4)
+
+            Text("반응이 없으면 조금씩 더 긴 간격으로 다시 건넬게요.")
+                .font(.emberCaption)
+                .foregroundStyle(Color.emberTextSecondary)
+
+            HStack(spacing: 10) {
+                Button("계속 기억해줘") {
+                    continueCommitment(commitment)
+                }
+                .buttonStyle(.emberSecondary)
+
+                Button("이제 괜찮아요") {
+                    isForgetCommitmentConfirmationPresented = true
+                }
+                .font(.emberControl)
+                .foregroundStyle(Color.emberTextSecondary)
+            }
+        }
+        .padding(16)
+        .emberCardStyle(
+            fill: .emberSurfaceHighlight,
+            border: .emberBorderSubtle,
+            cornerRadius: EmberRadius.large
+        )
+    }
+
     private func startEditing() {
         resetDraft()
         isEditing = true
@@ -286,6 +336,19 @@ struct RecordDetailView: View {
         } else {
             isPersistenceErrorPresented = true
         }
+    }
+
+    private func continueCommitment(_ commitment: EmberCommitment) {
+        guard let plan = recordStore.continueCommitment(commitment.id) else { return }
+
+        Task {
+            _ = try? await CommitmentReminderScheduler.schedule(plan)
+        }
+    }
+
+    private func forgetCommitment() {
+        guard let commitment = recordStore.commitment(sourceRecordID: record.id) else { return }
+        _ = recordStore.forgetCommitment(commitment)
     }
 
     private func emotionSystemImage(for emotion: String) -> String {

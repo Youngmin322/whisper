@@ -86,7 +86,7 @@ struct DetailedRecordView: View {
 
                 PhotoAttachmentEditor(photoData: $photoData)
                 
-                Label("저장한 뒤 iPhone 집중 모드 필터에서 이 불꽃을 직접 연결할 수 있어요.", systemImage: "bell")
+                Label("결심이 담겨 있다면 저장한 뒤 Whisper가 기억할지 물어봐요.", systemImage: "bell")
                     .font(.emberMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.horizontal, 16)
@@ -156,7 +156,7 @@ private struct SavedRecordSheet: View {
             Text("오늘의 불꽃을 담았어요")
                 .font(.emberNavigationTitle)
                 .foregroundStyle(Color.emberTextPrimary)
-            Text("기록은 보관함에서 언제든 다시 꺼내보고\niPhone 집중 모드 필터에도 연결할 수 있어요.")
+            Text("기록은 보관함에서 언제든 다시 꺼내보고\n결심이 보이면 Whisper가 기억할지 물어볼게요.")
                 .font(.emberBody)
                 .foregroundStyle(Color.emberTextSecondary)
                 .multilineTextAlignment(.center)

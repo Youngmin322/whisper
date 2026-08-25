@@ -45,7 +45,7 @@ struct QuickRecordView: View {
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("자세히 기록하기").font(.emberControl)
-                    Text("감정과 FocusMode까지 연결할 수 있어요").font(.emberCaption).foregroundStyle(Color.emberTextSecondary)
+                    Text("감정과 사진까지 함께 남길 수 있어요").font(.emberCaption).foregroundStyle(Color.emberTextSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)

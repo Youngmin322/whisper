@@ -50,7 +50,7 @@ struct EmberRecordEntityQuery: EntityQuery {
 struct EmberFocusFilter: SetFocusFilterIntent {
     static var title: LocalizedStringResource = "다시 만날 불꽃 선택"
     static var description = IntentDescription(
-        "이 집중 모드가 시작될 때 다시 만날 Ember 불꽃을 선택해요."
+        "이 집중 모드가 시작될 때 다시 만날 Whisper 불꽃을 선택해요."
     )
     static var supportedModes: IntentModes = .background
 
@@ -62,13 +62,13 @@ struct EmberFocusFilter: SetFocusFilterIntent {
     var displayRepresentation: DisplayRepresentation {
         guard let flames, !flames.isEmpty else {
             return DisplayRepresentation(
-                title: "Ember",
+                title: "Whisper",
                 subtitle: "다시 만날 불꽃 선택"
             )
         }
 
         return DisplayRepresentation(
-            title: "Ember",
+            title: "Whisper",
             subtitle: "\(flames.count)개의 불꽃"
         )
     }
