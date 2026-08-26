@@ -1,6 +1,6 @@
 //
 //  HomeView.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
@@ -19,7 +19,7 @@ struct HomeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             header
-                .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.top, 10)
             
             ScrollView {
@@ -28,7 +28,7 @@ struct HomeView: View {
                     rhythmCard
                     memoryCard
                 }
-                .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.bottom, 30)
             }
             .scrollIndicators(.hidden)
@@ -88,11 +88,11 @@ struct HomeView: View {
     
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(Date.now.emberDayDescription)
-                .font(.emberMetadata)
+            Text(Date.now.whisperDayDescription)
+                .font(.whisperMetadata)
                 .foregroundStyle(Color.emberTextSecondary)
             Text("오늘의 기록")
-                .font(.emberScreenTitle)
+                .font(.whisperScreenTitle)
                 .foregroundStyle(Color.emberTextPrimary)
         }
     }
@@ -102,18 +102,18 @@ struct HomeView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("오늘 떠오른 마음")
-                        .font(.emberControl)
+                        .font(.whisperControl)
                         .foregroundStyle(Color.emberAccentText)
                     
                     Text("지금 가장 마음에 남는 것은 무엇인가요?")
-                        .font(.emberBodyEmphasis)
+                        .font(.whisperBodyEmphasis)
                         .foregroundStyle(Color.emberTextPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 
                 Spacer()
                 
-                EmberJarAnimation(size: .home)
+                WhisperJarAnimation(size: .home)
             }
             
             Button {
@@ -121,14 +121,14 @@ struct HomeView: View {
             } label: {
                 Text("기록하기")
             }
-            .buttonStyle(.emberPrimary(size: .compact))
+            .buttonStyle(.whisperPrimary(size: .compact))
             .padding(.top, hasTodayRecord ? 14 : 24)
         }
         .padding(20)
-        .emberCardStyle(
+        .whisperCardStyle(
             fill: .emberSurfaceHighlight,
             border: .emberBorderSubtle,
-            cornerRadius: EmberRadius.card,
+            cornerRadius: WhisperRadius.card,
             hasShadow: true
         )
     }
@@ -136,10 +136,10 @@ struct HomeView: View {
     private var rhythmCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("이번 주 기록 리듬").font(.emberSectionTitle)
+                Text("이번 주 기록 리듬").font(.whisperSectionTitle)
                 Spacer()
                 Text("\(recordStore.recordCount(inWeekOf: .now, calendar: calendar)) / 7")
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
             }
             HStack(spacing: 0) {
@@ -150,7 +150,7 @@ struct HomeView: View {
             }
         }
         .padding(16)
-        .emberCardStyle(fill: .emberSurfaceDefault, border: .emberBorderSubtle, cornerRadius: EmberRadius.large)
+        .whisperCardStyle(fill: .emberSurfaceDefault, border: .emberBorderSubtle, cornerRadius: WhisperRadius.large)
     }
 
     @ViewBuilder
@@ -162,7 +162,7 @@ struct HomeView: View {
                 rhythmDayLabel(date: date, title: title)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(date.emberFullDayDescription) 기록 보기")
+            .accessibilityLabel("\(date.whisperFullDayDescription) 기록 보기")
         } else if calendar.isDateInToday(date) {
             Button {
                 isQuickRecordPresented = true
@@ -174,7 +174,7 @@ struct HomeView: View {
         } else {
             rhythmDayLabel(date: date, title: title)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(date.emberFullDayDescription), 기록 없음")
+                .accessibilityLabel("\(date.whisperFullDayDescription), 기록 없음")
         }
     }
 
@@ -184,7 +184,7 @@ struct HomeView: View {
 
         return VStack(spacing: 7) {
             Text(title)
-                .font(.emberCaption)
+                .font(.whisperCaption)
                 .foregroundStyle(Color.emberTextSecondary)
 
             ZStack {
@@ -222,34 +222,34 @@ struct HomeView: View {
         }
     }
 
-    private func resurfacingCard(for commitment: EmberCommitment) -> some View {
+    private func resurfacingCard(for commitment: WhisperCommitment) -> some View {
         return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("다시 만난 불꽃")
-                    .font(.emberControl)
+                    .font(.whisperControl)
                     .foregroundStyle(Color.emberAccentText)
                 
                 Text(commitment.name)
-                    .font(.emberBodyEmphasis)
+                    .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
 
                 Text("“\(commitment.quote)”")
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .lineLimit(2)
 
                 Text("그 마음은 지금도 남아 있나요?")
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.top, 4)
             }
             
             Spacer(minLength: 4)
             
-            EmberJar(size: .small)
+            WhisperJar(size: .small)
         }
         .padding(18)
-        .emberCardStyle(fill: .emberSurfaceSubtle, border: .emberBorderSubtle, cornerRadius: EmberRadius.large)
+        .whisperCardStyle(fill: .emberSurfaceSubtle, border: .emberBorderSubtle, cornerRadius: WhisperRadius.large)
         .contentShape(Rectangle())
     }
 
@@ -259,7 +259,7 @@ struct HomeView: View {
         return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Whisper가 기억하는 불꽃")
-                    .font(.emberControl)
+                    .font(.whisperControl)
                     .foregroundStyle(Color.emberAccentText)
 
                 Text(
@@ -267,7 +267,7 @@ struct HomeView: View {
                         ? "아직 기억 중인 결심이 없어요"
                         : "\(activeCommitmentCount)개의 불꽃을 기억하고 있어요"
                 )
-                    .font(.emberBodyEmphasis)
+                    .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
 
                 Text(
@@ -275,23 +275,23 @@ struct HomeView: View {
                         ? "기록 속 결심이 보이면 기억할지 물어볼게요."
                         : "잊힐 만한 간격으로 다시 건넬게요."
                 )
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
             }
 
             Spacer(minLength: 4)
 
-            EmberJar(size: .small)
+            WhisperJar(size: .small)
         }
         .padding(18)
-        .emberCardStyle(
+        .whisperCardStyle(
             fill: .emberSurfaceSubtle,
             border: .emberBorderSubtle,
-            cornerRadius: EmberRadius.large
+            cornerRadius: WhisperRadius.large
         )
     }
 
-    private var dueCommitment: EmberCommitment? {
+    private var dueCommitment: WhisperCommitment? {
         recordStore.commitments.first {
             $0.isActive && ($0.nextReminderAt ?? .distantFuture) <= .now
         }
@@ -337,7 +337,7 @@ struct HomeView: View {
     }
 
     private func analyzeSavedRecord(
-        _ record: EmberRecord,
+        _ record: WhisperRecord,
         title: String,
         content: String,
         existingCommitments: [CommitmentSnapshot]

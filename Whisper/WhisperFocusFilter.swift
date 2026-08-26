@@ -1,20 +1,20 @@
 //
-//  EmberFocusFilter.swift
-//  Ember
+//  WhisperFocusFilter.swift
+//  Whisper
 //
 
 import AppIntents
 import UserNotifications
 
-struct EmberRecordEntity: AppEntity {
+struct WhisperRecordEntity: AppEntity {
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "불꽃"
-    static var defaultQuery = EmberRecordEntityQuery()
+    static var defaultQuery = WhisperRecordEntityQuery()
 
     let id: String
     let title: String
     let contentPreview: String
 
-    init(record: EmberRecord) {
+    init(record: WhisperRecord) {
         id = record.id.uuidString
         title = record.title
         contentPreview = String(record.content.prefix(60))
@@ -28,26 +28,26 @@ struct EmberRecordEntity: AppEntity {
     }
 }
 
-struct EmberRecordEntityQuery: EntityQuery {
-    func entities(for identifiers: [EmberRecordEntity.ID]) async throws
-        -> [EmberRecordEntity]
+struct WhisperRecordEntityQuery: EntityQuery {
+    func entities(for identifiers: [WhisperRecordEntity.ID]) async throws
+        -> [WhisperRecordEntity]
     {
         await MainActor.run {
             let identifierSet = Set(identifiers)
             return RecordStore().records
                 .filter { identifierSet.contains($0.id.uuidString) }
-                .map(EmberRecordEntity.init(record:))
+                .map(WhisperRecordEntity.init(record:))
         }
     }
 
-    func suggestedEntities() async throws -> [EmberRecordEntity] {
+    func suggestedEntities() async throws -> [WhisperRecordEntity] {
         await MainActor.run {
-            RecordStore().records.map(EmberRecordEntity.init(record:))
+            RecordStore().records.map(WhisperRecordEntity.init(record:))
         }
     }
 }
 
-struct EmberFocusFilter: SetFocusFilterIntent {
+struct WhisperFocusFilter: SetFocusFilterIntent {
     static var title: LocalizedStringResource = "다시 만날 불꽃 선택"
     static var description = IntentDescription(
         "이 집중 모드가 시작될 때 다시 만날 Whisper 불꽃을 선택해요."
@@ -55,7 +55,7 @@ struct EmberFocusFilter: SetFocusFilterIntent {
     static var supportedModes: IntentModes = .background
 
     @Parameter(title: "다시 만날 불꽃")
-    var flames: [EmberRecordEntity]?
+    var flames: [WhisperRecordEntity]?
 
     init() {}
 
@@ -100,11 +100,11 @@ struct EmberFocusFilter: SetFocusFilterIntent {
         content.subtitle = reminder.title
         content.body = String(reminder.content.prefix(180))
         content.sound = .default
-        content.threadIdentifier = "ember.focus.records"
+        content.threadIdentifier = "whisper.focus.records"
         content.userInfo = ["recordID": reminder.id.uuidString]
 
         let request = UNNotificationRequest(
-            identifier: "ember.focus.\(reminder.id.uuidString)",
+            identifier: "whisper.focus.\(reminder.id.uuidString)",
             content: content,
             trigger: nil
         )

@@ -1,12 +1,12 @@
 //
 //  EmotionPickerView.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
 import EmberDesignSystem
 
-enum EmberEmotion: String, CaseIterable, Identifiable {
+enum WhisperEmotion: String, CaseIterable, Identifiable {
     case calm = "평온"
     case joy = "기쁨"
     case proud = "뿌듯함"
@@ -42,7 +42,7 @@ struct EmotionPickerView: View {
                     emotionRow(title: "선택 안 함", systemImage: "circle.dashed")
                 }
 
-                ForEach(EmberEmotion.allCases) { emotion in
+                ForEach(WhisperEmotion.allCases) { emotion in
                     Button {
                         selectedEmotion = emotion.rawValue
                         dismiss()
@@ -73,7 +73,7 @@ struct EmotionPickerView: View {
                 .frame(width: 24)
 
             Text(title)
-                .font(.emberBodyEmphasis)
+                .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.emberTextPrimary)
 
             Spacer()
@@ -88,7 +88,7 @@ struct EmotionPickerView: View {
 }
 
 private struct EmotionPickerPreview: View {
-    @State private var emotion: String? = EmberEmotion.calm.rawValue
+    @State private var emotion: String? = WhisperEmotion.calm.rawValue
 
     var body: some View {
         EmotionPickerView(selectedEmotion: $emotion)

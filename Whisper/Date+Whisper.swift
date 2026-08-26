@@ -1,12 +1,12 @@
 //
-//  Date+Ember.swift
-//  Ember
+//  Date+Whisper.swift
+//  Whisper
 //
 
 import Foundation
 
 extension Date {
-    var emberDayDescription: String {
+    var whisperDayDescription: String {
         formatted(
             Date.FormatStyle()
                 .locale(Locale(identifier: "ko_KR"))
@@ -16,7 +16,7 @@ extension Date {
         )
     }
 
-    var emberFullDayDescription: String {
+    var whisperFullDayDescription: String {
         formatted(
             Date.FormatStyle()
                 .locale(Locale(identifier: "ko_KR"))
@@ -27,7 +27,7 @@ extension Date {
         )
     }
 
-    var emberTimeDescription: String {
+    var whisperTimeDescription: String {
         formatted(
             Date.FormatStyle()
                 .locale(Locale(identifier: "ko_KR"))

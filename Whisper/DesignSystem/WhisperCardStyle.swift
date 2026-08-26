@@ -1,12 +1,12 @@
 //
-//  EmberCardStyle.swift
-//  Ember
+//  WhisperCardStyle.swift
+//  Whisper
 //
 
 import SwiftUI
 import EmberDesignSystem
 
-private struct EmberCardModifier: ViewModifier {
+private struct WhisperCardModifier: ViewModifier {
     let fill: Color
     let border: Color
     let cornerRadius: CGFloat
@@ -35,14 +35,14 @@ private struct EmberCardModifier: ViewModifier {
 }
 
 extension View {
-    func emberCardStyle(
+    func whisperCardStyle(
         fill: Color = .emberSurfaceDefault,
         border: Color = .clear,
-        cornerRadius: CGFloat = EmberRadius.card,
+        cornerRadius: CGFloat = WhisperRadius.card,
         hasShadow: Bool = false
     ) -> some View {
         modifier(
-            EmberCardModifier(
+            WhisperCardModifier(
                 fill: fill,
                 border: border,
                 cornerRadius: cornerRadius,

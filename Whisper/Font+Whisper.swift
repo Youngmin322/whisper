@@ -1,6 +1,6 @@
 //
-//  Font+Ember.swift
-//  Ember
+//  Font+Whisper.swift
+//  Whisper
 //
 //  Created by Youngmin Cho on 8/11/26.
 //
@@ -10,86 +10,86 @@ import SwiftUI
 /// Figma specifies Noto Sans KR. The project keeps its bundled Pretendard family
 /// here so changing the product typeface later remains a single-file operation.
 extension Font {
-    /// Figma: Ember/Brand
-    static let emberBrand = Font.custom(
+    /// Figma: Whisper/Brand
+    static let whisperBrand = Font.custom(
         "Pretendard-Bold",
         size: 30,
         relativeTo: .largeTitle
     )
 
-    /// Figma: Ember/Screen Title
-    static let emberScreenTitle = Font.custom(
+    /// Figma: Whisper/Screen Title
+    static let whisperScreenTitle = Font.custom(
         "Pretendard-Bold",
         size: 26,
         relativeTo: .title
     )
 
-    static let emberNavigationTitle = Font.custom(
+    static let whisperNavigationTitle = Font.custom(
         "Pretendard-Bold",
         size: 18,
         relativeTo: .headline
     )
 
-    /// Figma: Ember/Section Title
-    static let emberSectionTitle = Font.custom(
+    /// Figma: Whisper/Section Title
+    static let whisperSectionTitle = Font.custom(
         "Pretendard-Bold",
         size: 17,
         relativeTo: .headline
     )
 
-    static let emberFieldLabel = Font.custom(
+    static let whisperFieldLabel = Font.custom(
         "Pretendard-Bold",
         size: 16,
         relativeTo: .headline
     )
 
-    static let emberAction = Font.custom(
+    static let whisperAction = Font.custom(
         "Pretendard-Bold",
         size: 16,
         relativeTo: .headline
     )
 
-    static let emberBodyLarge = Font.custom(
+    static let whisperBodyLarge = Font.custom(
         "Pretendard-Regular",
         size: 16,
         relativeTo: .body
     )
 
-    /// Figma: Ember/Body
-    static let emberBody = Font.custom(
+    /// Figma: Whisper/Body
+    static let whisperBody = Font.custom(
         "Pretendard-Regular",
         size: 15,
         relativeTo: .body
     )
 
-    /// Figma: Ember/Body Emphasis
-    static let emberBodyEmphasis = Font.custom(
+    /// Figma: Whisper/Body Emphasis
+    static let whisperBodyEmphasis = Font.custom(
         "Pretendard-Medium",
         size: 15,
         relativeTo: .body
     )
 
-    static let emberControl = Font.custom(
+    static let whisperControl = Font.custom(
         "Pretendard-Medium",
         size: 14,
         relativeTo: .callout
     )
 
-    static let emberMetadata = Font.custom(
+    static let whisperMetadata = Font.custom(
         "Pretendard-Medium",
         size: 13,
         relativeTo: .footnote
     )
 
-    /// Figma: Ember/Caption
-    static let emberCaption = Font.custom(
+    /// Figma: Whisper/Caption
+    static let whisperCaption = Font.custom(
         "Pretendard-Regular",
         size: 12,
         relativeTo: .caption
     )
 
-    /// Figma: Ember/Label
-    static let emberLabel = Font.custom(
+    /// Figma: Whisper/Label
+    static let whisperLabel = Font.custom(
         "Pretendard-Medium",
         size: 11,
         relativeTo: .caption2

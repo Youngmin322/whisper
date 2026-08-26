@@ -1,6 +1,6 @@
 //
 //  RecordStore.swift
-//  Ember
+//  Whisper
 //
 
 import Foundation
@@ -8,7 +8,7 @@ import Observation
 import SwiftData
 
 @Model
-final class EmberRecord {
+final class WhisperRecord {
     @Attribute(.unique) var id: UUID
     var title: String
     var content: String
@@ -40,7 +40,7 @@ final class EmberRecord {
 }
 
 @Model
-final class EmberCommitment {
+final class WhisperCommitment {
     @Attribute(.unique) var id: UUID
     @Attribute(.unique) var sourceRecordID: UUID
     var name: String
@@ -112,7 +112,7 @@ struct CommitmentReminderPlan: Sendable {
     let reminderDates: [Date]
 }
 
-private struct LegacyEmberRecord: Codable {
+private struct LegacyWhisperRecord: Codable {
     let id: UUID
     let title: String
     let content: String
@@ -122,13 +122,13 @@ private struct LegacyEmberRecord: Codable {
 @MainActor
 @Observable
 final class RecordStore {
-    private(set) var records: [EmberRecord] = []
-    private(set) var commitments: [EmberCommitment] = []
+    private(set) var records: [WhisperRecord] = []
+    private(set) var commitments: [WhisperCommitment] = []
     private(set) var persistenceError: String?
 
     @ObservationIgnored private let modelContainer: ModelContainer
     @ObservationIgnored private let modelContext: ModelContext
-    @ObservationIgnored private let legacyStorageKey = "ember.records"
+    @ObservationIgnored private let legacyStorageKey = "whisper.records"
 
     init(isStoredInMemoryOnly: Bool = false) {
         let configuration = ModelConfiguration(
@@ -137,8 +137,8 @@ final class RecordStore {
 
         do {
             modelContainer = try ModelContainer(
-                for: EmberRecord.self,
-                EmberCommitment.self,
+                for: WhisperRecord.self,
+                WhisperCommitment.self,
                 configurations: configuration
             )
         } catch {
@@ -153,7 +153,7 @@ final class RecordStore {
         }
     }
 
-    var latestRecord: EmberRecord? {
+    var latestRecord: WhisperRecord? {
         records.first
     }
 
@@ -184,8 +184,8 @@ final class RecordStore {
         focusMode: String? = nil,
         emotion: String? = nil,
         photoData: Data? = nil
-    ) -> EmberRecord? {
-        let record = EmberRecord(
+    ) -> WhisperRecord? {
+        let record = WhisperRecord(
             title: title,
             content: content,
             createdAt: createdAt,
@@ -200,7 +200,7 @@ final class RecordStore {
 
     @discardableResult
     func update(
-        _ record: EmberRecord,
+        _ record: WhisperRecord,
         title: String,
         content: String,
         emotion: String?,
@@ -215,7 +215,7 @@ final class RecordStore {
     }
 
     @discardableResult
-    func delete(_ record: EmberRecord) -> Bool {
+    func delete(_ record: WhisperRecord) -> Bool {
         let relatedCommitments = commitments.filter { $0.sourceRecordID == record.id }
         let commitmentIDs = relatedCommitments.map(\.id)
         relatedCommitments.forEach(modelContext.delete)
@@ -248,7 +248,7 @@ final class RecordStore {
             }
     }
 
-    func commitment(sourceRecordID: UUID) -> EmberCommitment? {
+    func commitment(sourceRecordID: UUID) -> WhisperCommitment? {
         commitments.first { $0.sourceRecordID == sourceRecordID && $0.isActive }
     }
 
@@ -274,7 +274,7 @@ final class RecordStore {
 
         let reminderDates = makeReminderDates(anchorDate: now, timing: reminderTiming)
 
-        let commitment = EmberCommitment(
+        let commitment = WhisperCommitment(
             sourceRecordID: sourceRecordID,
             name: name,
             quote: quote,
@@ -374,7 +374,7 @@ final class RecordStore {
     }
 
     @discardableResult
-    func forgetCommitment(_ commitment: EmberCommitment) -> Bool {
+    func forgetCommitment(_ commitment: WhisperCommitment) -> Bool {
         commitment.isActive = false
         commitment.nextReminderAt = nil
         let commitmentID = commitment.id
@@ -401,20 +401,20 @@ final class RecordStore {
         records.contains { calendar.isDate($0.createdAt, inSameDayAs: date) }
     }
 
-    func records(on date: Date, calendar: Calendar = .current) -> [EmberRecord] {
+    func records(on date: Date, calendar: Calendar = .current) -> [WhisperRecord] {
         records.filter { calendar.isDate($0.createdAt, inSameDayAs: date) }
     }
 
-    func records(linkedTo focusMode: String) -> [EmberRecord] {
+    func records(linkedTo focusMode: String) -> [WhisperRecord] {
         records.filter { $0.focusMode == focusMode }
     }
 
-    func record(withID id: UUID) -> EmberRecord? {
+    func record(withID id: UUID) -> WhisperRecord? {
         records.first { $0.id == id }
     }
 
     @discardableResult
-    func setFocusMode(_ focusMode: String?, for record: EmberRecord) -> Bool {
+    func setFocusMode(_ focusMode: String?, for record: WhisperRecord) -> Bool {
         record.focusMode = focusMode
         record.updatedAt = .now
         return saveChanges()
@@ -424,7 +424,7 @@ final class RecordStore {
         on date: Date = .now,
         minimumAgeInDays: Int = 30,
         calendar: Calendar = .current
-    ) -> EmberRecord? {
+    ) -> WhisperRecord? {
         let candidates = records
             .filter {
                 daysSince($0, relativeTo: date, calendar: calendar) >= minimumAgeInDays
@@ -443,7 +443,7 @@ final class RecordStore {
     }
 
     func daysSince(
-        _ record: EmberRecord,
+        _ record: WhisperRecord,
         relativeTo date: Date = .now,
         calendar: Calendar = .current
     ) -> Int {
@@ -470,14 +470,14 @@ final class RecordStore {
     }
 
     private func reload() {
-        let descriptor = FetchDescriptor<EmberRecord>(
+        let descriptor = FetchDescriptor<WhisperRecord>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
 
         do {
             records = try modelContext.fetch(descriptor)
             commitments = try modelContext.fetch(
-                FetchDescriptor<EmberCommitment>(
+                FetchDescriptor<WhisperCommitment>(
                     sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
                 )
             )
@@ -490,7 +490,7 @@ final class RecordStore {
     }
 
     private func reminderPlan(
-        for commitment: EmberCommitment,
+        for commitment: WhisperCommitment,
         anchorDate: Date,
         timing: CommitmentReminderTiming
     ) -> CommitmentReminderPlan {
@@ -514,7 +514,7 @@ final class RecordStore {
 
     private func migrateLegacyRecordsIfNeeded() {
         guard let data = UserDefaults.standard.data(forKey: legacyStorageKey),
-              let legacyRecords = try? JSONDecoder().decode([LegacyEmberRecord].self, from: data)
+              let legacyRecords = try? JSONDecoder().decode([LegacyWhisperRecord].self, from: data)
         else {
             return
         }
@@ -524,7 +524,7 @@ final class RecordStore {
 
         for record in recordsToMigrate {
             modelContext.insert(
-                EmberRecord(
+                WhisperRecord(
                     id: record.id,
                     title: record.title,
                     content: record.content,

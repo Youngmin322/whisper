@@ -1,6 +1,6 @@
 //
 //  RecordDraft.swift
-//  Ember
+//  Whisper
 //
 
 import Foundation

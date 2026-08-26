@@ -1,6 +1,6 @@
 //
 //  CommitmentCandidateSheet.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
@@ -14,53 +14,53 @@ struct CommitmentCandidateSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
-                EmberJar(size: .small)
+                WhisperJar(size: .small)
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text("이 마음을 기억해 둘까요?")
-                        .font(.emberNavigationTitle)
+                        .font(.whisperNavigationTitle)
                         .foregroundStyle(Color.emberTextPrimary)
 
                     Text("잊힐 만한 간격으로 Whisper가 다시 건넬게요.")
-                        .font(.emberBody)
+                        .font(.whisperBody)
                         .foregroundStyle(Color.emberTextSecondary)
                 }
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(candidate.name)
-                    .font(.emberBodyEmphasis)
+                    .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.emberAccentText)
 
                 Text("“\(candidate.quote)”")
-                    .font(.emberBodyLarge)
+                    .font(.whisperBodyLarge)
                     .foregroundStyle(Color.emberTextPrimary)
                     .lineSpacing(5)
                     .lineLimit(5)
 
                 if !candidate.topics.isEmpty {
                     Text(candidate.topics.map { "#\($0)" }.joined(separator: "  "))
-                        .font(.emberCaption)
+                        .font(.whisperCaption)
                         .foregroundStyle(Color.emberTextSecondary)
                 }
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .emberCardStyle(
+            .whisperCardStyle(
                 fill: .emberSurfaceSubtle,
                 border: .emberBorderSubtle,
-                cornerRadius: EmberRadius.large
+                cornerRadius: WhisperRadius.large
             )
 
             Button("응, 기억해줘", action: onRemember)
-                .buttonStyle(.emberPrimary(size: .compact))
+                .buttonStyle(.whisperPrimary(size: .compact))
 
             Button("이번에는 괜찮아요", action: onDismiss)
-                .font(.emberControl)
+                .font(.whisperControl)
                 .foregroundStyle(Color.emberTextSecondary)
                 .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .padding(.horizontal, EmberLayout.sheetHorizontalPadding)
+        .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, 12)
         .padding(.bottom, 20)
     }

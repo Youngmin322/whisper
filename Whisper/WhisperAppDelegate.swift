@@ -1,15 +1,15 @@
 //
-//  EmberAppDelegate.swift
-//  Ember
+//  WhisperAppDelegate.swift
+//  Whisper
 //
 
 import UIKit
 import UserNotifications
 
-enum EmberNotificationRoute {
-    static let didSelectRecord = Notification.Name("EmberDidSelectNotificationRecord")
-    private static let pendingRecordIDKey = "ember.notification.pendingRecordID"
-    private static let pendingCommitmentIDKey = "ember.notification.pendingCommitmentID"
+enum WhisperNotificationRoute {
+    static let didSelectRecord = Notification.Name("WhisperDidSelectNotificationRecord")
+    private static let pendingRecordIDKey = "whisper.notification.pendingRecordID"
+    private static let pendingCommitmentIDKey = "whisper.notification.pendingCommitmentID"
 
     @MainActor
     static func store(_ recordID: UUID, commitmentID: UUID?) {
@@ -47,7 +47,7 @@ enum EmberNotificationRoute {
     }
 }
 
-final class EmberAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+final class WhisperAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -75,6 +75,6 @@ final class EmberAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
 
         let commitmentID = (response.notification.request.content.userInfo["commitmentID"] as? String)
             .flatMap(UUID.init(uuidString:))
-        EmberNotificationRoute.store(recordID, commitmentID: commitmentID)
+        WhisperNotificationRoute.store(recordID, commitmentID: commitmentID)
     }
 }

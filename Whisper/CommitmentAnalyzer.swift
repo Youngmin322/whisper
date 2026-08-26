@@ -1,6 +1,6 @@
 //
 //  CommitmentAnalyzer.swift
-//  Ember
+//  Whisper
 //
 
 import Foundation

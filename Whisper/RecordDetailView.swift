@@ -1,6 +1,6 @@
 //
 //  RecordDetailView.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
@@ -9,7 +9,7 @@ import EmberDesignSystem
 struct RecordDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
-    let record: EmberRecord
+    let record: WhisperRecord
     let recordStore: RecordStore
 
     @State private var draft: RecordDraft
@@ -23,7 +23,7 @@ struct RecordDetailView: View {
 
     private let contentLimit = 1_000
 
-    init(record: EmberRecord, recordStore: RecordStore) {
+    init(record: WhisperRecord, recordStore: RecordStore) {
         self.record = record
         self.recordStore = recordStore
         _draft = State(
@@ -45,7 +45,7 @@ struct RecordDetailView: View {
                     readingContent
                 }
             }
-            .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.top, 12)
             .padding(.bottom, 32)
         }
@@ -113,17 +113,17 @@ struct RecordDetailView: View {
 
     private var readingContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(record.createdAt.emberFullDayDescription)
-                .font(.emberMetadata)
+            Text(record.createdAt.whisperFullDayDescription)
+                .font(.whisperMetadata)
                 .foregroundStyle(Color.emberTextSecondary)
 
             Text(record.title)
-                .font(.emberScreenTitle)
+                .font(.whisperScreenTitle)
                 .foregroundStyle(Color.emberTextPrimary)
 
             if let emotion = record.emotion {
                 Label(emotion, systemImage: emotionSystemImage(for: emotion))
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberAccentText)
                     .padding(.horizontal, 14)
                     .frame(height: 40)
@@ -134,15 +134,15 @@ struct RecordDetailView: View {
             }
 
             Text(record.content)
-                .font(.emberBodyLarge)
+                .font(.whisperBodyLarge)
                 .foregroundStyle(Color.emberTextPrimary)
                 .lineSpacing(6)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(18)
-                .emberCardStyle(
+                .whisperCardStyle(
                     fill: .emberSurfaceDefault,
                     border: .emberBorderSubtle,
-                    cornerRadius: EmberRadius.large
+                    cornerRadius: WhisperRadius.large
                 )
                 .textSelection(.enabled)
 
@@ -156,14 +156,14 @@ struct RecordDetailView: View {
 
             if let focusMode = record.focusMode {
                 Label(focusMode, systemImage: "moon.stars.fill")
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberAccentText)
                     .padding(.horizontal, 14)
                     .frame(height: 44)
                     .background(
                         Color.emberSurfaceFocus,
                         in: RoundedRectangle(
-                            cornerRadius: EmberRadius.medium,
+                            cornerRadius: WhisperRadius.medium,
                             style: .continuous
                         )
                     )
@@ -174,19 +174,19 @@ struct RecordDetailView: View {
 
     private var editingContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(record.createdAt.emberFullDayDescription)
-                .font(.emberMetadata)
+            Text(record.createdAt.whisperFullDayDescription)
+                .font(.whisperMetadata)
                 .foregroundStyle(Color.emberTextSecondary)
 
             fieldLabel("제목")
             TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
-                .font(.emberBodyLarge)
+                .font(.whisperBodyLarge)
                 .padding(.horizontal, 16)
                 .frame(height: 52)
                 .background(
                     Color.emberSurfaceSubtle,
                     in: RoundedRectangle(
-                        cornerRadius: EmberRadius.medium,
+                        cornerRadius: WhisperRadius.medium,
                         style: .continuous
                     )
                 )
@@ -198,7 +198,7 @@ struct RecordDetailView: View {
                     text: $draft.content,
                     axis: .vertical
                 )
-                .font(.emberBodyLarge)
+                .font(.whisperBodyLarge)
                 .lineSpacing(5)
                 .lineLimit(8 ... 14)
                 .padding(18)
@@ -209,14 +209,14 @@ struct RecordDetailView: View {
                 }
 
                 Text("\(draft.content.count) / \(contentLimit.formatted())")
-                    .font(.emberCaption)
+                    .font(.whisperCaption)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(16)
             }
             .background(
                 Color.emberSurfaceSubtle,
                 in: RoundedRectangle(
-                    cornerRadius: EmberRadius.medium,
+                    cornerRadius: WhisperRadius.medium,
                     style: .continuous
                 )
             )
@@ -230,7 +230,7 @@ struct RecordDetailView: View {
                         selectedEmotion ?? "선택 안 함",
                         systemImage: selectedEmotion.map(emotionSystemImage) ?? "circle.dashed"
                     )
-                    .font(.emberBodyEmphasis)
+                    .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
 
                     Spacer()
@@ -244,7 +244,7 @@ struct RecordDetailView: View {
                 .background(
                     Color.emberSurfaceSubtle,
                     in: RoundedRectangle(
-                        cornerRadius: EmberRadius.medium,
+                        cornerRadius: WhisperRadius.medium,
                         style: .continuous
                     )
                 )
@@ -258,43 +258,43 @@ struct RecordDetailView: View {
 
     private func fieldLabel(_ title: String) -> some View {
         Text(title)
-            .font(.emberFieldLabel)
+            .font(.whisperFieldLabel)
             .foregroundStyle(Color.emberTextPrimary)
     }
 
-    private func commitmentCard(_ commitment: EmberCommitment) -> some View {
+    private func commitmentCard(_ commitment: WhisperCommitment) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Whisper가 기억 중인 불꽃", systemImage: "sparkles")
-                .font(.emberControl)
+                .font(.whisperControl)
                 .foregroundStyle(Color.emberAccentText)
 
             Text("“\(commitment.quote)”")
-                .font(.emberBody)
+                .font(.whisperBody)
                 .foregroundStyle(Color.emberTextPrimary)
                 .lineSpacing(4)
 
             Text("반응이 없으면 조금씩 더 긴 간격으로 다시 건넬게요.")
-                .font(.emberCaption)
+                .font(.whisperCaption)
                 .foregroundStyle(Color.emberTextSecondary)
 
             HStack(spacing: 10) {
                 Button("계속 기억해줘") {
                     continueCommitment(commitment)
                 }
-                .buttonStyle(.emberSecondary)
+                .buttonStyle(.whisperSecondary)
 
                 Button("이제 괜찮아요") {
                     isForgetCommitmentConfirmationPresented = true
                 }
-                .font(.emberControl)
+                .font(.whisperControl)
                 .foregroundStyle(Color.emberTextSecondary)
             }
         }
         .padding(16)
-        .emberCardStyle(
+        .whisperCardStyle(
             fill: .emberSurfaceHighlight,
             border: .emberBorderSubtle,
-            cornerRadius: EmberRadius.large
+            cornerRadius: WhisperRadius.large
         )
     }
 
@@ -339,7 +339,7 @@ struct RecordDetailView: View {
         }
     }
 
-    private func continueCommitment(_ commitment: EmberCommitment) {
+    private func continueCommitment(_ commitment: WhisperCommitment) {
         guard let context = recordStore.reminderPlanningContext(for: commitment.id) else { return }
 
         Task {
@@ -363,13 +363,13 @@ struct RecordDetailView: View {
     }
 
     private func emotionSystemImage(for emotion: String) -> String {
-        EmberEmotion(rawValue: emotion)?.systemImage ?? "face.smiling"
+        WhisperEmotion(rawValue: emotion)?.systemImage ?? "face.smiling"
     }
 }
 
 private struct RecordDetailPreview: View {
     private let recordStore: RecordStore
-    private let record: EmberRecord
+    private let record: WhisperRecord
 
     init() {
         let store = RecordStore(isStoredInMemoryOnly: true)

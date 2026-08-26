@@ -1,6 +1,6 @@
 //
 //  PhotoAttachmentView.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
@@ -25,7 +25,7 @@ struct PhotoAttachmentEditor: View {
                         .frame(height: 210)
                         .clipShape(
                             RoundedRectangle(
-                                cornerRadius: EmberRadius.large,
+                                cornerRadius: WhisperRadius.large,
                                 style: .continuous
                             )
                         )
@@ -51,7 +51,7 @@ struct PhotoAttachmentEditor: View {
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     HStack {
                         Label("사진 추가", systemImage: "photo")
-                            .font(.emberControl)
+                            .font(.whisperControl)
                         Spacer()
                         if isLoading {
                             ProgressView()
@@ -65,7 +65,7 @@ struct PhotoAttachmentEditor: View {
                     .background(
                         Color.emberSurfaceSubtle,
                         in: RoundedRectangle(
-                            cornerRadius: EmberRadius.medium,
+                            cornerRadius: WhisperRadius.medium,
                             style: .continuous
                         )
                     )
@@ -122,7 +122,7 @@ struct RecordPhotoView: View {
                 .frame(maxWidth: .infinity)
                 .clipShape(
                     RoundedRectangle(
-                        cornerRadius: EmberRadius.large,
+                        cornerRadius: WhisperRadius.large,
                         style: .continuous
                     )
                 )

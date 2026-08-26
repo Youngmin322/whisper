@@ -1,6 +1,6 @@
 //
-//  EmberJar.swift
-//  Ember
+//  WhisperJar.swift
+//  Whisper
 //
 //  Created by Youngmin Cho on 8/19/26.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 import EmberDesignSystem
 
-struct EmberJarAnimation: View {
+struct WhisperJarAnimation: View {
     enum Size {
         case hero
         case small
@@ -88,23 +88,23 @@ struct EmberJarAnimation: View {
     }
 }
 
-#Preview("Ember Jar") {
+#Preview("Whisper Jar") {
     ZStack {
         Color.emberBackground
             .ignoresSafeArea()
 
         VStack(spacing: 40) {
-            EmberJarAnimation(size: .hero)
-            EmberJarAnimation(size: .small)
+            WhisperJarAnimation(size: .hero)
+            WhisperJarAnimation(size: .small)
         }
     }
 }
 
-#Preview("Ember Jar") {
+#Preview("Whisper Jar") {
     ZStack {
         Color.emberBackground
             .ignoresSafeArea()
         
-            EmberJarAnimation(size: .hero)
+            WhisperJarAnimation(size: .hero)
     }
 }

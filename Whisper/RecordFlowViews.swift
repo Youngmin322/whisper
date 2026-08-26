@@ -1,12 +1,12 @@
 //
 //  RecordFlowViews.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
 import EmberDesignSystem
 
-enum EmberJarSize {
+enum WhisperJarSize {
     case welcome, hero, small, shelf
     
     var dimensions: CGSize {
@@ -19,8 +19,8 @@ enum EmberJarSize {
     }
 }
 
-struct EmberJar: View {
-    let size: EmberJarSize
+struct WhisperJar: View {
+    let size: WhisperJarSize
     
     var body: some View {
         Image.ember
@@ -44,21 +44,21 @@ struct DetailedRecordView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(Date.now.emberFullDayDescription)
-                    .font(.emberMetadata)
+                Text(Date.now.whisperFullDayDescription)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.top, 12)
                 fieldLabel("제목")
                 TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
-                    .font(.emberBodyLarge)
+                    .font(.whisperBodyLarge)
                     .padding(.horizontal, 16)
                     .frame(height: 52)
-                    .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: EmberRadius.medium, style: .continuous))
+                    .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
                 
                 fieldLabel("기록")
                 ZStack(alignment: .bottomTrailing) {
                     TextField("오늘 있었던 일과 생각을 천천히 적어보세요", text: $draft.content, axis: .vertical)
-                        .font(.emberBodyLarge)
+                        .font(.whisperBodyLarge)
                         .lineSpacing(5)
                         .lineLimit(6 ... 8)
                         .padding(18)
@@ -68,11 +68,11 @@ struct DetailedRecordView: View {
                             draft.content = String(newValue.prefix(contentLimit))
                         }
                     Text("\(draft.content.count) / \(contentLimit.formatted())")
-                        .font(.emberCaption)
+                        .font(.whisperCaption)
                         .foregroundStyle(Color.emberTextSecondary)
                         .padding(16)
                 }
-                .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: EmberRadius.medium, style: .continuous))
+                .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
                 
                 fieldLabel("기록에 더하기")
                 HStack(spacing: 10) {
@@ -87,13 +87,13 @@ struct DetailedRecordView: View {
                 PhotoAttachmentEditor(photoData: $photoData)
                 
                 Label("결심이 담겨 있다면 저장한 뒤 Whisper가 기억할지 물어봐요.", systemImage: "bell")
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                    .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: EmberRadius.medium, style: .continuous))
+                    .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
             }
-            .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.bottom, 90)
         }
         .scrollIndicators(.hidden)
@@ -103,9 +103,9 @@ struct DetailedRecordView: View {
                 onSave(selectedEmotion, photoData)
                 isSaved = true
             }
-            .buttonStyle(.emberPrimary)
+            .buttonStyle(.whisperPrimary)
             .disabled(!draft.canSave)
-            .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
         }
@@ -130,7 +130,7 @@ struct DetailedRecordView: View {
     }
     
     private func fieldLabel(_ title: String) -> some View {
-        Text(title).font(.emberFieldLabel).foregroundStyle(Color.emberTextPrimary)
+        Text(title).font(.whisperFieldLabel).foregroundStyle(Color.emberTextPrimary)
     }
     
     private func recordChip(
@@ -140,11 +140,11 @@ struct DetailedRecordView: View {
     ) -> some View {
         Button(action: action) {
             Label(title, systemImage: icon)
-                .font(.emberControl)
+                .font(.whisperControl)
                 .foregroundStyle(Color.emberTextPrimary)
                 .padding(.horizontal, 14)
                 .frame(height: 48)
-                .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: EmberRadius.medium, style: .continuous))
+                .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -156,19 +156,19 @@ private struct SavedRecordSheet: View {
     var body: some View {
         VStack(spacing: 10) {
             Text("오늘의 불꽃을 담았어요")
-                .font(.emberNavigationTitle)
+                .font(.whisperNavigationTitle)
                 .foregroundStyle(Color.emberTextPrimary)
             Text("기록은 보관함에서 언제든 다시 꺼내보고\n결심이 보이면 Whisper가 기억할지 물어볼게요.")
-                .font(.emberBody)
+                .font(.whisperBody)
                 .foregroundStyle(Color.emberTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
-            EmberJar(size: .hero).padding(.vertical, 4)
+            WhisperJar(size: .hero).padding(.vertical, 4)
             Button("홈으로 돌아가기", action: onHome)
-                .buttonStyle(.emberPrimary(size: .compact))
+                .buttonStyle(.whisperPrimary(size: .compact))
                 .padding(.top, 2)
         }
-        .padding(.horizontal, EmberLayout.sheetHorizontalPadding)
+        .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, 10)
     }
 }
@@ -181,7 +181,7 @@ struct CollectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("불꽃 보관함")
-                .font(.emberScreenTitle)
+                .font(.whisperScreenTitle)
                 .padding(.top, 18)
 
             searchField
@@ -209,7 +209,7 @@ struct CollectionView: View {
 
                 ForEach(monthlyShelves, id: \.title) { shelf in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(shelf.title).font(.emberSectionTitle)
+                        Text(shelf.title).font(.whisperSectionTitle)
                         LazyVGrid(
                             columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4),
                             alignment: .leading,
@@ -223,7 +223,7 @@ struct CollectionView: View {
                                     )
                                 } label: {
                                     ZStack(alignment: .bottomTrailing) {
-                                        EmberJar(size: .shelf)
+                                        WhisperJar(size: .shelf)
 
                                         if record.photoData != nil {
                                             Image(systemName: "photo.fill")
@@ -237,7 +237,7 @@ struct CollectionView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(
-                                    "\(record.title), \(record.createdAt.emberFullDayDescription)"
+                                    "\(record.title), \(record.createdAt.whisperFullDayDescription)"
                                 )
                             }
                         }
@@ -259,7 +259,7 @@ struct CollectionView: View {
                 .foregroundStyle(Color.emberTextSecondary)
 
             TextField("제목이나 내용 검색", text: $searchText)
-                .font(.emberBody)
+                .font(.whisperBody)
                 .textInputAutocapitalization(.never)
 
             if !searchText.isEmpty {
@@ -278,7 +278,7 @@ struct CollectionView: View {
         .background(
             Color.emberSurfaceSubtle,
             in: RoundedRectangle(
-                cornerRadius: EmberRadius.medium,
+                cornerRadius: WhisperRadius.medium,
                 style: .continuous
             )
         )
@@ -289,7 +289,7 @@ struct CollectionView: View {
             HStack(spacing: 8) {
                 Menu {
                     Button("전체 감정") { selectedEmotion = nil }
-                    ForEach(EmberEmotion.allCases) { emotion in
+                    ForEach(WhisperEmotion.allCases) { emotion in
                         Button(emotion.rawValue) {
                             selectedEmotion = emotion.rawValue
                         }
@@ -304,7 +304,7 @@ struct CollectionView: View {
 
                 if hasActiveFilters {
                     Button("초기화", action: resetFilters)
-                        .font(.emberCaption)
+                        .font(.whisperCaption)
                         .foregroundStyle(Color.emberAccentText)
                 }
             }
@@ -323,7 +323,7 @@ struct CollectionView: View {
             Image(systemName: "chevron.down")
                 .font(.system(size: 9, weight: .bold))
         }
-        .font(.emberCaption)
+        .font(.whisperCaption)
         .foregroundStyle(isActive ? Color.emberAccentText : Color.emberTextSecondary)
         .padding(.horizontal, 12)
         .frame(height: 36)
@@ -338,7 +338,7 @@ struct CollectionView: View {
             selectedEmotion != nil
     }
 
-    private var filteredRecords: [EmberRecord] {
+    private var filteredRecords: [WhisperRecord] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return recordStore.records.filter { record in
@@ -355,7 +355,7 @@ struct CollectionView: View {
         selectedEmotion = nil
     }
     
-    private var monthlyShelves: [(title: String, records: [EmberRecord])] {
+    private var monthlyShelves: [(title: String, records: [WhisperRecord])] {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
         formatter.dateFormat = "yyyy년 M월"

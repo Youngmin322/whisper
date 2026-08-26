@@ -20,8 +20,8 @@
       "layers" : [
         {
           "glass" : false,
-          "image-name" : "EmberFlame.png",
-          "name" : "EmberFlame",
+          "image-name" : "WhisperFlame.png",
+          "name" : "WhisperFlame",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
@@ -31,8 +31,8 @@
           }
         },
         {
-          "image-name" : "EmberJar.png",
-          "name" : "EmberJar",
+          "image-name" : "WhisperJar.png",
+          "name" : "WhisperJar",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
@@ -43,8 +43,8 @@
         },
         {
           "hidden" : false,
-          "image-name" : "EmberCorkscrew.png",
-          "name" : "EmberCorkscrew",
+          "image-name" : "WhisperCorkscrew.png",
+          "name" : "WhisperCorkscrew",
           "position" : {
             "scale" : 1,
             "translation-in-points" : [

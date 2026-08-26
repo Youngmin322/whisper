@@ -285,7 +285,7 @@
 		1D97B5B0302AB12600C4F5E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = EmberIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = WhisperIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 5R33532VPH;
@@ -318,7 +318,7 @@
 		1D97B5B1302AB12600C4F5E8 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = EmberIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = WhisperIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 5R33532VPH;

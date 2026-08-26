@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
@@ -55,7 +55,7 @@ private struct MainTabView: View {
             }
         }
         .task(consumePendingNotificationRoute)
-        .onReceive(NotificationCenter.default.publisher(for: EmberNotificationRoute.didSelectRecord)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: WhisperNotificationRoute.didSelectRecord)) { _ in
             consumePendingNotificationRoute()
         }
         .onChange(of: scenePhase) { _, newValue in
@@ -65,13 +65,13 @@ private struct MainTabView: View {
     }
     
     private func consumePendingNotificationRoute() {
-        if let recordID = EmberNotificationRoute.consumePendingRecordID() {
+        if let recordID = WhisperNotificationRoute.consumePendingRecordID() {
             selectedTab = .home
             homePath = NavigationPath()
             homePath.append(recordID)
         }
 
-        if let commitmentID = EmberNotificationRoute.consumePendingCommitmentID() {
+        if let commitmentID = WhisperNotificationRoute.consumePendingCommitmentID() {
             replanOpenedCommitment(commitmentID)
         }
     }
@@ -127,26 +127,26 @@ private struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 54)
-            EmberJar(size: .welcome).padding(.bottom, 10)
+            WhisperJar(size: .welcome).padding(.bottom, 10)
             Text("Whisper")
-                .font(.emberBrand)
+                .font(.whisperBrand)
                 .foregroundStyle(Color.emberTextPrimary)
             Text("내가 쓴 마음을\n필요한 순간 다시 만나요")
-                .font(.emberNavigationTitle)
+                .font(.whisperNavigationTitle)
                 .foregroundStyle(Color.emberTextPrimary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(7)
                 .padding(.top, 20)
             Text("기록 속 결심을 Whisper가 기억하고\n잊힐 만한 순간 다시 건넬게요.")
-                .font(.emberBody)
+                .font(.whisperBody)
                 .foregroundStyle(Color.emberTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(6)
                 .padding(.top, 42)
             Spacer()
-            Button("시작하기", action: onStart).buttonStyle(.emberPrimary)
+            Button("시작하기", action: onStart).buttonStyle(.whisperPrimary)
         }
-        .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+        .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
         .padding(.bottom, 26)
         .background(Color.emberBackground.ignoresSafeArea())
     }
@@ -163,8 +163,8 @@ private struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             // 고정 헤더
             Text("설정")
-                .font(.emberScreenTitle)
-                .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+                .font(.whisperScreenTitle)
+                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.top, 18)
                 .padding(.bottom, 24)
             
@@ -264,7 +264,7 @@ private struct FocusFilterGuideView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("집중 모드가 시작될 때 Whisper가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요.")
-                        .font(.emberBody)
+                        .font(.whisperBody)
                         .foregroundStyle(Color.emberTextSecondary)
                     
                     guideStep(
@@ -288,7 +288,7 @@ private struct FocusFilterGuideView: View {
                         description: "집중 모드의 알림 허용 앱에 Whisper를 넣으면 시작과 함께 알림을 받을 수 있어요."
                     )
                 }
-                .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.vertical, 20)
             }
             .navigationTitle("집중 모드 연결 방법")
@@ -304,18 +304,18 @@ private struct FocusFilterGuideView: View {
     private func guideStep(number: Int, title: String, description: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Text("\(number)")
-                .font(.emberControl)
+                .font(.whisperControl)
                 .foregroundStyle(Color.white)
                 .frame(width: 30, height: 30)
                 .background(Color.emberAccent, in: Circle())
             
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
-                    .font(.emberBodyEmphasis)
+                    .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
                 
                 Text(description)
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

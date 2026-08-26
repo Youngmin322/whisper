@@ -1,6 +1,6 @@
 //
 //  DayRecordsView.swift
-//  Ember
+//  Whisper
 //
 
 import SwiftUI
@@ -13,8 +13,8 @@ struct DayRecordsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
-                Text(date.emberFullDayDescription)
-                    .font(.emberMetadata)
+                Text(date.whisperFullDayDescription)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .padding(.top, 12)
 
@@ -34,12 +34,12 @@ struct DayRecordsView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(
-                            "\(record.createdAt.emberTimeDescription), \(record.title)"
+                            "\(record.createdAt.whisperTimeDescription), \(record.title)"
                         )
                     }
                 }
             }
-            .padding(.horizontal, EmberLayout.screenHorizontalPadding)
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
@@ -48,26 +48,26 @@ struct DayRecordsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var records: [EmberRecord] {
+    private var records: [WhisperRecord] {
         recordStore.records(on: date, calendar: calendar)
     }
 
-    private func recordCard(for record: EmberRecord) -> some View {
+    private func recordCard(for record: WhisperRecord) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            EmberJar(size: .small)
+            WhisperJar(size: .small)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(record.createdAt.emberTimeDescription)
-                    .font(.emberCaption)
+                Text(record.createdAt.whisperTimeDescription)
+                    .font(.whisperCaption)
                     .foregroundStyle(Color.emberTextSecondary)
 
                 Text(record.title)
-                    .font(.emberBodyEmphasis)
+                    .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.emberTextPrimary)
                     .lineLimit(1)
 
                 Text(record.content)
-                    .font(.emberMetadata)
+                    .font(.whisperMetadata)
                     .foregroundStyle(Color.emberTextSecondary)
                     .lineLimit(2)
             }
@@ -80,10 +80,10 @@ struct DayRecordsView: View {
                 .padding(.top, 4)
         }
         .padding(16)
-        .emberCardStyle(
+        .whisperCardStyle(
             fill: .emberSurfaceDefault,
             border: .emberBorderSubtle,
-            cornerRadius: EmberRadius.large
+            cornerRadius: WhisperRadius.large
         )
         .contentShape(Rectangle())
     }

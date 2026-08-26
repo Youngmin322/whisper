@@ -1,46 +1,46 @@
 //
-//  EmberButtonStyle.swift
-//  Ember
+//  WhisperButtonStyle.swift
+//  Whisper
 //
 
 import SwiftUI
 import EmberDesignSystem
 
-enum EmberButtonSize {
+enum WhisperButtonSize {
     case compact
     case regular
 
     fileprivate var height: CGFloat {
         switch self {
         case .compact:
-            EmberSize.controlCompact
+            WhisperSize.controlCompact
         case .regular:
-            EmberSize.controlRegular
+            WhisperSize.controlRegular
         }
     }
 
     fileprivate var cornerRadius: CGFloat {
         switch self {
         case .compact:
-            EmberRadius.medium
+            WhisperRadius.medium
         case .regular:
-            EmberRadius.large
+            WhisperRadius.large
         }
     }
 }
 
-struct EmberPrimaryButtonStyle: ButtonStyle {
+struct WhisperPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
-    let size: EmberButtonSize
+    let size: WhisperButtonSize
 
-    init(size: EmberButtonSize = .regular) {
+    init(size: WhisperButtonSize = .regular) {
         self.size = size
     }
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.emberAction)
+            .font(.whisperAction)
             .foregroundStyle(Color.emberTextOnAccent)
             .frame(maxWidth: .infinity, minHeight: size.height)
             .background {
@@ -57,20 +57,20 @@ struct EmberPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-struct EmberSecondaryButtonStyle: ButtonStyle {
+struct WhisperSecondaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.emberControl)
+            .font(.whisperControl)
             .foregroundStyle(Color.emberTextPrimary)
-            .frame(minHeight: EmberSize.controlCompact)
-            .padding(.horizontal, EmberSpacing.medium)
+            .frame(minHeight: WhisperSize.controlCompact)
+            .padding(.horizontal, WhisperSpacing.medium)
             .background {
-                RoundedRectangle(cornerRadius: EmberRadius.medium, style: .continuous)
+                RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
                     .fill(Color.emberSurfaceSubtle)
                     .overlay {
-                        RoundedRectangle(cornerRadius: EmberRadius.medium, style: .continuous)
+                        RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
                             .stroke(Color.emberBorderSubtle, lineWidth: 1)
                     }
             }
@@ -84,18 +84,18 @@ struct EmberSecondaryButtonStyle: ButtonStyle {
     }
 }
 
-extension ButtonStyle where Self == EmberPrimaryButtonStyle {
-    static var emberPrimary: EmberPrimaryButtonStyle {
-        EmberPrimaryButtonStyle()
+extension ButtonStyle where Self == WhisperPrimaryButtonStyle {
+    static var whisperPrimary: WhisperPrimaryButtonStyle {
+        WhisperPrimaryButtonStyle()
     }
 
-    static func emberPrimary(size: EmberButtonSize) -> EmberPrimaryButtonStyle {
-        EmberPrimaryButtonStyle(size: size)
+    static func whisperPrimary(size: WhisperButtonSize) -> WhisperPrimaryButtonStyle {
+        WhisperPrimaryButtonStyle(size: size)
     }
 }
 
-extension ButtonStyle where Self == EmberSecondaryButtonStyle {
-    static var emberSecondary: EmberSecondaryButtonStyle {
-        EmberSecondaryButtonStyle()
+extension ButtonStyle where Self == WhisperSecondaryButtonStyle {
+    static var whisperSecondary: WhisperSecondaryButtonStyle {
+        WhisperSecondaryButtonStyle()
     }
 }

@@ -1,11 +1,11 @@
 //
-//  EmberMetrics.swift
-//  Ember
+//  WhisperMetrics.swift
+//  Whisper
 //
 
 import CoreGraphics
 
-enum EmberSpacing {
+enum WhisperSpacing {
     static let xxSmall: CGFloat = 4
     static let xSmall: CGFloat = 8
     static let small: CGFloat = 12
@@ -15,7 +15,7 @@ enum EmberSpacing {
     static let xxLarge: CGFloat = 32
 }
 
-enum EmberRadius {
+enum WhisperRadius {
     static let small: CGFloat = 12
     static let medium: CGFloat = 16
     static let large: CGFloat = 18
@@ -24,7 +24,7 @@ enum EmberRadius {
     static let full: CGFloat = 999
 }
 
-enum EmberSize {
+enum WhisperSize {
     static let iconSmall: CGFloat = 20
     static let iconMedium: CGFloat = 24
     static let iconLarge: CGFloat = 28
@@ -32,7 +32,7 @@ enum EmberSize {
     static let controlRegular: CGFloat = 56
 }
 
-enum EmberLayout {
+enum WhisperLayout {
     static let screenHorizontalPadding: CGFloat = 20
     static let sheetHorizontalPadding: CGFloat = 24
 }
