@@ -356,7 +356,10 @@ struct HomeView: View {
                 continuedCommitmentID,
                 reminderTiming: analysis.continuedReminderTiming
                ) {
-                _ = try? await CommitmentReminderScheduler.schedule(plan)
+                let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+                if result != .scheduled {
+                    isReminderUnavailablePresented = true
+                }
             }
 
             pendingCommitmentCandidate = analysis.candidate
@@ -389,12 +392,8 @@ struct HomeView: View {
         }
 
         Task {
-            do {
-                let didSchedule = try await CommitmentReminderScheduler.schedule(plan)
-                if !didSchedule {
-                    isReminderUnavailablePresented = true
-                }
-            } catch {
+            let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+            if result != .scheduled {
                 isReminderUnavailablePresented = true
             }
         }

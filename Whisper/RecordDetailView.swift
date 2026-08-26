@@ -16,6 +16,7 @@ struct RecordDetailView: View {
     @State private var isEditing = false
     @State private var isDeleteConfirmationPresented = false
     @State private var isPersistenceErrorPresented = false
+    @State private var isReminderErrorPresented = false
     @State private var selectedEmotion: String?
     @State private var photoData: Data?
     @State private var isEmotionPickerPresented = false
@@ -92,6 +93,11 @@ struct RecordDetailView: View {
             Button("확인", role: .cancel) {}
         } message: {
             Text("잠시 후 다시 시도해 주세요.")
+        }
+        .alert("다시 만나기 알림을 설정할 수 없어요", isPresented: $isReminderErrorPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("알림 권한과 설정을 확인한 뒤 다시 시도해 주세요.")
         }
         .alert(
             "이 불꽃을 그만 기억할까요?",
@@ -353,7 +359,10 @@ struct RecordDetailView: View {
             ) else {
                 return
             }
-            _ = try? await CommitmentReminderScheduler.schedule(plan)
+            let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+            if result != .scheduled {
+                isReminderErrorPresented = true
+            }
         }
     }
 

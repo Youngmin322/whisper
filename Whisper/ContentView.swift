@@ -75,24 +75,42 @@ private struct MainTabView: View {
                 }
             }
         }
-        .task(consumePendingNotificationRoute)
+        .task {
+            consumePendingNotificationRoute()
+            await synchronizeReminderState()
+        }
         .onReceive(NotificationCenter.default.publisher(for: WhisperNotificationRoute.didSelectRecord)) { _ in
             consumePendingNotificationRoute()
         }
+        .onReceive(NotificationCenter.default.publisher(for: WhisperNotificationRoute.didPresentEncounter)) { notification in
+            guard let encounterID = notification.object as? UUID else { return }
+            _ = recordStore.markEncounterPresented(encounterID)
+        }
         .onChange(of: scenePhase) { _, newValue in
             guard newValue == .active else { return }
-            consumePendingNotificationRoute()
+            Task {
+                consumePendingNotificationRoute()
+                await synchronizeReminderState()
+            }
         }
     }
     
     private func consumePendingNotificationRoute() {
-        if let recordID = WhisperNotificationRoute.consumePendingRecordID() {
+        let recordID = WhisperNotificationRoute.consumePendingRecordID()
+        let commitmentID = WhisperNotificationRoute.consumePendingCommitmentID()
+        let encounterID = WhisperNotificationRoute.consumePendingEncounterID()
+
+        if let recordID {
             selectedTab = .home
             homePath = NavigationPath()
             homePath.append(recordID)
         }
 
-        if let commitmentID = WhisperNotificationRoute.consumePendingCommitmentID() {
+        if let encounterID {
+            _ = recordStore.markEncounterOpened(encounterID)
+        }
+
+        if let commitmentID {
             replanOpenedCommitment(commitmentID)
         }
     }
@@ -111,8 +129,12 @@ private struct MainTabView: View {
             ) else {
                 return
             }
-            _ = try? await CommitmentReminderScheduler.schedule(plan)
+            _ = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
         }
+    }
+
+    private func synchronizeReminderState() async {
+        await CommitmentReminderCoordinator.synchronize(with: recordStore)
     }
 }
 

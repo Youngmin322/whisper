@@ -374,6 +374,131 @@ final class RecordStore {
     }
 
     @discardableResult
+    func replaceScheduledEncounters(
+        commitmentID: UUID,
+        reminders: [ScheduledCommitmentReminder]
+    ) -> Bool {
+        guard let modelContext,
+              let commitment = commitments.first(where: { $0.id == commitmentID })
+        else {
+            if modelContext == nil {
+                setUnavailablePersistenceError()
+            }
+            return false
+        }
+
+        encounters
+            .filter {
+                $0.commitmentID == commitmentID
+                    && $0.presentedAt == nil
+                    && $0.openedAt == nil
+            }
+            .forEach(modelContext.delete)
+
+        for reminder in reminders {
+            modelContext.insert(
+                ReminderEncounter(
+                    id: reminder.encounterID,
+                    commitmentID: commitmentID,
+                    scheduledAt: reminder.date,
+                    notificationIdentifier: reminder.requestIdentifier
+                )
+            )
+        }
+        commitment.nextReminderAt = reminders.map(\.date).min()
+        return saveChanges()
+    }
+
+    @discardableResult
+    func clearScheduledEncounters(commitmentID: UUID) -> Bool {
+        guard let modelContext,
+              let commitment = commitments.first(where: { $0.id == commitmentID })
+        else {
+            if modelContext == nil {
+                setUnavailablePersistenceError()
+            }
+            return false
+        }
+
+        encounters
+            .filter {
+                $0.commitmentID == commitmentID
+                    && $0.presentedAt == nil
+                    && $0.openedAt == nil
+            }
+            .forEach(modelContext.delete)
+        commitment.nextReminderAt = nil
+        return saveChanges()
+    }
+
+    @discardableResult
+    func reconcileReminderNotifications(
+        with state: CommitmentNotificationState,
+        at date: Date = .now
+    ) -> Bool {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return false
+        }
+
+        let trackedEncounters = encounters.filter { $0.notificationIdentifier != nil }
+        let affectedCommitmentIDs = Set(trackedEncounters.map(\.commitmentID))
+
+        for encounter in trackedEncounters {
+            guard let identifier = encounter.notificationIdentifier else { continue }
+
+            if let deliveredAt = state.deliveredEncounterDates[encounter.id] {
+                encounter.presentedAt = encounter.presentedAt ?? deliveredAt
+                if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
+                    commitment.lastEncounteredAt = [
+                        commitment.lastEncounteredAt,
+                        encounter.presentedAt
+                    ]
+                    .compactMap { $0 }
+                    .max()
+                }
+            } else if state.pendingRequestIdentifiers.contains(identifier) {
+                continue
+            } else if encounter.scheduledAt <= date {
+                // 알림 센터에서 이미 지워졌더라도 예정 시각이 지났다면 한 번 노출된 것으로 보존해요.
+                encounter.presentedAt = encounter.presentedAt ?? encounter.scheduledAt
+                if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
+                    commitment.lastEncounteredAt = [
+                        commitment.lastEncounteredAt,
+                        encounter.presentedAt
+                    ]
+                    .compactMap { $0 }
+                    .max()
+                }
+            } else if encounter.openedAt == nil {
+                // 미래 알림인데 시스템 예약에서 사라진 경우 고아 일정을 정리해요.
+                modelContext.delete(encounter)
+            }
+        }
+
+        for commitmentID in affectedCommitmentIDs {
+            guard let commitment = commitments.first(where: { $0.id == commitmentID }) else {
+                continue
+            }
+            commitment.nextReminderAt = trackedEncounters
+                .filter {
+                    $0.commitmentID == commitmentID
+                        && $0.openedAt == nil
+                        && (
+                            $0.presentedAt != nil
+                                || ($0.notificationIdentifier.map {
+                                    state.pendingRequestIdentifiers.contains($0)
+                                } ?? false)
+                        )
+                }
+                .map(\.scheduledAt)
+                .min()
+        }
+
+        return saveChanges()
+    }
+
+    @discardableResult
     func markEncounterPresented(_ encounterID: UUID, at date: Date = .now) -> Bool {
         guard let encounter = encounters.first(where: { $0.id == encounterID }) else {
             return false
