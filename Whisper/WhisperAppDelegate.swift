@@ -5,6 +5,7 @@
 
 import UIKit
 import UserNotifications
+import WhisperDesignSystem
 
 enum WhisperNotificationRoute {
     static let didSelectRecord = Notification.Name("WhisperDidSelectNotificationRecord")
@@ -52,6 +53,7 @@ final class WhisperAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificat
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        WhisperFont.register()
         UNUserNotificationCenter.current().delegate = self
         return true
     }
