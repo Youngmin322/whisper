@@ -9,7 +9,8 @@ import WhisperDesignSystem
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var draft: RecordDraft
-    let onSave: () -> Void
+    @State private var isSaveErrorPresented = false
+    let onSave: () -> Bool
     let onOpenDetail: () -> Void
     private let contentLimit = 280
 
@@ -55,8 +56,11 @@ struct QuickRecordView: View {
             }
             .buttonStyle(.plain)
             Button("기록 저장") {
-                onSave()
-                dismiss()
+                if onSave() {
+                    dismiss()
+                } else {
+                    isSaveErrorPresented = true
+                }
             }
             .buttonStyle(.whisperPrimary(size: .compact))
             .disabled(!draft.canSave)
@@ -64,6 +68,16 @@ struct QuickRecordView: View {
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, 8)
         .padding(.bottom, 22)
+        .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
+            Button("다시 시도") {
+                if onSave() {
+                    dismiss()
+                }
+            }
+            Button("계속 작성", role: .cancel) {}
+        } message: {
+            Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
+        }
     }
 }
 
@@ -71,7 +85,7 @@ private struct QuickRecordPreview: View {
     @State private var draft = RecordDraft()
 
     var body: some View {
-        QuickRecordView(draft: $draft, onSave: {}, onOpenDetail: {})
+        QuickRecordView(draft: $draft, onSave: { true }, onOpenDetail: {})
     }
 }
 

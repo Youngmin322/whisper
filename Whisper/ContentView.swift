@@ -14,13 +14,34 @@ struct ContentView: View {
     
     var body: some View {
         Group {
-            if hasSeenWelcome {
+            if !recordStore.isPersistenceAvailable {
+                PersistenceUnavailableView {
+                    recordStore = RecordStore()
+                }
+            } else if hasSeenWelcome {
                 MainTabView(recordStore: recordStore)
             } else {
                 WelcomeView { hasSeenWelcome = true }
             }
         }
         .tint(.whisperAccent)
+    }
+}
+
+private struct PersistenceUnavailableView: View {
+    let onRetry: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("기록을 불러올 수 없어요", systemImage: "externaldrive.badge.xmark")
+        } description: {
+            Text("작성한 기록을 보호하기 위해 저장 기능을 멈췄어요. 잠시 후 다시 시도해 주세요.")
+        } actions: {
+            Button("다시 시도", action: onRetry)
+                .buttonStyle(.whisperPrimary(size: .compact))
+        }
+        .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+        .background(Color.whisperBackground.ignoresSafeArea())
     }
 }
 

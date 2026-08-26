@@ -304,7 +304,7 @@ struct HomeView: View {
     private func saveDraft(
         emotion: String? = nil,
         photoData: Data? = nil
-    ) {
+    ) -> Bool {
         let title = recordDraft.titleForSaving
         let content = recordDraft.contentForSaving
         let existingCommitments = recordStore.activeCommitmentSnapshots
@@ -315,7 +315,7 @@ struct HomeView: View {
             emotion: emotion,
             photoData: photoData
         ) else {
-            return
+            return false
         }
 
         recordDraft = RecordDraft()
@@ -325,6 +325,7 @@ struct HomeView: View {
             content: content,
             existingCommitments: existingCommitments
         )
+        return true
     }
 
     private func openDetailAfterSheetDismissesIfNeeded() {

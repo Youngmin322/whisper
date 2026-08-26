@@ -7,82 +7,6 @@ import Foundation
 import Observation
 import SwiftData
 
-@Model
-final class WhisperRecord {
-    @Attribute(.unique) var id: UUID
-    var title: String
-    var content: String
-    var createdAt: Date
-    var updatedAt: Date
-    var focusMode: String?
-    var emotion: String?
-    @Attribute(.externalStorage) var photoData: Data?
-
-    init(
-        id: UUID = UUID(),
-        title: String,
-        content: String,
-        createdAt: Date = .now,
-        updatedAt: Date? = nil,
-        focusMode: String? = nil,
-        emotion: String? = nil,
-        photoData: Data? = nil
-    ) {
-        self.id = id
-        self.title = title
-        self.content = content
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt ?? createdAt
-        self.focusMode = focusMode
-        self.emotion = emotion
-        self.photoData = photoData
-    }
-}
-
-@Model
-final class WhisperCommitment {
-    @Attribute(.unique) var id: UUID
-    @Attribute(.unique) var sourceRecordID: UUID
-    var name: String
-    var quote: String
-    var topicsStorage: String
-    var createdAt: Date
-    var lastContinuedAt: Date?
-    var nextReminderAt: Date?
-    var continuationCount: Int
-    var isActive: Bool
-
-    init(
-        id: UUID = UUID(),
-        sourceRecordID: UUID,
-        name: String,
-        quote: String,
-        topics: [String],
-        createdAt: Date = .now,
-        lastContinuedAt: Date? = nil,
-        nextReminderAt: Date? = nil,
-        continuationCount: Int = 0,
-        isActive: Bool = true
-    ) {
-        self.id = id
-        self.sourceRecordID = sourceRecordID
-        self.name = name
-        self.quote = quote
-        topicsStorage = topics.joined(separator: "\u{001F}")
-        self.createdAt = createdAt
-        self.lastContinuedAt = lastContinuedAt
-        self.nextReminderAt = nextReminderAt
-        self.continuationCount = continuationCount
-        self.isActive = isActive
-    }
-
-    var topics: [String] {
-        topicsStorage
-            .split(separator: "\u{001F}")
-            .map(String.init)
-    }
-}
-
 struct CommitmentSnapshot: Sendable {
     let id: UUID
     let name: String
@@ -124,10 +48,12 @@ private struct LegacyWhisperRecord: Codable {
 final class RecordStore {
     private(set) var records: [WhisperRecord] = []
     private(set) var commitments: [WhisperCommitment] = []
+    private(set) var encounters: [ReminderEncounter] = []
     private(set) var persistenceError: String?
+    private(set) var isPersistenceAvailable = true
 
-    @ObservationIgnored private let modelContainer: ModelContainer
-    @ObservationIgnored private let modelContext: ModelContext
+    @ObservationIgnored private let modelContainer: ModelContainer?
+    @ObservationIgnored private let modelContext: ModelContext?
     @ObservationIgnored private let legacyStorageKey = "whisper.records"
 
     init(isStoredInMemoryOnly: Bool = false) {
@@ -136,16 +62,22 @@ final class RecordStore {
         )
 
         do {
-            modelContainer = try ModelContainer(
-                for: WhisperRecord.self,
-                WhisperCommitment.self,
+            let schema = Schema(versionedSchema: WhisperSchemaV2.self)
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: WhisperMigrationPlan.self,
                 configurations: configuration
             )
+            modelContainer = container
+            modelContext = container.mainContext
         } catch {
-            fatalError("SwiftData 저장소를 만들 수 없습니다: \(error.localizedDescription)")
+            modelContainer = nil
+            modelContext = nil
+            isPersistenceAvailable = false
+            persistenceError = error.localizedDescription
+            return
         }
 
-        modelContext = modelContainer.mainContext
         reload()
 
         if !isStoredInMemoryOnly {
@@ -185,6 +117,10 @@ final class RecordStore {
         emotion: String? = nil,
         photoData: Data? = nil
     ) -> WhisperRecord? {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return nil
+        }
         let record = WhisperRecord(
             title: title,
             content: content,
@@ -206,6 +142,10 @@ final class RecordStore {
         emotion: String?,
         photoData: Data?
     ) -> Bool {
+        guard modelContext != nil else {
+            setUnavailablePersistenceError()
+            return false
+        }
         record.title = title
         record.content = content
         record.emotion = emotion
@@ -216,8 +156,15 @@ final class RecordStore {
 
     @discardableResult
     func delete(_ record: WhisperRecord) -> Bool {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return false
+        }
         let relatedCommitments = commitments.filter { $0.sourceRecordID == record.id }
         let commitmentIDs = relatedCommitments.map(\.id)
+        encounters
+            .filter { commitmentIDs.contains($0.commitmentID) }
+            .forEach(modelContext.delete)
         relatedCommitments.forEach(modelContext.delete)
         modelContext.delete(record)
         let didSave = saveChanges()
@@ -233,7 +180,7 @@ final class RecordStore {
 
     var activeCommitmentSnapshots: [CommitmentSnapshot] {
         commitments
-            .filter(\.isActive)
+            .filter { $0.lifecycleStatus() == .active }
             .prefix(8)
             .map {
                 CommitmentSnapshot(
@@ -249,7 +196,9 @@ final class RecordStore {
     }
 
     func commitment(sourceRecordID: UUID) -> WhisperCommitment? {
-        commitments.first { $0.sourceRecordID == sourceRecordID && $0.isActive }
+        commitments.first {
+            $0.sourceRecordID == sourceRecordID && $0.lifecycleStatus() == .active
+        }
     }
 
     @discardableResult
@@ -261,6 +210,10 @@ final class RecordStore {
         reminderTiming: CommitmentReminderTiming,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return nil
+        }
         if let existing = commitment(sourceRecordID: sourceRecordID) {
             let plan = reminderPlan(for: existing, anchorDate: now, timing: reminderTiming)
             existing.nextReminderAt = plan.reminderDates.first
@@ -377,6 +330,8 @@ final class RecordStore {
     func forgetCommitment(_ commitment: WhisperCommitment) -> Bool {
         commitment.isActive = false
         commitment.nextReminderAt = nil
+        commitment.pausedUntil = nil
+        commitment.releasedAt = .now
         let commitmentID = commitment.id
         let didSave = saveChanges()
 
@@ -386,6 +341,114 @@ final class RecordStore {
             }
         }
 
+        return didSave
+    }
+
+    func encounters(for commitmentID: UUID) -> [ReminderEncounter] {
+        encounters.filter { $0.commitmentID == commitmentID }
+    }
+
+    @discardableResult
+    func addEncounter(
+        commitmentID: UUID,
+        scheduledAt: Date,
+        notificationIdentifier: String? = nil
+    ) -> ReminderEncounter? {
+        guard let modelContext,
+              commitments.contains(where: { $0.id == commitmentID })
+        else {
+            if modelContext == nil {
+                setUnavailablePersistenceError()
+            }
+            return nil
+        }
+
+        let encounter = ReminderEncounter(
+            commitmentID: commitmentID,
+            scheduledAt: scheduledAt,
+            notificationIdentifier: notificationIdentifier
+        )
+        modelContext.insert(encounter)
+        guard saveChanges() else { return nil }
+        return encounters.first { $0.id == encounter.id }
+    }
+
+    @discardableResult
+    func markEncounterPresented(_ encounterID: UUID, at date: Date = .now) -> Bool {
+        guard let encounter = encounters.first(where: { $0.id == encounterID }) else {
+            return false
+        }
+        encounter.presentedAt = encounter.presentedAt ?? date
+        if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
+            commitment.lastEncounteredAt = date
+        }
+        return saveChanges()
+    }
+
+    @discardableResult
+    func markEncounterOpened(_ encounterID: UUID, at date: Date = .now) -> Bool {
+        guard let encounter = encounters.first(where: { $0.id == encounterID }) else {
+            return false
+        }
+        let wasUnread = encounter.openedAt == nil
+        encounter.openedAt = encounter.openedAt ?? date
+        encounter.presentedAt = encounter.presentedAt ?? date
+        if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
+            commitment.lastEncounteredAt = encounter.presentedAt
+            commitment.lastReadAt = encounter.openedAt
+            if wasUnread {
+                commitment.encounterCount += 1
+            }
+        }
+        return saveChanges()
+    }
+
+    @discardableResult
+    func react(
+        to encounterID: UUID,
+        with reaction: ReminderEncounterReaction,
+        pausedUntil requestedPausedUntil: Date? = nil,
+        at date: Date = .now
+    ) -> Bool {
+        guard let encounter = encounters.first(where: { $0.id == encounterID }),
+              let commitment = commitments.first(where: { $0.id == encounter.commitmentID })
+        else {
+            return false
+        }
+
+        let wasUnread = encounter.openedAt == nil
+        encounter.reaction = reaction
+        encounter.openedAt = encounter.openedAt ?? date
+        encounter.presentedAt = encounter.presentedAt ?? date
+        commitment.lastEncounteredAt = encounter.presentedAt
+        commitment.lastReadAt = encounter.openedAt
+        if wasUnread {
+            commitment.encounterCount += 1
+        }
+
+        switch reaction {
+        case .keep:
+            commitment.isActive = true
+            commitment.pausedUntil = nil
+            commitment.releasedAt = nil
+        case .pause:
+            commitment.isActive = true
+            commitment.pausedUntil = requestedPausedUntil
+                ?? Calendar.current.date(byAdding: .day, value: 30, to: date)
+            commitment.nextReminderAt = nil
+        case .release:
+            commitment.isActive = false
+            commitment.pausedUntil = nil
+            commitment.releasedAt = date
+            commitment.nextReminderAt = nil
+        }
+
+        let didSave = saveChanges()
+        if didSave && (reaction == .pause || reaction == .release) {
+            Task {
+                await CommitmentReminderScheduler.cancel(commitmentIDs: [commitment.id])
+            }
+        }
         return didSave
     }
 
@@ -456,6 +519,10 @@ final class RecordStore {
     }
 
     private func saveChanges() -> Bool {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return false
+        }
         do {
             try modelContext.save()
             reload()
@@ -470,6 +537,13 @@ final class RecordStore {
     }
 
     private func reload() {
+        guard let modelContext else {
+            records = []
+            commitments = []
+            encounters = []
+            setUnavailablePersistenceError()
+            return
+        }
         let descriptor = FetchDescriptor<WhisperRecord>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
@@ -481,10 +555,18 @@ final class RecordStore {
                     sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
                 )
             )
+            encounters = try modelContext.fetch(
+                FetchDescriptor<ReminderEncounter>(
+                    sortBy: [SortDescriptor(\.scheduledAt, order: .reverse)]
+                )
+            )
             persistenceError = nil
+            isPersistenceAvailable = true
         } catch {
             records = []
             commitments = []
+            encounters = []
+            isPersistenceAvailable = false
             persistenceError = error.localizedDescription
         }
     }
@@ -513,7 +595,8 @@ final class RecordStore {
     }
 
     private func migrateLegacyRecordsIfNeeded() {
-        guard let data = UserDefaults.standard.data(forKey: legacyStorageKey),
+        guard let modelContext,
+              let data = UserDefaults.standard.data(forKey: legacyStorageKey),
               let legacyRecords = try? JSONDecoder().decode([LegacyWhisperRecord].self, from: data)
         else {
             return
@@ -542,6 +625,13 @@ final class RecordStore {
         } catch {
             modelContext.rollback()
             persistenceError = error.localizedDescription
+        }
+    }
+
+    private func setUnavailablePersistenceError() {
+        isPersistenceAvailable = false
+        if persistenceError == nil {
+            persistenceError = "기록 저장소를 사용할 수 없어요."
         }
     }
 }

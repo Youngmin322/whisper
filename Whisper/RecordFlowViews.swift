@@ -37,8 +37,9 @@ struct DetailedRecordView: View {
     @State private var selectedEmotion: String?
     @State private var photoData: Data?
     @State private var isSaved = false
+    @State private var isSaveErrorPresented = false
     @State private var isEmotionPickerPresented = false
-    let onSave: (String?, Data?) -> Void
+    let onSave: (String?, Data?) -> Bool
     private let contentLimit = 1_000
     
     var body: some View {
@@ -100,8 +101,11 @@ struct DetailedRecordView: View {
         .background(Color.whisperBackground)
         .safeAreaInset(edge: .bottom) {
             Button("기록 저장") {
-                onSave(selectedEmotion, photoData)
-                isSaved = true
+                if onSave(selectedEmotion, photoData) {
+                    isSaved = true
+                } else {
+                    isSaveErrorPresented = true
+                }
             }
             .buttonStyle(.whisperPrimary)
             .disabled(!draft.canSave)
@@ -111,6 +115,16 @@ struct DetailedRecordView: View {
         }
         .navigationTitle("상세 기록")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
+            Button("다시 시도") {
+                if onSave(selectedEmotion, photoData) {
+                    isSaved = true
+                }
+            }
+            Button("계속 작성", role: .cancel) {}
+        } message: {
+            Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
+        }
         .sheet(isPresented: $isSaved) {
             SavedRecordSheet {
                 dismiss()
@@ -375,7 +389,7 @@ private struct DetailedRecordPreview: View {
         NavigationStack {
             DetailedRecordView(
                 draft: $draft,
-                onSave: { _, _ in }
+                onSave: { _, _ in true }
             )
         }
     }
