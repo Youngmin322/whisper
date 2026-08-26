@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 private struct WhisperDesignSystemPreview: View {
     var body: some View {
@@ -17,7 +17,7 @@ private struct WhisperDesignSystemPreview: View {
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.vertical, WhisperSpacing.xLarge)
         }
-        .background(Color.emberBackground.ignoresSafeArea())
+        .background(Color.whisperBackground.ignoresSafeArea())
     }
 
     private var typography: some View {
@@ -32,7 +32,7 @@ private struct WhisperDesignSystemPreview: View {
                 Text("FocusMode 연결 가능").font(.whisperLabel)
                 Text("2026년 8월 14일 · 금요일").font(.whisperMetadata)
             }
-            .foregroundStyle(Color.emberTextPrimary)
+            .foregroundStyle(Color.whisperTextPrimary)
         }
     }
 
@@ -45,12 +45,12 @@ private struct WhisperDesignSystemPreview: View {
                 columns: [GridItem(.adaptive(minimum: 96))],
                 spacing: WhisperSpacing.medium
             ) {
-                swatch("Accent", .emberAccent)
-                swatch("Warm", .emberSurfaceHighlight)
-                swatch("Subtle", .emberSurfaceSubtle)
-                swatch("Focus", .emberSurfaceFocus)
-                swatch("Text", .emberTextPrimary)
-                swatch("Border", .emberBorderSubtle)
+                swatch("Accent", .whisperAccent)
+                swatch("Warm", .whisperSurfaceHighlight)
+                swatch("Subtle", .whisperSurfaceSubtle)
+                swatch("Focus", .whisperSurfaceFocus)
+                swatch("Text", .whisperTextPrimary)
+                swatch("Border", .whisperBorderSubtle)
             }
         }
     }
@@ -63,16 +63,16 @@ private struct WhisperDesignSystemPreview: View {
             VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
                 Text("오늘 다시 만난 불꽃")
                     .font(.whisperLabel)
-                    .foregroundStyle(Color.emberAccentText)
+                    .foregroundStyle(Color.whisperAccentText)
                 Text("첫 기록이 쌓이면 이곳에 나타나요")
                     .font(.whisperSectionTitle)
-                    .foregroundStyle(Color.emberTextPrimary)
+                    .foregroundStyle(Color.whisperTextPrimary)
             }
             .padding(WhisperSpacing.medium)
             .frame(maxWidth: .infinity, alignment: .leading)
             .whisperCardStyle(
-                fill: .emberSurfaceSubtle,
-                border: .emberBorderSubtle,
+                fill: .whisperSurfaceSubtle,
+                border: .whisperBorderSubtle,
                 hasShadow: true
             )
 
@@ -91,12 +91,12 @@ private struct WhisperDesignSystemPreview: View {
                 .frame(height: 64)
                 .overlay {
                     RoundedRectangle(cornerRadius: WhisperRadius.small, style: .continuous)
-                        .stroke(Color.emberBorderSubtle, lineWidth: 1)
+                        .stroke(Color.whisperBorderSubtle, lineWidth: 1)
                 }
 
             Text(name)
                 .font(.whisperCaption)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
         }
     }
 }

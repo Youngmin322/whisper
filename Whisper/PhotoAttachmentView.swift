@@ -6,7 +6,7 @@
 import SwiftUI
 import PhotosUI
 import UIKit
-import EmberDesignSystem
+import WhisperDesignSystem
 
 struct PhotoAttachmentEditor: View {
     @Binding var photoData: Data?
@@ -59,11 +59,11 @@ struct PhotoAttachmentEditor: View {
                             Image(systemName: "plus.circle")
                         }
                     }
-                    .foregroundStyle(Color.emberTextPrimary)
+                    .foregroundStyle(Color.whisperTextPrimary)
                     .padding(.horizontal, 16)
                     .frame(height: 52)
                     .background(
-                        Color.emberSurfaceSubtle,
+                        Color.whisperSurfaceSubtle,
                         in: RoundedRectangle(
                             cornerRadius: WhisperRadius.medium,
                             style: .continuous

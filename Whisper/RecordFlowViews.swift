@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 enum WhisperJarSize {
     case welcome, hero, small, shelf
@@ -23,7 +23,7 @@ struct WhisperJar: View {
     let size: WhisperJarSize
     
     var body: some View {
-        Image.ember
+        Image.whisper
             .resizable()
             .scaledToFit()
             .frame(width: size.dimensions.width, height: size.dimensions.height)
@@ -46,14 +46,14 @@ struct DetailedRecordView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text(Date.now.whisperFullDayDescription)
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .padding(.top, 12)
                 fieldLabel("제목")
                 TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
                     .font(.whisperBodyLarge)
                     .padding(.horizontal, 16)
                     .frame(height: 52)
-                    .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                    .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
                 
                 fieldLabel("기록")
                 ZStack(alignment: .bottomTrailing) {
@@ -69,10 +69,10 @@ struct DetailedRecordView: View {
                         }
                     Text("\(draft.content.count) / \(contentLimit.formatted())")
                         .font(.whisperCaption)
-                        .foregroundStyle(Color.emberTextSecondary)
+                        .foregroundStyle(Color.whisperTextSecondary)
                         .padding(16)
                 }
-                .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
                 
                 fieldLabel("기록에 더하기")
                 HStack(spacing: 10) {
@@ -88,16 +88,16 @@ struct DetailedRecordView: View {
                 
                 Label("결심이 담겨 있다면 저장한 뒤 Whisper가 기억할지 물어봐요.", systemImage: "bell")
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                    .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                    .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
             }
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.bottom, 90)
         }
         .scrollIndicators(.hidden)
-        .background(Color.emberBackground)
+        .background(Color.whisperBackground)
         .safeAreaInset(edge: .bottom) {
             Button("기록 저장") {
                 onSave(selectedEmotion, photoData)
@@ -130,7 +130,7 @@ struct DetailedRecordView: View {
     }
     
     private func fieldLabel(_ title: String) -> some View {
-        Text(title).font(.whisperFieldLabel).foregroundStyle(Color.emberTextPrimary)
+        Text(title).font(.whisperFieldLabel).foregroundStyle(Color.whisperTextPrimary)
     }
     
     private func recordChip(
@@ -141,10 +141,10 @@ struct DetailedRecordView: View {
         Button(action: action) {
             Label(title, systemImage: icon)
                 .font(.whisperControl)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
                 .padding(.horizontal, 14)
                 .frame(height: 48)
-                .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -157,10 +157,10 @@ private struct SavedRecordSheet: View {
         VStack(spacing: 10) {
             Text("오늘의 불꽃을 담았어요")
                 .font(.whisperNavigationTitle)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
             Text("기록은 보관함에서 언제든 다시 꺼내보고\n결심이 보이면 Whisper가 기억할지 물어볼게요.")
                 .font(.whisperBody)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
             WhisperJar(size: .hero).padding(.vertical, 4)
@@ -230,7 +230,7 @@ struct CollectionView: View {
                                                 .font(.system(size: 9, weight: .bold))
                                                 .foregroundStyle(Color.white)
                                                 .frame(width: 20, height: 20)
-                                                .background(Color.emberAccent, in: Circle())
+                                                .background(Color.whisperAccent, in: Circle())
                                         }
                                     }
                                     .frame(maxWidth: .infinity)
@@ -241,7 +241,7 @@ struct CollectionView: View {
                                 )
                             }
                         }
-                        Rectangle().fill(Color.emberDivider).frame(height: 1)
+                        Rectangle().fill(Color.whisperDivider).frame(height: 1)
                     }
                 }
             }
@@ -249,14 +249,14 @@ struct CollectionView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 30)
         .scrollIndicators(.hidden)
-        .background(Color.emberBackground)
+        .background(Color.whisperBackground)
         .navigationBarHidden(true)
     }
 
     private var searchField: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
 
             TextField("제목이나 내용 검색", text: $searchText)
                 .font(.whisperBody)
@@ -267,7 +267,7 @@ struct CollectionView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Color.emberTextSecondary)
+                        .foregroundStyle(Color.whisperTextSecondary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("검색어 지우기")
@@ -276,7 +276,7 @@ struct CollectionView: View {
         .padding(.horizontal, 14)
         .frame(height: 48)
         .background(
-            Color.emberSurfaceSubtle,
+            Color.whisperSurfaceSubtle,
             in: RoundedRectangle(
                 cornerRadius: WhisperRadius.medium,
                 style: .continuous
@@ -305,7 +305,7 @@ struct CollectionView: View {
                 if hasActiveFilters {
                     Button("초기화", action: resetFilters)
                         .font(.whisperCaption)
-                        .foregroundStyle(Color.emberAccentText)
+                        .foregroundStyle(Color.whisperAccentText)
                 }
             }
         }
@@ -324,11 +324,11 @@ struct CollectionView: View {
                 .font(.system(size: 9, weight: .bold))
         }
         .font(.whisperCaption)
-        .foregroundStyle(isActive ? Color.emberAccentText : Color.emberTextSecondary)
+        .foregroundStyle(isActive ? Color.whisperAccentText : Color.whisperTextSecondary)
         .padding(.horizontal, 12)
         .frame(height: 36)
         .background(
-            isActive ? Color.emberSurfaceFocus : Color.emberSurfaceSubtle,
+            isActive ? Color.whisperSurfaceFocus : Color.whisperSurfaceSubtle,
             in: Capsule()
         )
     }

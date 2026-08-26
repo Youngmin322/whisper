@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 private struct WhisperCardModifier: ViewModifier {
     let fill: Color
@@ -36,7 +36,7 @@ private struct WhisperCardModifier: ViewModifier {
 
 extension View {
     func whisperCardStyle(
-        fill: Color = .emberSurfaceDefault,
+        fill: Color = .whisperSurfaceDefault,
         border: Color = .clear,
         cornerRadius: CGFloat = WhisperRadius.card,
         hasShadow: Bool = false

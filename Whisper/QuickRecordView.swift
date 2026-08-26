@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss
@@ -15,13 +15,13 @@ struct QuickRecordView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("빠르게 기록하기").font(.whisperNavigationTitle).foregroundStyle(Color.emberTextPrimary)
-            Text("짧게 남겨도 오늘의 불꽃이 됩니다.").font(.whisperBody).foregroundStyle(Color.emberTextSecondary)
+            Text("빠르게 기록하기").font(.whisperNavigationTitle).foregroundStyle(Color.whisperTextPrimary)
+            Text("짧게 남겨도 오늘의 불꽃이 됩니다.").font(.whisperBody).foregroundStyle(Color.whisperTextSecondary)
             TextField("제목을 입력해 주세요", text: $draft.title)
                 .font(.whisperBodyLarge)
                 .padding(.horizontal, 16)
                 .frame(height: 48)
-                .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
                 .padding(.top, 10)
             ZStack(alignment: .bottomTrailing) {
                 TextField("지금 떠오른 마음을 적어보세요", text: $draft.content, axis: .vertical)
@@ -35,23 +35,23 @@ struct QuickRecordView: View {
                     }
                 Text("\(draft.content.count) / \(contentLimit)")
                     .font(.whisperCaption)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .padding(14)
             }
-            .background(Color.emberSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+            .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
             Button {
                 onOpenDetail()
                 dismiss()
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("자세히 기록하기").font(.whisperControl)
-                    Text("감정과 사진까지 함께 남길 수 있어요").font(.whisperCaption).foregroundStyle(Color.emberTextSecondary)
+                    Text("감정과 사진까지 함께 남길 수 있어요").font(.whisperCaption).foregroundStyle(Color.whisperTextSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .frame(height: 58)
-                .background(Color.emberSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-                .overlay(alignment: .trailing) { Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.emberTextSecondary).padding(.trailing, 16) }
+                .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                .overlay(alignment: .trailing) { Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.whisperTextSecondary).padding(.trailing, 16) }
             }
             .buttonStyle(.plain)
             Button("기록 저장") {

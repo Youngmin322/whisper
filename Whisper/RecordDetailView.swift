@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 struct RecordDetailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -50,7 +50,7 @@ struct RecordDetailView: View {
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
-        .background(Color.emberBackground)
+        .background(Color.whisperBackground)
         .navigationTitle("기록")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
@@ -115,33 +115,33 @@ struct RecordDetailView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text(record.createdAt.whisperFullDayDescription)
                 .font(.whisperMetadata)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
 
             Text(record.title)
                 .font(.whisperScreenTitle)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
 
             if let emotion = record.emotion {
                 Label(emotion, systemImage: emotionSystemImage(for: emotion))
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberAccentText)
+                    .foregroundStyle(Color.whisperAccentText)
                     .padding(.horizontal, 14)
                     .frame(height: 40)
                     .background(
-                        Color.emberSurfaceHighlight,
+                        Color.whisperSurfaceHighlight,
                         in: Capsule()
                     )
             }
 
             Text(record.content)
                 .font(.whisperBodyLarge)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
                 .lineSpacing(6)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(18)
                 .whisperCardStyle(
-                    fill: .emberSurfaceDefault,
-                    border: .emberBorderSubtle,
+                    fill: .whisperSurfaceDefault,
+                    border: .whisperBorderSubtle,
                     cornerRadius: WhisperRadius.large
                 )
                 .textSelection(.enabled)
@@ -157,11 +157,11 @@ struct RecordDetailView: View {
             if let focusMode = record.focusMode {
                 Label(focusMode, systemImage: "moon.stars.fill")
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberAccentText)
+                    .foregroundStyle(Color.whisperAccentText)
                     .padding(.horizontal, 14)
                     .frame(height: 44)
                     .background(
-                        Color.emberSurfaceFocus,
+                        Color.whisperSurfaceFocus,
                         in: RoundedRectangle(
                             cornerRadius: WhisperRadius.medium,
                             style: .continuous
@@ -176,7 +176,7 @@ struct RecordDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(record.createdAt.whisperFullDayDescription)
                 .font(.whisperMetadata)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
 
             fieldLabel("제목")
             TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
@@ -184,7 +184,7 @@ struct RecordDetailView: View {
                 .padding(.horizontal, 16)
                 .frame(height: 52)
                 .background(
-                    Color.emberSurfaceSubtle,
+                    Color.whisperSurfaceSubtle,
                     in: RoundedRectangle(
                         cornerRadius: WhisperRadius.medium,
                         style: .continuous
@@ -210,11 +210,11 @@ struct RecordDetailView: View {
 
                 Text("\(draft.content.count) / \(contentLimit.formatted())")
                     .font(.whisperCaption)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .padding(16)
             }
             .background(
-                Color.emberSurfaceSubtle,
+                Color.whisperSurfaceSubtle,
                 in: RoundedRectangle(
                     cornerRadius: WhisperRadius.medium,
                     style: .continuous
@@ -231,18 +231,18 @@ struct RecordDetailView: View {
                         systemImage: selectedEmotion.map(emotionSystemImage) ?? "circle.dashed"
                     )
                     .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.emberTextPrimary)
+                    .foregroundStyle(Color.whisperTextPrimary)
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.emberTextSecondary)
+                        .foregroundStyle(Color.whisperTextSecondary)
                 }
                 .padding(.horizontal, 16)
                 .frame(height: 52)
                 .background(
-                    Color.emberSurfaceSubtle,
+                    Color.whisperSurfaceSubtle,
                     in: RoundedRectangle(
                         cornerRadius: WhisperRadius.medium,
                         style: .continuous
@@ -259,23 +259,23 @@ struct RecordDetailView: View {
     private func fieldLabel(_ title: String) -> some View {
         Text(title)
             .font(.whisperFieldLabel)
-            .foregroundStyle(Color.emberTextPrimary)
+            .foregroundStyle(Color.whisperTextPrimary)
     }
 
     private func commitmentCard(_ commitment: WhisperCommitment) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Whisper가 기억 중인 불꽃", systemImage: "sparkles")
                 .font(.whisperControl)
-                .foregroundStyle(Color.emberAccentText)
+                .foregroundStyle(Color.whisperAccentText)
 
             Text("“\(commitment.quote)”")
                 .font(.whisperBody)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
                 .lineSpacing(4)
 
             Text("반응이 없으면 조금씩 더 긴 간격으로 다시 건넬게요.")
                 .font(.whisperCaption)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
 
             HStack(spacing: 10) {
                 Button("계속 기억해줘") {
@@ -287,13 +287,13 @@ struct RecordDetailView: View {
                     isForgetCommitmentConfirmationPresented = true
                 }
                 .font(.whisperControl)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
             }
         }
         .padding(16)
         .whisperCardStyle(
-            fill: .emberSurfaceHighlight,
-            border: .emberBorderSubtle,
+            fill: .whisperSurfaceHighlight,
+            border: .whisperBorderSubtle,
             cornerRadius: WhisperRadius.large
         )
     }

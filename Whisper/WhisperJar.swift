@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 struct WhisperJarAnimation: View {
     enum Size {
@@ -53,7 +53,7 @@ struct WhisperJarAnimation: View {
                 )
 
             // 불꽃 캐릭터
-            Image.emberFlame
+            Image.whisperFlame
                 .resizable()
                 .scaledToFit()
                 .frame(
@@ -90,7 +90,7 @@ struct WhisperJarAnimation: View {
 
 #Preview("Whisper Jar") {
     ZStack {
-        Color.emberBackground
+        Color.whisperBackground
             .ignoresSafeArea()
 
         VStack(spacing: 40) {
@@ -102,7 +102,7 @@ struct WhisperJarAnimation: View {
 
 #Preview("Whisper Jar") {
     ZStack {
-        Color.emberBackground
+        Color.whisperBackground
             .ignoresSafeArea()
         
             WhisperJarAnimation(size: .hero)

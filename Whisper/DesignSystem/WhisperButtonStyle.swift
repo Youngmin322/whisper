@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 enum WhisperButtonSize {
     case compact
@@ -41,11 +41,11 @@ struct WhisperPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.whisperAction)
-            .foregroundStyle(Color.emberTextOnAccent)
+            .foregroundStyle(Color.whisperTextOnAccent)
             .frame(maxWidth: .infinity, minHeight: size.height)
             .background {
                 RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
-                    .fill(Color.emberAccent)
+                    .fill(Color.whisperAccent)
             }
             .opacity(opacity(isPressed: configuration.isPressed))
             .contentShape(.rect)
@@ -63,15 +63,15 @@ struct WhisperSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.whisperControl)
-            .foregroundStyle(Color.emberTextPrimary)
+            .foregroundStyle(Color.whisperTextPrimary)
             .frame(minHeight: WhisperSize.controlCompact)
             .padding(.horizontal, WhisperSpacing.medium)
             .background {
                 RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
-                    .fill(Color.emberSurfaceSubtle)
+                    .fill(Color.whisperSurfaceSubtle)
                     .overlay {
                         RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
-                            .stroke(Color.emberBorderSubtle, lineWidth: 1)
+                            .stroke(Color.whisperBorderSubtle, lineWidth: 1)
                     }
             }
             .opacity(opacity(isPressed: configuration.isPressed))

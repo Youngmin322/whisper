@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1D3C09333036847100A5EBD8 /* EmberCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D3C09323036847100A5EBD8 /* EmberCore */; };
-		1D97B5B8302AE9D300C4F5E8 /* EmberCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D97B5B7302AE9D300C4F5E8 /* EmberCore */; };
-		1DF412E3303BCB2F00B271A4 /* EmberDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1DF412E2303BCB2F00B271A4 /* EmberDesignSystem */; };
+		1D3C09333036847100A5EBD8 /* WhisperCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D3C09323036847100A5EBD8 /* WhisperCore */; };
+		1D97B5B8302AE9D300C4F5E8 /* WhisperCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D97B5B7302AE9D300C4F5E8 /* WhisperCore */; };
+		1DF412E3303BCB2F00B271A4 /* WhisperDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,9 +42,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1D97B5B8302AE9D300C4F5E8 /* EmberCore in Frameworks */,
-				1D3C09333036847100A5EBD8 /* EmberCore in Frameworks */,
-				1DF412E3303BCB2F00B271A4 /* EmberDesignSystem in Frameworks */,
+				1D97B5B8302AE9D300C4F5E8 /* WhisperCore in Frameworks */,
+				1D3C09333036847100A5EBD8 /* WhisperCore in Frameworks */,
+				1DF412E3303BCB2F00B271A4 /* WhisperDesignSystem in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -95,9 +95,9 @@
 			);
 			name = Whisper;
 			packageProductDependencies = (
-				1D97B5B7302AE9D300C4F5E8 /* EmberCore */,
-				1D3C09323036847100A5EBD8 /* EmberCore */,
-				1DF412E2303BCB2F00B271A4 /* EmberDesignSystem */,
+				1D97B5B7302AE9D300C4F5E8 /* WhisperCore */,
+				1D3C09323036847100A5EBD8 /* WhisperCore */,
+				1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */,
 			);
 			productName = Whisper;
 			productReference = 1D97B5A4302AB12500C4F5E8 /* Whisper.app */;
@@ -128,7 +128,7 @@
 			mainGroup = 1D97B59B302AB12500C4F5E8;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../EmberCore" */,
+				1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../WhisperCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1D97B5A5302AB12500C4F5E8 /* Products */;
@@ -372,25 +372,25 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../EmberCore" */ = {
+		1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../WhisperCore" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../EmberCore;
+			relativePath = ../WhisperCore;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		1D3C09323036847100A5EBD8 /* EmberCore */ = {
+		1D3C09323036847100A5EBD8 /* WhisperCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = EmberCore;
+			productName = WhisperCore;
 		};
-		1D97B5B7302AE9D300C4F5E8 /* EmberCore */ = {
+		1D97B5B7302AE9D300C4F5E8 /* WhisperCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = EmberCore;
+			productName = WhisperCore;
 		};
-		1DF412E2303BCB2F00B271A4 /* EmberDesignSystem */ = {
+		1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../EmberCore" */;
-			productName = EmberDesignSystem;
+			package = 1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../WhisperCore" */;
+			productName = WhisperDesignSystem;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

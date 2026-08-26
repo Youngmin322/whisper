@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 struct DayRecordsView: View {
     let date: Date
@@ -15,7 +15,7 @@ struct DayRecordsView: View {
             LazyVStack(alignment: .leading, spacing: 12) {
                 Text(date.whisperFullDayDescription)
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .padding(.top, 12)
 
                 if records.isEmpty {
@@ -43,7 +43,7 @@ struct DayRecordsView: View {
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
-        .background(Color.emberBackground)
+        .background(Color.whisperBackground)
         .navigationTitle("이날의 기록")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -59,16 +59,16 @@ struct DayRecordsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(record.createdAt.whisperTimeDescription)
                     .font(.whisperCaption)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
 
                 Text(record.title)
                     .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.emberTextPrimary)
+                    .foregroundStyle(Color.whisperTextPrimary)
                     .lineLimit(1)
 
                 Text(record.content)
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .lineLimit(2)
             }
 
@@ -76,13 +76,13 @@ struct DayRecordsView: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
                 .padding(.top, 4)
         }
         .padding(16)
         .whisperCardStyle(
-            fill: .emberSurfaceDefault,
-            border: .emberBorderSubtle,
+            fill: .whisperSurfaceDefault,
+            border: .whisperBorderSubtle,
             cornerRadius: WhisperRadius.large
         )
         .contentShape(Rectangle())

@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 enum WhisperEmotion: String, CaseIterable, Identifiable {
     case calm = "평온"
@@ -69,18 +69,18 @@ struct EmotionPickerView: View {
     private func emotionRow(title: String, systemImage: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: systemImage)
-                .foregroundStyle(Color.emberAccent)
+                .foregroundStyle(Color.whisperAccent)
                 .frame(width: 24)
 
             Text(title)
                 .font(.whisperBodyEmphasis)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
 
             Spacer()
 
             if selectedEmotion == (title == "선택 안 함" ? nil : title) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.emberAccent)
+                    .foregroundStyle(Color.whisperAccent)
             }
         }
         .contentShape(Rectangle())

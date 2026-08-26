@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 
 struct HomeView: View {
     let recordStore: RecordStore
@@ -33,7 +33,7 @@ struct HomeView: View {
             }
             .scrollIndicators(.hidden)
         }
-        .background(Color.emberBackground)
+        .background(Color.whisperBackground)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(
             isPresented: $isQuickRecordPresented,
@@ -90,10 +90,10 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(Date.now.whisperDayDescription)
                 .font(.whisperMetadata)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
             Text("오늘의 기록")
                 .font(.whisperScreenTitle)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
         }
     }
     
@@ -103,11 +103,11 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("오늘 떠오른 마음")
                         .font(.whisperControl)
-                        .foregroundStyle(Color.emberAccentText)
+                        .foregroundStyle(Color.whisperAccentText)
                     
                     Text("지금 가장 마음에 남는 것은 무엇인가요?")
                         .font(.whisperBodyEmphasis)
-                        .foregroundStyle(Color.emberTextPrimary)
+                        .foregroundStyle(Color.whisperTextPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 
@@ -126,8 +126,8 @@ struct HomeView: View {
         }
         .padding(20)
         .whisperCardStyle(
-            fill: .emberSurfaceHighlight,
-            border: .emberBorderSubtle,
+            fill: .whisperSurfaceHighlight,
+            border: .whisperBorderSubtle,
             cornerRadius: WhisperRadius.card,
             hasShadow: true
         )
@@ -140,7 +140,7 @@ struct HomeView: View {
                 Spacer()
                 Text("\(recordStore.recordCount(inWeekOf: .now, calendar: calendar)) / 7")
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
             }
             HStack(spacing: 0) {
                 ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
@@ -150,7 +150,7 @@ struct HomeView: View {
             }
         }
         .padding(16)
-        .whisperCardStyle(fill: .emberSurfaceDefault, border: .emberBorderSubtle, cornerRadius: WhisperRadius.large)
+        .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle, cornerRadius: WhisperRadius.large)
     }
 
     @ViewBuilder
@@ -185,17 +185,17 @@ struct HomeView: View {
         return VStack(spacing: 7) {
             Text(title)
                 .font(.whisperCaption)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
 
             ZStack {
                 Circle()
-                    .fill(isToday ? Color.emberAccent : Color.emberSurfaceSubtle)
+                    .fill(isToday ? Color.whisperAccent : Color.whisperSurfaceSubtle)
                     .frame(width: 28, height: 28)
 
                 if hasRecord {
                     Image(systemName: "flame.fill")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isToday ? Color.white : Color.emberAccent)
+                        .foregroundStyle(isToday ? Color.white : Color.whisperAccent)
                 } else if isToday {
                     Image(systemName: "plus")
                         .font(.system(size: 13, weight: .bold))
@@ -227,20 +227,20 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("다시 만난 불꽃")
                     .font(.whisperControl)
-                    .foregroundStyle(Color.emberAccentText)
+                    .foregroundStyle(Color.whisperAccentText)
                 
                 Text(commitment.name)
                     .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.emberTextPrimary)
+                    .foregroundStyle(Color.whisperTextPrimary)
 
                 Text("“\(commitment.quote)”")
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .lineLimit(2)
 
                 Text("그 마음은 지금도 남아 있나요?")
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .padding(.top, 4)
             }
             
@@ -249,7 +249,7 @@ struct HomeView: View {
             WhisperJar(size: .small)
         }
         .padding(18)
-        .whisperCardStyle(fill: .emberSurfaceSubtle, border: .emberBorderSubtle, cornerRadius: WhisperRadius.large)
+        .whisperCardStyle(fill: .whisperSurfaceSubtle, border: .whisperBorderSubtle, cornerRadius: WhisperRadius.large)
         .contentShape(Rectangle())
     }
 
@@ -260,7 +260,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Whisper가 기억하는 불꽃")
                     .font(.whisperControl)
-                    .foregroundStyle(Color.emberAccentText)
+                    .foregroundStyle(Color.whisperAccentText)
 
                 Text(
                     activeCommitmentCount == 0
@@ -268,7 +268,7 @@ struct HomeView: View {
                         : "\(activeCommitmentCount)개의 불꽃을 기억하고 있어요"
                 )
                     .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.emberTextPrimary)
+                    .foregroundStyle(Color.whisperTextPrimary)
 
                 Text(
                     activeCommitmentCount == 0
@@ -276,7 +276,7 @@ struct HomeView: View {
                         : "잊힐 만한 간격으로 다시 건넬게요."
                 )
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
             }
 
             Spacer(minLength: 4)
@@ -285,8 +285,8 @@ struct HomeView: View {
         }
         .padding(18)
         .whisperCardStyle(
-            fill: .emberSurfaceSubtle,
-            border: .emberBorderSubtle,
+            fill: .whisperSurfaceSubtle,
+            border: .whisperBorderSubtle,
             cornerRadius: WhisperRadius.large
         )
     }

@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import EmberDesignSystem
+import WhisperDesignSystem
 import UserNotifications
 import UIKit
 
@@ -20,7 +20,7 @@ struct ContentView: View {
                 WelcomeView { hasSeenWelcome = true }
             }
         }
-        .tint(.emberAccent)
+        .tint(.whisperAccent)
     }
 }
 
@@ -116,7 +116,7 @@ private struct NotificationRecordDestination: View {
             )
             .navigationTitle("기록")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.emberBackground)
+            .background(Color.whisperBackground)
         }
     }
 }
@@ -130,16 +130,16 @@ private struct WelcomeView: View {
             WhisperJar(size: .welcome).padding(.bottom, 10)
             Text("Whisper")
                 .font(.whisperBrand)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
             Text("내가 쓴 마음을\n필요한 순간 다시 만나요")
                 .font(.whisperNavigationTitle)
-                .foregroundStyle(Color.emberTextPrimary)
+                .foregroundStyle(Color.whisperTextPrimary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(7)
                 .padding(.top, 20)
             Text("기록 속 결심을 Whisper가 기억하고\n잊힐 만한 순간 다시 건넬게요.")
                 .font(.whisperBody)
-                .foregroundStyle(Color.emberTextSecondary)
+                .foregroundStyle(Color.whisperTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(6)
                 .padding(.top, 42)
@@ -148,7 +148,7 @@ private struct WelcomeView: View {
         }
         .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
         .padding(.bottom, 26)
-        .background(Color.emberBackground.ignoresSafeArea())
+        .background(Color.whisperBackground.ignoresSafeArea())
     }
 }
 
@@ -196,9 +196,9 @@ private struct SettingsView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(Color.emberBackground)
+            .background(Color.whisperBackground)
         }
-        .background(Color.emberBackground)
+        .background(Color.whisperBackground)
         .navigationBarHidden(true)
         .task {
             await refreshNotificationStatus()
@@ -265,7 +265,7 @@ private struct FocusFilterGuideView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("집중 모드가 시작될 때 Whisper가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요.")
                         .font(.whisperBody)
-                        .foregroundStyle(Color.emberTextSecondary)
+                        .foregroundStyle(Color.whisperTextSecondary)
                     
                     guideStep(
                         number: 1,
@@ -307,16 +307,16 @@ private struct FocusFilterGuideView: View {
                 .font(.whisperControl)
                 .foregroundStyle(Color.white)
                 .frame(width: 30, height: 30)
-                .background(Color.emberAccent, in: Circle())
+                .background(Color.whisperAccent, in: Circle())
             
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
                     .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.emberTextPrimary)
+                    .foregroundStyle(Color.whisperTextPrimary)
                 
                 Text(description)
                     .font(.whisperMetadata)
-                    .foregroundStyle(Color.emberTextSecondary)
+                    .foregroundStyle(Color.whisperTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
