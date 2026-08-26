@@ -17,22 +17,22 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		1D97B5CD302AEEB400C4F5E8 /* Exceptions for "Ember" folder in "Ember" target */ = {
+		1D97B5CD302AEEB400C4F5E8 /* Exceptions for "Whisper" folder in "Whisper" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 1D97B5A3302AB12500C4F5E8 /* Ember */;
+			target = 1D97B5A3302AB12500C4F5E8 /* Whisper */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1D97B5A6302AB12500C4F5E8 /* Ember */ = {
+		1D97B5A6302AB12500C4F5E8 /* Whisper */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				1D97B5CD302AEEB400C4F5E8 /* Exceptions for "Ember" folder in "Ember" target */,
+				1D97B5CD302AEEB400C4F5E8 /* Exceptions for "Whisper" folder in "Whisper" target */,
 			);
-			path = Ember;
+			path = Whisper;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -54,7 +54,7 @@
 		1D97B59B302AB12500C4F5E8 = {
 			isa = PBXGroup;
 			children = (
-				1D97B5A6302AB12500C4F5E8 /* Ember */,
+				1D97B5A6302AB12500C4F5E8 /* Whisper */,
 				1DF412E1303BCB2F00B271A4 /* Frameworks */,
 				1D97B5A5302AB12500C4F5E8 /* Products */,
 			);
@@ -78,9 +78,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1D97B5A3302AB12500C4F5E8 /* Ember */ = {
+		1D97B5A3302AB12500C4F5E8 /* Whisper */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1D97B5AF302AB12600C4F5E8 /* Build configuration list for PBXNativeTarget "Ember" */;
+			buildConfigurationList = 1D97B5AF302AB12600C4F5E8 /* Build configuration list for PBXNativeTarget "Whisper" */;
 			buildPhases = (
 				1D97B5A0302AB12500C4F5E8 /* Sources */,
 				1D97B5A1302AB12500C4F5E8 /* Frameworks */,
@@ -91,15 +91,15 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1D97B5A6302AB12500C4F5E8 /* Ember */,
+				1D97B5A6302AB12500C4F5E8 /* Whisper */,
 			);
-			name = Ember;
+			name = Whisper;
 			packageProductDependencies = (
 				1D97B5B7302AE9D300C4F5E8 /* EmberCore */,
 				1D3C09323036847100A5EBD8 /* EmberCore */,
 				1DF412E2303BCB2F00B271A4 /* EmberDesignSystem */,
 			);
-			productName = Ember;
+			productName = Whisper;
 			productReference = 1D97B5A4302AB12500C4F5E8 /* Whisper.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -118,7 +118,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 1D97B59F302AB12500C4F5E8 /* Build configuration list for PBXProject "Ember" */;
+			buildConfigurationList = 1D97B59F302AB12500C4F5E8 /* Build configuration list for PBXProject "Whisper" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -135,7 +135,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1D97B5A3302AB12500C4F5E8 /* Ember */,
+				1D97B5A3302AB12500C4F5E8 /* Whisper */,
 			);
 		};
 /* End PBXProject section */
@@ -291,7 +291,7 @@
 				DEVELOPMENT_TEAM = 5R33532VPH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Ember/Info.plist;
+				INFOPLIST_FILE = Whisper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Whisper;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -324,7 +324,7 @@
 				DEVELOPMENT_TEAM = 5R33532VPH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Ember/Info.plist;
+				INFOPLIST_FILE = Whisper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Whisper;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -351,7 +351,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1D97B59F302AB12500C4F5E8 /* Build configuration list for PBXProject "Ember" */ = {
+		1D97B59F302AB12500C4F5E8 /* Build configuration list for PBXProject "Whisper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1D97B5AD302AB12600C4F5E8 /* Debug */,
@@ -360,7 +360,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1D97B5AF302AB12600C4F5E8 /* Build configuration list for PBXNativeTarget "Ember" */ = {
+		1D97B5AF302AB12600C4F5E8 /* Build configuration list for PBXNativeTarget "Whisper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1D97B5B0302AB12600C4F5E8 /* Debug */,

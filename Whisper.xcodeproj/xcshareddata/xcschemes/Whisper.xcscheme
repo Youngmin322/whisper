@@ -17,8 +17,8 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1D97B5A3302AB12500C4F5E8"
                BuildableName = "Whisper.app"
-               BlueprintName = "Ember"
-               ReferencedContainer = "container:Ember.xcodeproj">
+               BlueprintName = "Whisper"
+               ReferencedContainer = "container:Whisper.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -47,8 +47,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1D97B5A3302AB12500C4F5E8"
             BuildableName = "Whisper.app"
-            BlueprintName = "Ember"
-            ReferencedContainer = "container:Ember.xcodeproj">
+            BlueprintName = "Whisper"
+            ReferencedContainer = "container:Whisper.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -64,8 +64,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1D97B5A3302AB12500C4F5E8"
             BuildableName = "Whisper.app"
-            BlueprintName = "Ember"
-            ReferencedContainer = "container:Ember.xcodeproj">
+            BlueprintName = "Whisper"
+            ReferencedContainer = "container:Whisper.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
