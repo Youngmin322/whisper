@@ -208,6 +208,7 @@ final class RecordStore {
         quote: String,
         topics: [String],
         reminderTiming: CommitmentReminderTiming,
+        firstReminderDate: Date? = nil,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
         guard let modelContext else {
@@ -215,17 +216,31 @@ final class RecordStore {
             return nil
         }
         if let existing = commitment(sourceRecordID: sourceRecordID) {
-            let plan = reminderPlan(for: existing, anchorDate: now, timing: reminderTiming)
+            let plan = reminderPlan(
+                for: existing,
+                anchorDate: now,
+                timing: reminderTiming,
+                firstReminderDate: firstReminderDate
+            )
             existing.nextReminderAt = plan.reminderDates.first
             guard saveChanges(),
                   let saved = self.commitment(sourceRecordID: sourceRecordID)
             else {
                 return nil
             }
-            return reminderPlan(for: saved, anchorDate: now, timing: reminderTiming)
+            return reminderPlan(
+                for: saved,
+                anchorDate: now,
+                timing: reminderTiming,
+                firstReminderDate: firstReminderDate
+            )
         }
 
-        let reminderDates = makeReminderDates(anchorDate: now, timing: reminderTiming)
+        let reminderDates = makeReminderDates(
+            anchorDate: now,
+            timing: reminderTiming,
+            firstReminderDate: firstReminderDate
+        )
 
         let commitment = WhisperCommitment(
             sourceRecordID: sourceRecordID,
@@ -246,7 +261,8 @@ final class RecordStore {
         return reminderPlan(
             for: saved,
             anchorDate: now,
-            timing: reminderTiming
+            timing: reminderTiming,
+            firstReminderDate: firstReminderDate
         )
     }
 
@@ -298,6 +314,40 @@ final class RecordStore {
         }
 
         return reminderPlan(for: saved, anchorDate: now, timing: reminderTiming)
+    }
+
+    func rescheduleCommitment(
+        _ id: UUID,
+        firstReminderDate: Date,
+        now: Date = .now
+    ) -> CommitmentReminderPlan? {
+        guard firstReminderDate > now,
+              let commitment = commitments.first(where: {
+                $0.id == id && $0.lifecycleStatus(at: now) == .active
+              })
+        else {
+            return nil
+        }
+
+        let reminderDates = [
+            firstReminderDate,
+            firstReminderDate.addingTimeInterval(72 * 60 * 60)
+        ]
+        commitment.nextReminderAt = firstReminderDate
+
+        guard saveChanges(),
+              let saved = commitments.first(where: { $0.id == id })
+        else {
+            return nil
+        }
+
+        return CommitmentReminderPlan(
+            id: saved.id,
+            sourceRecordID: saved.sourceRecordID,
+            name: saved.name,
+            quote: saved.quote,
+            reminderDates: reminderDates
+        )
     }
 
     func reminderPlanningContext(for commitmentID: UUID) -> CommitmentReminderPlanningContext? {
@@ -722,24 +772,40 @@ final class RecordStore {
     private func reminderPlan(
         for commitment: WhisperCommitment,
         anchorDate: Date,
-        timing: CommitmentReminderTiming
+        timing: CommitmentReminderTiming,
+        firstReminderDate: Date? = nil
     ) -> CommitmentReminderPlan {
         CommitmentReminderPlan(
             id: commitment.id,
             sourceRecordID: commitment.sourceRecordID,
             name: commitment.name,
             quote: commitment.quote,
-            reminderDates: makeReminderDates(anchorDate: anchorDate, timing: timing)
+            reminderDates: makeReminderDates(
+                anchorDate: anchorDate,
+                timing: timing,
+                firstReminderDate: firstReminderDate
+            )
         )
     }
 
     private func makeReminderDates(
         anchorDate: Date,
-        timing: CommitmentReminderTiming
+        timing: CommitmentReminderTiming,
+        firstReminderDate: Date? = nil
     ) -> [Date] {
-        timing.offsetsInHours.map {
+        let suggestedDates = timing.offsetsInHours.map {
             anchorDate.addingTimeInterval(TimeInterval($0 * 60 * 60))
         }
+
+        guard let firstReminderDate else { return suggestedDates }
+        let laterSuggestedDates = suggestedDates.filter {
+            $0 > firstReminderDate.addingTimeInterval(60)
+        }
+        return [firstReminderDate] + (
+            laterSuggestedDates.isEmpty
+                ? [firstReminderDate.addingTimeInterval(72 * 60 * 60)]
+                : laterSuggestedDates
+        )
     }
 
     private func migrateLegacyRecordsIfNeeded() {

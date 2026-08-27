@@ -51,6 +51,10 @@ enum CommitmentReminderScheduler {
     private static let maximumPendingCommitmentNotifications = 48
     private static let requestPrefix = "whisper.commitment."
 
+    static func adjustedToAllowedReminderHours(_ date: Date) -> Date {
+        adjustedToAllowedHours(date, calendar: .current)
+    }
+
     static func schedule(
         _ plan: CommitmentReminderPlan
     ) async throws -> CommitmentReminderScheduleResult {

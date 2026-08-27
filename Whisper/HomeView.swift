@@ -62,15 +62,15 @@ struct HomeView: View {
         .sheet(item: $presentedCommitmentCandidate) { candidate in
             CommitmentCandidateSheet(
                 candidate: candidate,
-                onRemember: {
-                    remember(candidate)
+                onRemember: { customReminderDate in
+                    remember(candidate, firstReminderDate: customReminderDate)
                     presentedCommitmentCandidate = nil
                 },
                 onDismiss: {
                     presentedCommitmentCandidate = nil
                 }
             )
-            .presentationDetents([.height(430)])
+            .presentationDetents([.height(570)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
             .presentationBackground(.clear)
@@ -391,13 +391,17 @@ struct HomeView: View {
         presentedCommitmentCandidate = candidate
     }
 
-    private func remember(_ candidate: CommitmentCandidate) {
+    private func remember(
+        _ candidate: CommitmentCandidate,
+        firstReminderDate: Date?
+    ) {
         guard let plan = recordStore.rememberCommitment(
             sourceRecordID: candidate.sourceRecordID,
             name: candidate.name,
             quote: candidate.quote,
             topics: candidate.topics,
-            reminderTiming: candidate.reminderTiming
+            reminderTiming: candidate.reminderTiming,
+            firstReminderDate: firstReminderDate
         ) else {
             return
         }

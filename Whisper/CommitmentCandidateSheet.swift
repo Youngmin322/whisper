@@ -8,8 +8,11 @@ import WhisperDesignSystem
 
 struct CommitmentCandidateSheet: View {
     let candidate: CommitmentCandidate
-    let onRemember: () -> Void
+    let onRemember: (Date?) -> Void
     let onDismiss: () -> Void
+    @State private var planningAnchor = Date.now
+    @State private var customReminderDate: Date?
+    @State private var isEditingReminderTime = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -52,7 +55,11 @@ struct CommitmentCandidateSheet: View {
                 cornerRadius: WhisperRadius.large
             )
 
-            Button("응, 기억해줘", action: onRemember)
+            reminderTimeCard
+
+            Button("응, 이때 다시 건네줘") {
+                onRemember(customReminderDate)
+            }
                 .buttonStyle(.whisperPrimary(size: .compact))
 
             Button("이번에는 괜찮아요", action: onDismiss)
@@ -63,5 +70,91 @@ struct CommitmentCandidateSheet: View {
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, 12)
         .padding(.bottom, 20)
+    }
+
+    private var reminderTimeCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(
+                    customReminderDate == nil ? "AI가 정한 다음 만남" : "내가 정한 다음 만남",
+                    systemImage: customReminderDate == nil ? "sparkles" : "calendar"
+                )
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperAccentText)
+
+                Spacer()
+
+                Button(customReminderDate == nil ? "바꾸기" : "AI에게 맡기기") {
+                    if customReminderDate == nil {
+                        isEditingReminderTime.toggle()
+                    } else {
+                        customReminderDate = nil
+                        isEditingReminderTime = false
+                    }
+                }
+                .font(.whisperCaption)
+            }
+
+            Text(displayedReminderDate.formatted(date: .abbreviated, time: .shortened))
+                .font(.whisperBodyEmphasis)
+                .foregroundStyle(Color.whisperTextPrimary)
+
+            if isEditingReminderTime {
+                DatePicker(
+                    "날짜와 시간",
+                    selection: reminderDateBinding,
+                    in: minimumReminderDate...maximumReminderDate
+                )
+                .datePickerStyle(.compact)
+                .font(.whisperBody)
+            }
+
+            Text("알림은 오전 9시부터 오후 9시 사이에만 도착해요.")
+                .font(.whisperCaption)
+                .foregroundStyle(Color.whisperTextSecondary)
+        }
+        .padding(14)
+        .whisperCardStyle(
+            fill: .whisperSurfaceDefault,
+            border: .whisperBorderSubtle,
+            cornerRadius: WhisperRadius.medium
+        )
+    }
+
+    private var aiSuggestedReminderDate: Date {
+        let offset = candidate.reminderTiming.offsetsInHours.first ?? 24
+        let date = planningAnchor.addingTimeInterval(TimeInterval(offset * 60 * 60))
+        let adjustedDate = CommitmentReminderScheduler.adjustedToAllowedReminderHours(date)
+        return min(adjustedDate, maximumReminderDate)
+    }
+
+    private var displayedReminderDate: Date {
+        customReminderDate ?? aiSuggestedReminderDate
+    }
+
+    private var minimumReminderDate: Date {
+        planningAnchor.addingTimeInterval(60 * 60)
+    }
+
+    private var maximumReminderDate: Date {
+        let lastDay = Calendar.current.date(byAdding: .day, value: 90, to: planningAnchor)
+            ?? planningAnchor.addingTimeInterval(90 * 24 * 60 * 60)
+        return Calendar.current.date(
+            bySettingHour: 20,
+            minute: 59,
+            second: 0,
+            of: lastDay
+        ) ?? lastDay
+    }
+
+    private var reminderDateBinding: Binding<Date> {
+        Binding(
+            get: { customReminderDate ?? aiSuggestedReminderDate },
+            set: {
+                let adjustedDate = CommitmentReminderScheduler
+                    .adjustedToAllowedReminderHours($0)
+                customReminderDate = min(adjustedDate, maximumReminderDate)
+            }
+        )
     }
 }

@@ -26,6 +26,8 @@ struct RecordDetailView: View {
     @State private var selectedEncounterReaction: ReminderEncounterReaction?
     @State private var didProcessReminderEncounter = false
     @State private var isPreparingReminderResponse = false
+    @State private var isReminderTimeEditorPresented = false
+    @State private var isUpdatingReminderTime = false
 
     private let contentLimit = 1_000
 
@@ -140,6 +142,24 @@ struct RecordDetailView: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
             .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isReminderTimeEditorPresented) {
+            if let commitment = storedCommitment,
+               commitment.lifecycleStatus() == .active {
+                ReminderTimeEditorSheet(
+                    currentDate: commitment.nextReminderAt,
+                    onSave: { date in
+                        updateReminderDate(commitmentID: commitment.id, date: date)
+                    },
+                    onUseAI: {
+                        requestAIReminderDate(commitmentID: commitment.id)
+                    }
+                )
+                .presentationDetents([.height(390)])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+                .presentationBackground(.clear)
+            }
         }
         .task(id: reminderEncounterID) {
             await processReminderEncounterIfNeeded()
@@ -320,6 +340,8 @@ struct RecordDetailView: View {
                 .foregroundStyle(Color.whisperTextPrimary)
                 .lineSpacing(4)
 
+            nextReminderRow(commitment)
+
             Text("반응이 없으면 조금씩 더 긴 간격으로 다시 건넬게요.")
                 .font(.whisperCaption)
                 .foregroundStyle(Color.whisperTextSecondary)
@@ -397,6 +419,11 @@ struct RecordDetailView: View {
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .disabled(isPreparingReminderResponse)
             }
+
+            if commitment.lifecycleStatus() == .active,
+               !isPreparingReminderResponse {
+                nextReminderRow(commitment)
+            }
         }
         .padding(16)
         .whisperCardStyle(
@@ -442,6 +469,53 @@ struct RecordDetailView: View {
             fill: .whisperSurfaceSubtle,
             border: .whisperBorderSubtle,
             cornerRadius: WhisperRadius.large
+        )
+    }
+
+    private func nextReminderRow(_ commitment: WhisperCommitment) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "calendar.badge.clock")
+                .foregroundStyle(Color.whisperAccent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("다음 만남")
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+
+                if isUpdatingReminderTime {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("AI가 시간을 정하고 있어요…")
+                            .font(.whisperMetadata)
+                            .foregroundStyle(Color.whisperTextPrimary)
+                    }
+                } else if let nextReminderAt = commitment.nextReminderAt {
+                    Text(nextReminderAt.formatted(date: .abbreviated, time: .shortened))
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperTextPrimary)
+                } else {
+                    Text("다음 시간을 정하는 중이에요")
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperTextPrimary)
+                }
+            }
+
+            Spacer(minLength: 4)
+
+            Button("바꾸기") {
+                isReminderTimeEditorPresented = true
+            }
+            .font(.whisperCaption)
+            .disabled(isUpdatingReminderTime)
+        }
+        .padding(12)
+        .background(
+            Color.whisperSurfaceDefault,
+            in: RoundedRectangle(
+                cornerRadius: WhisperRadius.medium,
+                style: .continuous
+            )
         )
     }
 
@@ -519,6 +593,55 @@ struct RecordDetailView: View {
 
         Task {
             let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+            if result != .scheduled {
+                isReminderErrorPresented = true
+            }
+        }
+    }
+
+    private func updateReminderDate(commitmentID: UUID, date: Date) {
+        let adjustedDate = CommitmentReminderScheduler.adjustedToAllowedReminderHours(date)
+        guard let plan = recordStore.rescheduleCommitment(
+            commitmentID,
+            firstReminderDate: adjustedDate
+        ) else {
+            isPersistenceErrorPresented = true
+            return
+        }
+
+        isUpdatingReminderTime = true
+        Task {
+            let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+            isUpdatingReminderTime = false
+            if result != .scheduled {
+                isReminderErrorPresented = true
+            }
+        }
+    }
+
+    private func requestAIReminderDate(commitmentID: UUID) {
+        guard let context = recordStore.reminderPlanningContext(for: commitmentID) else {
+            isPersistenceErrorPresented = true
+            return
+        }
+
+        isUpdatingReminderTime = true
+        Task {
+            let timing = await CommitmentAnalyzer().replanReminder(
+                for: context,
+                eventDescription: "사용자가 다음 만남 시각을 AI에게 다시 맡겼습니다."
+            )
+            guard let plan = recordStore.rescheduleCommitment(
+                commitmentID,
+                reminderTiming: timing
+            ) else {
+                isUpdatingReminderTime = false
+                isPersistenceErrorPresented = true
+                return
+            }
+
+            let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+            isUpdatingReminderTime = false
             if result != .scheduled {
                 isReminderErrorPresented = true
             }
