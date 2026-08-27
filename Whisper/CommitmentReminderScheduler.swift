@@ -282,7 +282,7 @@ enum CommitmentReminderScheduler {
         return validRange.contains(value) ? value : defaultValue
     }
 
-    private static func notificationDate(_ request: UNNotificationRequest) -> Date? {
+    nonisolated private static func notificationDate(_ request: UNNotificationRequest) -> Date? {
         guard let trigger = request.trigger as? UNCalendarNotificationTrigger else {
             return nil
         }
