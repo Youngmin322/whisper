@@ -56,9 +56,9 @@ private struct MainTabView: View {
             Tab("기록", systemImage: "flame.fill", value: MainTab.home) {
                 NavigationStack(path: $homePath) {
                     HomeView(recordStore: recordStore)
-                        .navigationDestination(for: UUID.self) { recordID in
+                        .navigationDestination(for: NotificationRecordRoute.self) { route in
                             NotificationRecordDestination(
-                                recordID: recordID,
+                                route: route,
                                 recordStore: recordStore
                             )
                         }
@@ -103,14 +103,18 @@ private struct MainTabView: View {
         if let recordID {
             selectedTab = .home
             homePath = NavigationPath()
-            homePath.append(recordID)
+            homePath.append(
+                NotificationRecordRoute(
+                    recordID: recordID,
+                    commitmentID: commitmentID,
+                    encounterID: encounterID
+                )
+            )
         }
 
-        if let encounterID {
-            _ = recordStore.markEncounterOpened(encounterID)
-        }
-
-        if let commitmentID {
+        // 새 알림은 상세 화면에서 열람·반응과 다음 일정을 한 흐름으로 처리해요.
+        // encounterID가 없는 이전 버전 알림만 기존 방식으로 다시 예약해요.
+        if encounterID == nil, let commitmentID {
             replanOpenedCommitment(commitmentID)
         }
     }
@@ -144,13 +148,23 @@ private enum MainTab: Hashable {
     case settings
 }
 
-private struct NotificationRecordDestination: View {
+private struct NotificationRecordRoute: Hashable {
     let recordID: UUID
+    let commitmentID: UUID?
+    let encounterID: UUID?
+}
+
+private struct NotificationRecordDestination: View {
+    let route: NotificationRecordRoute
     let recordStore: RecordStore
     
     var body: some View {
-        if let record = recordStore.record(withID: recordID) {
-            RecordDetailView(record: record, recordStore: recordStore)
+        if let record = recordStore.record(withID: route.recordID) {
+            RecordDetailView(
+                record: record,
+                recordStore: recordStore,
+                reminderEncounterID: route.encounterID
+            )
         } else {
             ContentUnavailableView(
                 "기록을 찾을 수 없어요",

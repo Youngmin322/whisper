@@ -46,7 +46,7 @@ struct HomeView: View {
                     shouldOpenDetailAfterSheetDismisses = true
                 }
             )
-            .presentationDetents([.height(444)])
+            .presentationDetents([.height(520)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
             .presentationBackground(.clear)
@@ -211,7 +211,11 @@ struct HomeView: View {
         if let commitment = dueCommitment,
            let record = recordStore.record(withID: commitment.sourceRecordID) {
             NavigationLink {
-                RecordDetailView(record: record, recordStore: recordStore)
+                RecordDetailView(
+                    record: record,
+                    recordStore: recordStore,
+                    reminderEncounterID: dueEncounter(for: commitment)?.id
+                )
             } label: {
                 resurfacingCard(for: commitment)
             }
@@ -293,7 +297,14 @@ struct HomeView: View {
 
     private var dueCommitment: WhisperCommitment? {
         recordStore.commitments.first {
-            $0.isActive && ($0.nextReminderAt ?? .distantFuture) <= .now
+            $0.lifecycleStatus() == .active
+                && ($0.nextReminderAt ?? .distantFuture) <= .now
+        }
+    }
+
+    private func dueEncounter(for commitment: WhisperCommitment) -> ReminderEncounter? {
+        recordStore.encounters(for: commitment.id).first {
+            $0.openedAt == nil && $0.scheduledAt <= .now
         }
     }
     

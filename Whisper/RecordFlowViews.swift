@@ -49,16 +49,20 @@ struct DetailedRecordView: View {
                     .font(.whisperMetadata)
                     .foregroundStyle(Color.whisperTextSecondary)
                     .padding(.top, 12)
-                fieldLabel("제목")
-                TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
+                fieldLabel(RecordWritingCopy.titleLabel)
+                TextField(RecordWritingCopy.titleExample, text: $draft.title)
                     .font(.whisperBodyLarge)
                     .padding(.horizontal, 16)
                     .frame(height: 52)
                     .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+
+                Text(RecordWritingCopy.titleHelp)
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
                 
-                fieldLabel("기록")
+                fieldLabel(RecordWritingCopy.contentLabel)
                 ZStack(alignment: .bottomTrailing) {
-                    TextField("오늘 있었던 일과 생각을 천천히 적어보세요", text: $draft.content, axis: .vertical)
+                    TextField(RecordWritingCopy.contentExample, text: $draft.content, axis: .vertical)
                         .font(.whisperBodyLarge)
                         .lineSpacing(5)
                         .lineLimit(6 ... 8)
@@ -191,6 +195,7 @@ struct CollectionView: View {
     let recordStore: RecordStore
     @State private var searchText = ""
     @State private var selectedEmotion: String?
+    @State private var selectedCommitmentStatus: CommitmentLifecycleStatus?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -248,10 +253,15 @@ struct CollectionView: View {
                                         }
                                     }
                                     .frame(maxWidth: .infinity)
+                                    .overlay(alignment: .topLeading) {
+                                        if let commitment = storedCommitment(for: record) {
+                                            commitmentStatusBadge(commitment.lifecycleStatus())
+                                        }
+                                    }
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(
-                                    "\(record.title), \(record.createdAt.whisperFullDayDescription)"
+                                    recordAccessibilityLabel(record)
                                 )
                             }
                         }
@@ -298,6 +308,40 @@ struct CollectionView: View {
         )
     }
 
+    private func storedCommitment(for record: WhisperRecord) -> WhisperCommitment? {
+        recordStore.commitments.first { $0.sourceRecordID == record.id }
+    }
+
+    private func commitmentStatusBadge(
+        _ status: CommitmentLifecycleStatus
+    ) -> some View {
+        let icon = switch status {
+        case .active: "sparkles"
+        case .paused: "moon.zzz.fill"
+        case .released: "checkmark"
+        }
+
+        return Image(systemName: icon)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(Color.white)
+            .frame(width: 22, height: 22)
+            .background(Color.whisperAccent, in: Circle())
+            .accessibilityHidden(true)
+    }
+
+    private func recordAccessibilityLabel(_ record: WhisperRecord) -> String {
+        let base = "\(record.title), \(record.createdAt.whisperFullDayDescription)"
+        guard let status = storedCommitment(for: record)?.lifecycleStatus() else {
+            return base
+        }
+        let statusDescription = switch status {
+        case .active: "기억 중인 불꽃"
+        case .paused: "잠시 쉬는 불꽃"
+        case .released: "놓아준 마음"
+        }
+        return "\(base), \(statusDescription)"
+    }
+
     private var filterBar: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
@@ -313,6 +357,19 @@ struct CollectionView: View {
                         title: selectedEmotion ?? "감정",
                         systemImage: "face.smiling",
                         isActive: selectedEmotion != nil
+                    )
+                }
+
+                Menu {
+                    Button("모든 불꽃") { selectedCommitmentStatus = nil }
+                    Button("기억 중") { selectedCommitmentStatus = .active }
+                    Button("잠시 쉬는 중") { selectedCommitmentStatus = .paused }
+                    Button("놓아준 마음") { selectedCommitmentStatus = .released }
+                } label: {
+                    filterChip(
+                        title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "불꽃 상태",
+                        systemImage: "sparkles",
+                        isActive: selectedCommitmentStatus != nil
                     )
                 }
 
@@ -349,7 +406,8 @@ struct CollectionView: View {
 
     private var hasActiveFilters: Bool {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-            selectedEmotion != nil
+            selectedEmotion != nil ||
+            selectedCommitmentStatus != nil
     }
 
     private var filteredRecords: [WhisperRecord] {
@@ -360,13 +418,24 @@ struct CollectionView: View {
                 record.title.localizedCaseInsensitiveContains(query) ||
                 record.content.localizedCaseInsensitiveContains(query)
             let matchesEmotion = selectedEmotion == nil || record.emotion == selectedEmotion
-            return matchesSearch && matchesEmotion
+            let matchesCommitmentStatus = selectedCommitmentStatus == nil ||
+                storedCommitment(for: record)?.lifecycleStatus() == selectedCommitmentStatus
+            return matchesSearch && matchesEmotion && matchesCommitmentStatus
+        }
+    }
+
+    private func commitmentStatusTitle(_ status: CommitmentLifecycleStatus) -> String {
+        switch status {
+        case .active: "기억 중"
+        case .paused: "잠시 쉬는 중"
+        case .released: "놓아준 마음"
         }
     }
 
     private func resetFilters() {
         searchText = ""
         selectedEmotion = nil
+        selectedCommitmentStatus = nil
     }
     
     private var monthlyShelves: [(title: String, records: [WhisperRecord])] {

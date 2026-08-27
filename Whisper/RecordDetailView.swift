@@ -11,6 +11,7 @@ struct RecordDetailView: View {
 
     let record: WhisperRecord
     let recordStore: RecordStore
+    let reminderEncounterID: UUID?
 
     @State private var draft: RecordDraft
     @State private var isEditing = false
@@ -21,12 +22,21 @@ struct RecordDetailView: View {
     @State private var photoData: Data?
     @State private var isEmotionPickerPresented = false
     @State private var isForgetCommitmentConfirmationPresented = false
+    @State private var isReleaseEncounterConfirmationPresented = false
+    @State private var selectedEncounterReaction: ReminderEncounterReaction?
+    @State private var didProcessReminderEncounter = false
+    @State private var isPreparingReminderResponse = false
 
     private let contentLimit = 1_000
 
-    init(record: WhisperRecord, recordStore: RecordStore) {
+    init(
+        record: WhisperRecord,
+        recordStore: RecordStore,
+        reminderEncounterID: UUID? = nil
+    ) {
         self.record = record
         self.recordStore = recordStore
+        self.reminderEncounterID = reminderEncounterID
         _draft = State(
             initialValue: RecordDraft(
                 title: record.title,
@@ -35,6 +45,11 @@ struct RecordDetailView: View {
         )
         _selectedEmotion = State(initialValue: record.emotion)
         _photoData = State(initialValue: record.photoData)
+        _selectedEncounterReaction = State(
+            initialValue: reminderEncounterID.flatMap { encounterID in
+                recordStore.encounters.first(where: { $0.id == encounterID })?.reaction
+            }
+        )
     }
 
     var body: some View {
@@ -108,12 +123,26 @@ struct RecordDetailView: View {
         } message: {
             Text("예약된 다시 만나기 알림도 함께 사라져요. 기록은 그대로 남아 있어요.")
         }
+        .alert(
+            "이 마음을 이제 놓아줄까요?",
+            isPresented: $isReleaseEncounterConfirmationPresented
+        ) {
+            Button("조금 더 기억하기", role: .cancel) {}
+            Button("이제 놓아주기", role: .destructive) {
+                applyEncounterReaction(.release)
+            }
+        } message: {
+            Text("다시 만나기 알림은 멈추지만, 기록은 보관함에 그대로 남아 있어요.")
+        }
         .sheet(isPresented: $isEmotionPickerPresented) {
             EmotionPickerView(selectedEmotion: $selectedEmotion)
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
             .presentationBackground(.clear)
+        }
+        .task(id: reminderEncounterID) {
+            await processReminderEncounterIfNeeded()
         }
     }
 
@@ -152,8 +181,16 @@ struct RecordDetailView: View {
                 )
                 .textSelection(.enabled)
 
-            if let commitment = recordStore.commitment(sourceRecordID: record.id) {
-                commitmentCard(commitment)
+            if let encounter = reminderEncounter,
+               let commitment = reminderCommitment {
+                reminderResponseCard(encounter: encounter, commitment: commitment)
+            } else if let commitment = storedCommitment {
+                switch commitment.lifecycleStatus() {
+                case .active:
+                    commitmentCard(commitment)
+                case .paused, .released:
+                    commitmentStatusCard(commitment)
+                }
             }
 
             if let photoData = record.photoData {
@@ -184,8 +221,8 @@ struct RecordDetailView: View {
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperTextSecondary)
 
-            fieldLabel("제목")
-            TextField("오늘의 마음에 제목을 붙여주세요", text: $draft.title)
+            fieldLabel(RecordWritingCopy.titleLabel)
+            TextField(RecordWritingCopy.titleExample, text: $draft.title)
                 .font(.whisperBodyLarge)
                 .padding(.horizontal, 16)
                 .frame(height: 52)
@@ -197,10 +234,14 @@ struct RecordDetailView: View {
                     )
                 )
 
-            fieldLabel("기록")
+            Text(RecordWritingCopy.titleHelp)
+                .font(.whisperCaption)
+                .foregroundStyle(Color.whisperTextSecondary)
+
+            fieldLabel(RecordWritingCopy.contentLabel)
             ZStack(alignment: .bottomTrailing) {
                 TextField(
-                    "오늘 있었던 일과 생각을 천천히 적어보세요",
+                    RecordWritingCopy.contentExample,
                     text: $draft.content,
                     axis: .vertical
                 )
@@ -302,6 +343,222 @@ struct RecordDetailView: View {
             border: .whisperBorderSubtle,
             cornerRadius: WhisperRadius.large
         )
+    }
+
+    private func reminderResponseCard(
+        encounter: ReminderEncounter,
+        commitment: WhisperCommitment
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("다시 만난 마음", systemImage: "sparkles")
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperAccentText)
+
+            Text("“\(commitment.quote)”")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextPrimary)
+                .lineSpacing(4)
+
+            if let reaction = selectedEncounterReaction ?? encounter.reaction {
+                encounterReactionConfirmation(reaction)
+            } else {
+                Text("읽은 것만으로도 충분해요. 원한다면 이 마음을 앞으로 어떻게 만날지 알려주세요.")
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .lineSpacing(3)
+
+                if isPreparingReminderResponse {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("다음 만남을 정리하고 있어요…")
+                            .font(.whisperCaption)
+                            .foregroundStyle(Color.whisperTextSecondary)
+                    }
+                }
+
+                Button("계속 기억해줘") {
+                    applyEncounterReaction(.keep)
+                }
+                .buttonStyle(.whisperPrimary(size: .compact))
+                .disabled(isPreparingReminderResponse)
+
+                Button("30일 동안 쉬어갈게") {
+                    applyEncounterReaction(.pause)
+                }
+                .buttonStyle(.whisperSecondary)
+                .disabled(isPreparingReminderResponse)
+
+                Button("이제 놓아줘") {
+                    isReleaseEncounterConfirmationPresented = true
+                }
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .disabled(isPreparingReminderResponse)
+            }
+        }
+        .padding(16)
+        .whisperCardStyle(
+            fill: .whisperSurfaceHighlight,
+            border: .whisperBorderSubtle,
+            cornerRadius: WhisperRadius.large
+        )
+    }
+
+    private func commitmentStatusCard(_ commitment: WhisperCommitment) -> some View {
+        let status = commitment.lifecycleStatus()
+        let message: (icon: String, title: String, description: String) = switch status {
+        case .active:
+            ("sparkles", "Whisper가 기억 중인 불꽃", "잊힐 만한 순간에 다시 건넬게요.")
+        case .paused:
+            (
+                "moon.zzz.fill",
+                "잠시 쉬어가는 불꽃",
+                commitment.pausedUntil.map {
+                    "\($0.formatted(date: .abbreviated, time: .omitted))에 다시 만나요."
+                } ?? "잠시 뒤 다시 만나요."
+            )
+        case .released:
+            ("checkmark.circle.fill", "잘 놓아준 마음", "알림은 멈췄지만 기록은 그대로 남아 있어요.")
+        }
+
+        return Label {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(message.title)
+                    .font(.whisperBodyEmphasis)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                Text(message.description)
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+            }
+        } icon: {
+            Image(systemName: message.icon)
+                .foregroundStyle(Color.whisperAccent)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .whisperCardStyle(
+            fill: .whisperSurfaceSubtle,
+            border: .whisperBorderSubtle,
+            cornerRadius: WhisperRadius.large
+        )
+    }
+
+    private func encounterReactionConfirmation(
+        _ reaction: ReminderEncounterReaction
+    ) -> some View {
+        let message: (icon: String, title: String, description: String) = switch reaction {
+        case .keep:
+            ("sparkles", "계속 기억할게요", "잊힐 만한 순간에 다시 건넬게요.")
+        case .pause:
+            ("moon.zzz.fill", "잠시 쉬어갈게요", "30일 뒤에 다시 만나요.")
+        case .release:
+            ("checkmark.circle.fill", "잘 놓아둘게요", "알림은 멈추고 기록만 소중히 보관할게요.")
+        }
+
+        return Label {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(message.title)
+                    .font(.whisperBodyEmphasis)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                Text(message.description)
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+            }
+        } icon: {
+            Image(systemName: message.icon)
+                .foregroundStyle(Color.whisperAccent)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            Color.whisperSurfaceDefault,
+            in: RoundedRectangle(
+                cornerRadius: WhisperRadius.medium,
+                style: .continuous
+            )
+        )
+    }
+
+    private var reminderEncounter: ReminderEncounter? {
+        guard let reminderEncounterID else { return nil }
+        return recordStore.encounters.first { $0.id == reminderEncounterID }
+    }
+
+    private var reminderCommitment: WhisperCommitment? {
+        guard let commitmentID = reminderEncounter?.commitmentID else { return nil }
+        return recordStore.commitments.first { $0.id == commitmentID }
+    }
+
+    private var storedCommitment: WhisperCommitment? {
+        recordStore.commitments.first { $0.sourceRecordID == record.id }
+    }
+
+    private func applyEncounterReaction(_ reaction: ReminderEncounterReaction) {
+        guard let reminderEncounterID,
+              let commitmentID = reminderEncounter?.commitmentID
+        else {
+            return
+        }
+        if recordStore.react(to: reminderEncounterID, with: reaction) {
+            selectedEncounterReaction = reaction
+            if reaction == .pause {
+                scheduleReminderAfterPause(commitmentID: commitmentID)
+            }
+        } else {
+            isPersistenceErrorPresented = true
+        }
+    }
+
+    private func scheduleReminderAfterPause(commitmentID: UUID) {
+        guard let plan = recordStore.pausedReminderPlan(for: commitmentID) else {
+            isPersistenceErrorPresented = true
+            return
+        }
+
+        Task {
+            let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+            if result != .scheduled {
+                isReminderErrorPresented = true
+            }
+        }
+    }
+
+    private func processReminderEncounterIfNeeded() async {
+        guard !didProcessReminderEncounter,
+              let reminderEncounterID,
+              let encounter = recordStore.encounters.first(where: { $0.id == reminderEncounterID })
+        else {
+            return
+        }
+        didProcessReminderEncounter = true
+        isPreparingReminderResponse = true
+        defer { isPreparingReminderResponse = false }
+
+        guard recordStore.markEncounterOpened(reminderEncounterID),
+              let context = recordStore.reminderPlanningContext(for: encounter.commitmentID)
+        else {
+            return
+        }
+
+        let timing = await CommitmentAnalyzer().replanReminder(
+            for: context,
+            eventDescription: "사용자가 리마인드된 마음을 다시 읽었습니다."
+        )
+        guard let plan = recordStore.rescheduleCommitment(
+            encounter.commitmentID,
+            reminderTiming: timing
+        ) else {
+            return
+        }
+
+        let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
+        if result != .scheduled,
+           let commitment = recordStore.commitments.first(where: { $0.id == encounter.commitmentID }),
+           commitment.lifecycleStatus() == .active {
+            isReminderErrorPresented = true
+        }
     }
 
     private func startEditing() {

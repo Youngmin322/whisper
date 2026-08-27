@@ -255,7 +255,9 @@ final class RecordStore {
         reminderTiming: CommitmentReminderTiming,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
-        guard let commitment = commitments.first(where: { $0.id == id && $0.isActive }) else {
+        guard let commitment = commitments.first(where: {
+            $0.id == id && $0.lifecycleStatus(at: now) == .active
+        }) else {
             return nil
         }
 
@@ -281,7 +283,9 @@ final class RecordStore {
         reminderTiming: CommitmentReminderTiming,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
-        guard let commitment = commitments.first(where: { $0.id == id && $0.isActive }) else {
+        guard let commitment = commitments.first(where: {
+            $0.id == id && $0.lifecycleStatus(at: now) == .active
+        }) else {
             return nil
         }
 
@@ -297,7 +301,9 @@ final class RecordStore {
     }
 
     func reminderPlanningContext(for commitmentID: UUID) -> CommitmentReminderPlanningContext? {
-        guard let commitment = commitments.first(where: { $0.id == commitmentID && $0.isActive }) else {
+        guard let commitment = commitments.first(where: {
+            $0.id == commitmentID && $0.lifecycleStatus() == .active
+        }) else {
             return nil
         }
 
@@ -323,6 +329,23 @@ final class RecordStore {
         return CommitmentReminderPlanningContext(
             commitment: snapshot,
             recentRecords: recentRecords
+        )
+    }
+
+    func pausedReminderPlan(for commitmentID: UUID) -> CommitmentReminderPlan? {
+        guard let commitment = commitments.first(where: { $0.id == commitmentID }),
+              commitment.lifecycleStatus() == .paused,
+              let pausedUntil = commitment.pausedUntil
+        else {
+            return nil
+        }
+
+        return CommitmentReminderPlan(
+            id: commitment.id,
+            sourceRecordID: commitment.sourceRecordID,
+            name: commitment.name,
+            quote: commitment.quote,
+            reminderDates: [pausedUntil]
         )
     }
 
@@ -569,7 +592,7 @@ final class RecordStore {
         }
 
         let didSave = saveChanges()
-        if didSave && (reaction == .pause || reaction == .release) {
+        if didSave && reaction == .release {
             Task {
                 await CommitmentReminderScheduler.cancel(commitmentIDs: [commitment.id])
             }

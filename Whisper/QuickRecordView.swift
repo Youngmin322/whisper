@@ -17,15 +17,23 @@ struct QuickRecordView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("빠르게 기록하기").font(.whisperNavigationTitle).foregroundStyle(Color.whisperTextPrimary)
-            Text("짧게 남겨도 오늘의 불꽃이 됩니다.").font(.whisperBody).foregroundStyle(Color.whisperTextSecondary)
-            TextField("제목을 입력해 주세요", text: $draft.title)
+            Text("나중에 다시 만났을 때 떠오를 만큼만 적어도 괜찮아요.").font(.whisperBody).foregroundStyle(Color.whisperTextSecondary)
+
+            Text(RecordWritingCopy.titleLabel)
+                .font(.whisperFieldLabel)
+                .foregroundStyle(Color.whisperTextPrimary)
+                .padding(.top, 8)
+            TextField(RecordWritingCopy.titleExample, text: $draft.title)
                 .font(.whisperBodyLarge)
                 .padding(.horizontal, 16)
                 .frame(height: 48)
                 .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-                .padding(.top, 10)
+
+            Text(RecordWritingCopy.contentLabel)
+                .font(.whisperFieldLabel)
+                .foregroundStyle(Color.whisperTextPrimary)
             ZStack(alignment: .bottomTrailing) {
-                TextField("지금 떠오른 마음을 적어보세요", text: $draft.content, axis: .vertical)
+                TextField(RecordWritingCopy.contentExample, text: $draft.content, axis: .vertical)
                     .font(.whisperBodyLarge)
                     .lineLimit(3 ... 4)
                     .padding(16)
