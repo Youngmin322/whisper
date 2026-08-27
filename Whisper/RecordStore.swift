@@ -641,10 +641,11 @@ final class RecordStore {
             commitment.nextReminderAt = nil
         }
 
+        let commitmentID = commitment.id
         let didSave = saveChanges()
         if didSave && reaction == .release {
             Task {
-                await CommitmentReminderScheduler.cancel(commitmentIDs: [commitment.id])
+                await CommitmentReminderScheduler.cancel(commitmentIDs: [commitmentID])
             }
         }
         return didSave
