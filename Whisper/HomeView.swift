@@ -12,7 +12,7 @@ struct HomeView: View {
     @State private var isDetailRecordPresented = false
     @State private var shouldOpenDetailAfterSheetDismisses = false
     @State private var recordDraft = RecordDraft()
-    @State private var pendingCommitmentCandidate: CommitmentCandidate?
+    @State private var pendingCommitmentCandidates: [CommitmentCandidate] = []
     @State private var presentedCommitmentCandidate: CommitmentCandidate?
     @State private var isReminderUnavailablePresented = false
     
@@ -59,7 +59,10 @@ struct HomeView: View {
                 )
             }
         }
-        .sheet(item: $presentedCommitmentCandidate) { candidate in
+        .sheet(
+            item: $presentedCommitmentCandidate,
+            onDismiss: presentPendingCommitmentCandidateIfPossible
+        ) { candidate in
             CommitmentCandidateSheet(
                 candidate: candidate,
                 onRemember: { customReminderDate in
@@ -123,6 +126,7 @@ struct HomeView: View {
             }
             .buttonStyle(.whisperPrimary(size: .compact))
             .padding(.top, hasTodayRecord ? 14 : 24)
+            .accessibilityIdentifier("home.recordButton")
         }
         .padding(20)
         .whisperCardStyle(
@@ -373,7 +377,9 @@ struct HomeView: View {
                 }
             }
 
-            pendingCommitmentCandidate = analysis.candidate
+            if let candidate = analysis.candidate {
+                pendingCommitmentCandidates.append(candidate)
+            }
             presentPendingCommitmentCandidateIfPossible()
         }
     }
@@ -382,12 +388,12 @@ struct HomeView: View {
         guard !isQuickRecordPresented,
               !isDetailRecordPresented,
               presentedCommitmentCandidate == nil,
-              let candidate = pendingCommitmentCandidate
+              let candidate = pendingCommitmentCandidates.first
         else {
             return
         }
 
-        pendingCommitmentCandidate = nil
+        pendingCommitmentCandidates.removeFirst()
         presentedCommitmentCandidate = candidate
     }
 

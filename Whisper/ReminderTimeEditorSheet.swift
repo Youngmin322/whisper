@@ -62,6 +62,8 @@ struct ReminderTimeEditorSheet: View {
             )
             .datePickerStyle(.compact)
             .font(.whisperBodyEmphasis)
+            .environment(\.locale, Locale(identifier: "ko_KR"))
+            .accessibilityIdentifier("detail.reminderDatePicker")
 
             Label("알림은 오전 9시부터 오후 9시 사이에만 도착해요.", systemImage: "moon.stars")
                 .font(.whisperCaption)
@@ -72,6 +74,7 @@ struct ReminderTimeEditorSheet: View {
                 dismiss()
             }
             .buttonStyle(.whisperPrimary(size: .compact))
+            .accessibilityIdentifier("detail.saveReminderButton")
 
             Button("AI에게 다시 맡기기") {
                 onUseAI()

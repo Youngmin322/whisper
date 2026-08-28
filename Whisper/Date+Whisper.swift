@@ -35,4 +35,26 @@ extension Date {
                 .minute()
         )
     }
+
+    var whisperDateDescription: String {
+        formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .year()
+                .month(.wide)
+                .day()
+        )
+    }
+
+    var whisperDateTimeDescription: String {
+        formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .year()
+                .month(.wide)
+                .day()
+                .hour()
+                .minute()
+        )
+    }
 }

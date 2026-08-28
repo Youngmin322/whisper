@@ -443,7 +443,7 @@ struct RecordDetailView: View {
                 "moon.zzz.fill",
                 "잠시 쉬어가는 불꽃",
                 commitment.pausedUntil.map {
-                    "\($0.formatted(date: .abbreviated, time: .omitted))에 다시 만나요."
+                    "\($0.whisperDateDescription)에 다시 만나요."
                 } ?? "잠시 뒤 다시 만나요."
             )
         case .released:
@@ -491,7 +491,7 @@ struct RecordDetailView: View {
                             .foregroundStyle(Color.whisperTextPrimary)
                     }
                 } else if let nextReminderAt = commitment.nextReminderAt {
-                    Text(nextReminderAt.formatted(date: .abbreviated, time: .shortened))
+                    Text(nextReminderAt.whisperDateTimeDescription)
                         .font(.whisperMetadata)
                         .foregroundStyle(Color.whisperTextPrimary)
                 } else {
@@ -510,6 +510,7 @@ struct RecordDetailView: View {
             .disabled(isUpdatingReminderTime)
         }
         .padding(12)
+        .accessibilityIdentifier("detail.nextReminder")
         .background(
             Color.whisperSurfaceDefault,
             in: RoundedRectangle(

@@ -28,6 +28,7 @@ struct QuickRecordView: View {
                 .padding(.horizontal, 16)
                 .frame(height: 48)
                 .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                .accessibilityIdentifier("record.titleField")
 
             Text(RecordWritingCopy.contentLabel)
                 .font(.whisperFieldLabel)
@@ -42,6 +43,7 @@ struct QuickRecordView: View {
                         guard newValue.count > contentLimit else { return }
                         draft.content = String(newValue.prefix(contentLimit))
                     }
+                    .accessibilityIdentifier("record.contentField")
                 Text("\(draft.content.count) / \(contentLimit)")
                     .font(.whisperCaption)
                     .foregroundStyle(Color.whisperTextSecondary)
@@ -72,6 +74,7 @@ struct QuickRecordView: View {
             }
             .buttonStyle(.whisperPrimary(size: .compact))
             .disabled(!draft.canSave)
+            .accessibilityIdentifier("record.saveButton")
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, 8)

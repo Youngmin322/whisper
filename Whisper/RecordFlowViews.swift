@@ -55,6 +55,7 @@ struct DetailedRecordView: View {
                     .padding(.horizontal, 16)
                     .frame(height: 52)
                     .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
+                    .accessibilityIdentifier("record.titleField")
 
                 Text(RecordWritingCopy.titleHelp)
                     .font(.whisperCaption)
@@ -72,6 +73,7 @@ struct DetailedRecordView: View {
                             guard newValue.count > contentLimit else { return }
                             draft.content = String(newValue.prefix(contentLimit))
                         }
+                        .accessibilityIdentifier("record.contentField")
                     Text("\(draft.content.count) / \(contentLimit.formatted())")
                         .font(.whisperCaption)
                         .foregroundStyle(Color.whisperTextSecondary)
@@ -113,6 +115,7 @@ struct DetailedRecordView: View {
             }
             .buttonStyle(.whisperPrimary)
             .disabled(!draft.canSave)
+            .accessibilityIdentifier("record.saveButton")
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
@@ -129,9 +132,12 @@ struct DetailedRecordView: View {
         } message: {
             Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
         }
-        .sheet(isPresented: $isSaved) {
+        .sheet(
+            isPresented: $isSaved,
+            onDismiss: { dismiss() }
+        ) {
             SavedRecordSheet {
-                dismiss()
+                isSaved = false
             }
             .presentationDetents([.height(312)])
             .presentationDragIndicator(.visible)
@@ -188,6 +194,7 @@ private struct SavedRecordSheet: View {
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, 10)
+        .accessibilityIdentifier("record.savedSheet")
     }
 }
 
