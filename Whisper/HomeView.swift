@@ -46,10 +46,8 @@ struct HomeView: View {
                     shouldOpenDetailAfterSheetDismisses = true
                 }
             )
-            .presentationDetents([.height(520)])
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
-            .presentationBackground(.clear)
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
             DetailedRecordView(draft: $recordDraft) { emotion, photoData in
@@ -73,10 +71,9 @@ struct HomeView: View {
                     presentedCommitmentCandidate = nil
                 }
             )
-            .presentationDetents([.height(570)])
+            .presentationDetents([.fraction(0.74), .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
-            .presentationBackground(.clear)
         }
         .onChange(of: isDetailRecordPresented) { _, isPresented in
             guard !isPresented else { return }

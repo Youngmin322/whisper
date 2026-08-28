@@ -155,10 +155,9 @@ struct RecordDetailView: View {
                         requestAIReminderDate(commitmentID: commitment.id)
                     }
                 )
-                .presentationDetents([.height(390)])
+                .presentationDetents([.fraction(0.46), .large])
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(28)
-                .presentationBackground(.clear)
             }
         }
         .task(id: reminderEncounterID) {

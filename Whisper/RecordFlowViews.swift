@@ -139,10 +139,9 @@ struct DetailedRecordView: View {
             SavedRecordSheet {
                 isSaved = false
             }
-            .presentationDetents([.height(312)])
+            .presentationDetents([.height(312), .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
-            .presentationBackground(.clear)
         }
         .sheet(isPresented: $isEmotionPickerPresented) {
             EmotionPickerView(selectedEmotion: $selectedEmotion)
@@ -176,24 +175,29 @@ struct DetailedRecordView: View {
 
 private struct SavedRecordSheet: View {
     let onHome: () -> Void
-    
+
     var body: some View {
-        VStack(spacing: 10) {
-            Text("오늘의 불꽃을 담았어요")
-                .font(.whisperNavigationTitle)
-                .foregroundStyle(Color.whisperTextPrimary)
-            Text("기록은 보관함에서 언제든 다시 꺼내보고\n결심이 보이면 Whisper가 기억할지 물어볼게요.")
-                .font(.whisperBody)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-            WhisperJar(size: .hero).padding(.vertical, 4)
-            Button("홈으로 돌아가기", action: onHome)
-                .buttonStyle(.whisperPrimary(size: .compact))
-                .padding(.top, 2)
+        ScrollView {
+            VStack(spacing: 10) {
+                Text("오늘의 불꽃을 담았어요")
+                    .font(.whisperNavigationTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                Text("기록은 보관함에서 언제든 다시 꺼내보고\n결심이 보이면 Whisper가 기억할지 물어볼게요.")
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                WhisperJar(size: .hero).padding(.vertical, 4)
+                Button("홈으로 돌아가기", action: onHome)
+                    .buttonStyle(.whisperPrimary(size: .compact))
+                    .padding(.top, 2)
+            }
+            .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
+            .padding(.top, 10)
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-        .padding(.top, 10)
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("record.savedSheet")
     }
 }

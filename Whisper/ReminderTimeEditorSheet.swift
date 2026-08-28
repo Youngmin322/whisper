@@ -43,6 +43,14 @@ struct ReminderTimeEditorSheet: View {
     }
 
     var body: some View {
+        ScrollView {
+            editorContent
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    private var editorContent: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("다음 만남 바꾸기")
@@ -86,7 +94,7 @@ struct ReminderTimeEditorSheet: View {
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, 18)
-        .padding(.bottom, 20)
+        .padding(.bottom, 16)
     }
 
     private var reminderDateBinding: Binding<Date> {

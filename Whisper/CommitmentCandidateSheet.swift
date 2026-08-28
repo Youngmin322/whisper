@@ -16,48 +16,12 @@ struct CommitmentCandidateSheet: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    WhisperJar(size: .small)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("이 마음을 기억해 둘까요?")
-                            .font(.whisperNavigationTitle)
-                            .foregroundStyle(Color.whisperTextPrimary)
-
-                        Text("잊힐 만한 간격으로 Whisper가 다시 건넬게요.")
-                            .font(.whisperBody)
-                            .foregroundStyle(Color.whisperTextSecondary)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(candidate.name)
-                        .font(.whisperBodyEmphasis)
-                        .foregroundStyle(Color.whisperAccentText)
-
-                    Text("“\(candidate.quote)”")
-                        .font(.whisperBodyLarge)
-                        .foregroundStyle(Color.whisperTextPrimary)
-                        .lineSpacing(5)
-                        .lineLimit(5)
-
-                    if !candidate.topics.isEmpty {
-                        Text(candidate.topics.map { "#\($0)" }.joined(separator: "  "))
-                            .font(.whisperCaption)
-                            .foregroundStyle(Color.whisperTextSecondary)
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .whisperCardStyle(
-                    fill: .whisperSurfaceSubtle,
-                    border: .whisperBorderSubtle,
-                    cornerRadius: WhisperRadius.large
-                )
-
-                reminderTimeCard
-
+            sheetContent
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 2) {
                 Button("응, 이때 다시 건네줘") {
                     onRemember(displayedReminderDate)
                 }
@@ -70,11 +34,59 @@ struct CommitmentCandidateSheet: View {
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
             .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-            .padding(.top, 12)
-            .padding(.bottom, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+            .background(.bar)
         }
-        .scrollIndicators(.hidden)
         .accessibilityIdentifier("commitment.candidateSheet")
+    }
+
+    private var sheetContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                WhisperJar(size: .small)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("이 마음을 기억해 둘까요?")
+                        .font(.whisperNavigationTitle)
+                        .foregroundStyle(Color.whisperTextPrimary)
+
+                    Text("잊힐 만한 간격으로 Whisper가 다시 건넬게요.")
+                        .font(.whisperBody)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(candidate.name)
+                    .font(.whisperBodyEmphasis)
+                    .foregroundStyle(Color.whisperAccentText)
+
+                Text("“\(candidate.quote)”")
+                    .font(.whisperBodyLarge)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .lineSpacing(5)
+                    .lineLimit(5)
+
+                if !candidate.topics.isEmpty {
+                    Text(candidate.topics.map { "#\($0)" }.joined(separator: "  "))
+                        .font(.whisperCaption)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .whisperCardStyle(
+                fill: .whisperSurfaceSubtle,
+                border: .whisperBorderSubtle,
+                cornerRadius: WhisperRadius.large
+            )
+
+            reminderTimeCard
+        }
+        .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
     }
 
     private var reminderTimeCard: some View {
