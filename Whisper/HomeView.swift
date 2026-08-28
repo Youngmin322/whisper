@@ -270,7 +270,7 @@ struct HomeView: View {
                 Text(
                     activeCommitmentCount == 0
                         ? "아직 기억 중인 결심이 없어요"
-                        : "\(activeCommitmentCount)개의 불꽃을 기억하고 있어요"
+                        : "\(activeCommitmentCount)개의 마음을 간직하고 있어요"
                 )
                     .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.whisperTextPrimary)
@@ -278,7 +278,7 @@ struct HomeView: View {
                 Text(
                     activeCommitmentCount == 0
                         ? "기록 속 결심이 보이면 기억할지 물어볼게요."
-                        : "잊힐 만한 간격으로 다시 건넬게요."
+                        : "잊고 지낼 즈음, 조용히 다시 건넬게요."
                 )
                     .font(.whisperMetadata)
                     .foregroundStyle(Color.whisperTextSecondary)
