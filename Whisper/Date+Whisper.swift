@@ -27,6 +27,22 @@ extension Date {
         )
     }
 
+    var whisperRecordHeaderDescription: String {
+        let date = formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .year()
+                .month(.wide)
+                .day()
+        )
+        let weekday = formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .weekday(.wide)
+        )
+        return "\(date) · \(weekday)"
+    }
+
     var whisperTimeDescription: String {
         formatted(
             Date.FormatStyle()

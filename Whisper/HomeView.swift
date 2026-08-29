@@ -63,15 +63,15 @@ struct HomeView: View {
         ) { candidate in
             CommitmentCandidateSheet(
                 candidate: candidate,
-                onRemember: { customReminderDate in
-                    remember(candidate, firstReminderDate: customReminderDate)
+                onRemember: {
+                    remember(candidate, firstReminderDate: nil)
                     presentedCommitmentCandidate = nil
                 },
                 onDismiss: {
                     presentedCommitmentCandidate = nil
                 }
             )
-            .presentationDetents([.fraction(0.74), .large])
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
         }

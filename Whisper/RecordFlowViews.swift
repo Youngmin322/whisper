@@ -7,7 +7,7 @@ import SwiftUI
 import WhisperDesignSystem
 
 enum WhisperJarSize {
-    case welcome, hero, small, shelf
+    case welcome, hero, small, shelf, recordDetail
     
     var dimensions: CGSize {
         switch self {
@@ -15,6 +15,7 @@ enum WhisperJarSize {
         case .hero: CGSize(width: 56, height: 74)
         case .small: CGSize(width: 47, height: 62)
         case .shelf: CGSize(width: 55, height: 73)
+        case .recordDetail: CGSize(width: 76, height: 101)
         }
     }
 }
