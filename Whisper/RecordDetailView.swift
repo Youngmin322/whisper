@@ -79,12 +79,6 @@ struct RecordDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                if isEditing {
-                    Button("취소", action: cancelEditing)
-                }
-            }
-
             ToolbarItem(placement: .confirmationAction) {
                 if isEditing {
                     Button("저장", action: saveChanges)
@@ -537,11 +531,6 @@ struct RecordDetailView: View {
     private func startEditing() {
         resetDraft()
         isEditing = true
-    }
-
-    private func cancelEditing() {
-        resetDraft()
-        isEditing = false
     }
 
     private func resetDraft() {
