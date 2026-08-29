@@ -48,6 +48,23 @@ struct CommitmentReminderPolicyTests {
         #expect(adjusted == date)
     }
 
+    @Test("교체 알림은 만남마다 고유한 식별자를 만든다")
+    func createsUniqueReplacementIdentifiers() {
+        let commitmentID = UUID()
+        let first = CommitmentReminderScheduler.requestIdentifier(
+            commitmentID: commitmentID,
+            encounterID: UUID()
+        )
+        let second = CommitmentReminderScheduler.requestIdentifier(
+            commitmentID: commitmentID,
+            encounterID: UUID()
+        )
+
+        #expect(first != second)
+        #expect(first.hasPrefix("whisper.commitment.\(commitmentID.uuidString)."))
+        #expect(second.hasPrefix("whisper.commitment.\(commitmentID.uuidString)."))
+    }
+
     private func makeDate(
         year: Int,
         month: Int,

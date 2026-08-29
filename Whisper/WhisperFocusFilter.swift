@@ -95,10 +95,17 @@ struct WhisperFocusFilter: SetFocusFilterIntent {
         }
         guard let reminder else { return .result() }
 
+        let copy = WhisperNotificationContentPolicy.focusReminderCopy(
+            title: reminder.title,
+            content: reminder.content,
+            showPreview: UserDefaults.standard.bool(
+                forKey: CommitmentReminderScheduler.showPreviewStorageKey
+            )
+        )
         let content = UNMutableNotificationContent()
         content.title = "다시 만난 불꽃"
-        content.subtitle = reminder.title
-        content.body = String(reminder.content.prefix(180))
+        content.subtitle = copy.subtitle ?? ""
+        content.body = copy.body
         content.sound = .default
         content.threadIdentifier = "whisper.focus.records"
         content.userInfo = ["recordID": reminder.id.uuidString]

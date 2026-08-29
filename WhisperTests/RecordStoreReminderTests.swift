@@ -142,6 +142,82 @@ struct RecordStoreReminderTests {
         #expect(releasedStore.commitments.first?.nextReminderAt == nil)
     }
 
+    @Test("알림이 없는 활성 결심은 보존한 예정 시각으로 복구한다")
+    func recoversActiveCommitmentUsingRetainedDate() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+
+        let recoveryPlan = try #require(store.reminderRecoveryPlans(at: now).first)
+
+        #expect(recoveryPlan.id == plan.id)
+        #expect(recoveryPlan.reminderDates.first == plan.reminderDates.first)
+    }
+
+    @Test("예정 시각까지 잃은 활성 결심은 기본 간격으로 복구한다")
+    func recoversActiveCommitmentUsingFallbackTiming() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        #expect(store.clearScheduledEncounters(commitmentID: plan.id))
+
+        let recoveryPlan = try #require(store.reminderRecoveryPlans(at: now).first)
+
+        #expect(recoveryPlan.reminderDates.first == now.addingTimeInterval(24 * 60 * 60))
+    }
+
+    @Test("아직 열지 않은 예약이 있으면 중복 복구하지 않는다")
+    func doesNotRecoverCommitmentWithUnresolvedSchedule() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let reminder = ScheduledCommitmentReminder(
+            encounterID: UUID(),
+            requestIdentifier: "test.pending.notification",
+            date: now.addingTimeInterval(24 * 60 * 60)
+        )
+        #expect(
+            store.replaceScheduledEncounters(
+                commitmentID: plan.id,
+                reminders: [reminder]
+            )
+        )
+
+        #expect(store.reminderRecoveryPlans(at: now).isEmpty)
+        #expect(store.replaceableNotificationIdentifiers(for: plan.id) == [
+            reminder.requestIdentifier
+        ])
+    }
+
+    @Test("재예약 실패 시 기존 알림 시각을 복원한다")
+    func restoresExistingReminderDateAfterRescheduleFailure() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let existingDate = now.addingTimeInterval(24 * 60 * 60)
+        let existingReminder = ScheduledCommitmentReminder(
+            encounterID: UUID(),
+            requestIdentifier: "test.existing.notification",
+            date: existingDate
+        )
+        #expect(
+            store.replaceScheduledEncounters(
+                commitmentID: plan.id,
+                reminders: [existingReminder]
+            )
+        )
+        #expect(
+            store.rescheduleCommitment(
+                plan.id,
+                firstReminderDate: now.addingTimeInterval(48 * 60 * 60),
+                now: now
+            ) != nil
+        )
+
+        #expect(store.restoreNextReminderFromScheduledEncounters(commitmentID: plan.id))
+        #expect(store.commitments.first?.nextReminderAt == existingDate)
+    }
+
     private func makeCommitment(
         in store: RecordStore,
         now: Date

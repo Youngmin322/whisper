@@ -382,6 +382,58 @@ final class RecordStore {
         )
     }
 
+    func reminderRecoveryPlans(at date: Date = .now) -> [CommitmentReminderPlan] {
+        commitments.compactMap { commitment in
+            guard commitment.lifecycleStatus(at: date) == .active,
+                  !hasUnresolvedScheduledEncounter(for: commitment.id, at: date)
+            else {
+                return nil
+            }
+
+            let retainedFirstReminderDate = commitment.nextReminderAt.flatMap {
+                $0 > date ? $0 : nil
+            }
+            return reminderPlan(
+                for: commitment,
+                anchorDate: date,
+                timing: .fallback,
+                firstReminderDate: retainedFirstReminderDate
+            )
+        }
+    }
+
+    func replaceableNotificationIdentifiers(for commitmentID: UUID) -> Set<String> {
+        Set(
+            encounters.compactMap { encounter in
+                guard encounter.commitmentID == commitmentID,
+                      encounter.presentedAt == nil,
+                      encounter.openedAt == nil
+                else {
+                    return nil
+                }
+                return encounter.notificationIdentifier
+            }
+        )
+    }
+
+    @discardableResult
+    func restoreNextReminderFromScheduledEncounters(commitmentID: UUID) -> Bool {
+        guard let commitment = commitments.first(where: { $0.id == commitmentID }) else {
+            return false
+        }
+
+        commitment.nextReminderAt = encounters
+            .filter {
+                $0.commitmentID == commitmentID
+                    && $0.notificationIdentifier != nil
+                    && $0.presentedAt == nil
+                    && $0.openedAt == nil
+            }
+            .map(\.scheduledAt)
+            .min()
+        return saveChanges()
+    }
+
     func pausedReminderPlan(for commitmentID: UUID) -> CommitmentReminderPlan? {
         guard let commitment = commitments.first(where: { $0.id == commitmentID }),
               commitment.lifecycleStatus() == .paused,
@@ -787,6 +839,18 @@ final class RecordStore {
                 firstReminderDate: firstReminderDate
             )
         )
+    }
+
+    private func hasUnresolvedScheduledEncounter(
+        for commitmentID: UUID,
+        at date: Date
+    ) -> Bool {
+        encounters.contains { encounter in
+            encounter.commitmentID == commitmentID
+                && encounter.notificationIdentifier != nil
+                && encounter.openedAt == nil
+                && (encounter.presentedAt != nil || encounter.scheduledAt > date)
+        }
     }
 
     private func makeReminderDates(

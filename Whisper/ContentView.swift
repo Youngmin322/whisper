@@ -71,7 +71,7 @@ private struct MainTabView: View {
             }
             Tab("설정", systemImage: "gearshape", value: MainTab.settings) {
                 NavigationStack {
-                    SettingsView()
+                    SettingsView(recordStore: recordStore)
                 }
             }
         }
@@ -210,6 +210,8 @@ private struct WelcomeView: View {
 }
 
 private struct SettingsView: View {
+    let recordStore: RecordStore
+
     @AppStorage(CommitmentReminderScheduler.showPreviewStorageKey)
     private var showCommitmentPreview = false
     @State private var notificationStatus = UNAuthorizationStatus.notDetermined
@@ -293,10 +295,13 @@ private struct SettingsView: View {
     
     private func requestNotificationAuthorization() async {
         do {
-            _ = try await UNUserNotificationCenter.current().requestAuthorization(
+            let isAuthorized = try await UNUserNotificationCenter.current().requestAuthorization(
                 options: [.alert, .sound]
             )
             await refreshNotificationStatus()
+            if isAuthorized {
+                await CommitmentReminderCoordinator.synchronize(with: recordStore)
+            }
         } catch {
             notificationErrorMessage = error.localizedDescription
         }
@@ -384,5 +389,5 @@ private struct FocusFilterGuideView: View {
     MainTabView(recordStore: RecordStore(isStoredInMemoryOnly: true))
 }
 #Preview("설정") {
-    SettingsView()
+    SettingsView(recordStore: RecordStore(isStoredInMemoryOnly: true))
 }
