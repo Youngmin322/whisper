@@ -363,6 +363,9 @@ struct HomeView: View {
                 activeCommitments: existingCommitments
             )
 
+            // 분석 중 사용자가 원본 기록을 삭제했다면 뒤늦은 결과를 적용하지 않아요.
+            guard recordStore.record(withID: record.id) != nil else { return }
+
             if let continuedCommitmentID = analysis.continuedCommitmentID,
                let plan = recordStore.continueCommitment(
                 continuedCommitmentID,

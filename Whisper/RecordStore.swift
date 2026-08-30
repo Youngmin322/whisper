@@ -50,6 +50,8 @@ final class RecordStore {
     private(set) var commitments: [WhisperCommitment] = []
     private(set) var encounters: [ReminderEncounter] = []
     private(set) var persistenceError: String?
+    private(set) var persistenceSupportCode: String?
+    private(set) var persistenceDiagnosticSummary: String?
     private(set) var isPersistenceAvailable = true
 
     @ObservationIgnored private let modelContainer: ModelContainer?
@@ -74,7 +76,7 @@ final class RecordStore {
             modelContainer = nil
             modelContext = nil
             isPersistenceAvailable = false
-            persistenceError = error.localizedDescription
+            recordPersistenceError(error, operation: "model-container-initialization")
             return
         }
 
@@ -130,7 +132,7 @@ final class RecordStore {
             photoData: photoData
         )
         modelContext.insert(record)
-        guard saveChanges() else { return nil }
+        guard saveChanges(reloadAfterSave: true) else { return nil }
         return self.record(withID: record.id)
     }
 
@@ -167,7 +169,7 @@ final class RecordStore {
             .forEach(modelContext.delete)
         relatedCommitments.forEach(modelContext.delete)
         modelContext.delete(record)
-        let didSave = saveChanges()
+        let didSave = saveChanges(reloadAfterSave: true)
 
         if didSave {
             Task {
@@ -211,8 +213,12 @@ final class RecordStore {
         firstReminderDate: Date? = nil,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
-        guard let modelContext else {
-            setUnavailablePersistenceError()
+        guard let modelContext,
+              records.contains(where: { $0.id == sourceRecordID })
+        else {
+            if modelContext == nil {
+                setUnavailablePersistenceError()
+            }
             return nil
         }
         if let existing = commitment(sourceRecordID: sourceRecordID) {
@@ -252,7 +258,7 @@ final class RecordStore {
         )
         modelContext.insert(commitment)
 
-        guard saveChanges(),
+        guard saveChanges(reloadAfterSave: true),
               let saved = self.commitment(sourceRecordID: sourceRecordID)
         else {
             return nil
@@ -416,6 +422,10 @@ final class RecordStore {
         )
     }
 
+    var trackedNotificationIdentifiers: Set<String> {
+        Set(encounters.compactMap(\.notificationIdentifier))
+    }
+
     @discardableResult
     func restoreNextReminderFromScheduledEncounters(commitmentID: UUID) -> Bool {
         guard let commitment = commitments.first(where: { $0.id == commitmentID }) else {
@@ -494,7 +504,7 @@ final class RecordStore {
             notificationIdentifier: notificationIdentifier
         )
         modelContext.insert(encounter)
-        guard saveChanges() else { return nil }
+        guard saveChanges(reloadAfterSave: true) else { return nil }
         return encounters.first { $0.id == encounter.id }
     }
 
@@ -531,7 +541,7 @@ final class RecordStore {
             )
         }
         commitment.nextReminderAt = reminders.map(\.date).min()
-        return saveChanges()
+        return saveChanges(reloadAfterSave: true)
     }
 
     @discardableResult
@@ -553,7 +563,7 @@ final class RecordStore {
             }
             .forEach(modelContext.delete)
         commitment.nextReminderAt = nil
-        return saveChanges()
+        return saveChanges(reloadAfterSave: true)
     }
 
     @discardableResult
@@ -620,7 +630,7 @@ final class RecordStore {
                 .min()
         }
 
-        return saveChanges()
+        return saveChanges(reloadAfterSave: true)
     }
 
     @discardableResult
@@ -769,20 +779,25 @@ final class RecordStore {
         )
     }
 
-    private func saveChanges() -> Bool {
+    private func saveChanges(reloadAfterSave: Bool = false) -> Bool {
         guard let modelContext else {
             setUnavailablePersistenceError()
             return false
         }
         do {
             try modelContext.save()
-            reload()
+            persistenceError = nil
+            persistenceSupportCode = nil
+            persistenceDiagnosticSummary = nil
+            isPersistenceAvailable = true
+            if reloadAfterSave {
+                reload()
+            }
             return true
         } catch {
-            let errorMessage = error.localizedDescription
             modelContext.rollback()
             reload()
-            persistenceError = errorMessage
+            recordPersistenceError(error, operation: "model-context-save")
             return false
         }
     }
@@ -812,13 +827,15 @@ final class RecordStore {
                 )
             )
             persistenceError = nil
+            persistenceSupportCode = nil
+            persistenceDiagnosticSummary = nil
             isPersistenceAvailable = true
         } catch {
             records = []
             commitments = []
             encounters = []
             isPersistenceAvailable = false
-            persistenceError = error.localizedDescription
+            recordPersistenceError(error, operation: "model-context-fetch")
         }
     }
 
@@ -875,9 +892,19 @@ final class RecordStore {
 
     private func migrateLegacyRecordsIfNeeded() {
         guard let modelContext,
-              let data = UserDefaults.standard.data(forKey: legacyStorageKey),
-              let legacyRecords = try? JSONDecoder().decode([LegacyWhisperRecord].self, from: data)
+              let data = UserDefaults.standard.data(forKey: legacyStorageKey)
         else {
+            return
+        }
+
+        let legacyRecords: [LegacyWhisperRecord]
+        do {
+            legacyRecords = try JSONDecoder().decode([LegacyWhisperRecord].self, from: data)
+        } catch {
+            WhisperDiagnostics.logPersistenceError(
+                error,
+                operation: "legacy-user-defaults-decode"
+            )
             return
         }
 
@@ -903,14 +930,29 @@ final class RecordStore {
             reload()
         } catch {
             modelContext.rollback()
-            persistenceError = error.localizedDescription
+            recordPersistenceError(error, operation: "legacy-user-defaults-migration")
         }
+    }
+
+    private func recordPersistenceError(_ error: Error, operation: String) {
+        WhisperDiagnostics.logPersistenceError(error, operation: operation)
+        persistenceError = error.localizedDescription
+        persistenceSupportCode = WhisperDiagnostics.persistenceSupportCode(for: error)
+        persistenceDiagnosticSummary = WhisperDiagnostics.persistenceSummary(
+            for: error,
+            operation: operation
+        )
     }
 
     private func setUnavailablePersistenceError() {
         isPersistenceAvailable = false
         if persistenceError == nil {
             persistenceError = "기록 저장소를 사용할 수 없어요."
+            persistenceSupportCode = "WSP-STORAGE-UNAVAILABLE"
+            persistenceDiagnosticSummary = [
+                "Whisper 저장소를 사용할 수 없음",
+                "지원 코드: WSP-STORAGE-UNAVAILABLE"
+            ].joined(separator: "\n")
         }
     }
 }

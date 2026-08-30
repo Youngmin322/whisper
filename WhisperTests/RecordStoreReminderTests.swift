@@ -14,7 +14,9 @@ struct RecordStoreReminderTests {
     func remembersCommitmentWithSuggestedTiming() throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let sourceRecordID = UUID()
+        let sourceRecordID = try #require(
+            store.addAndReturn(title: "테스트 기록", content: "내용", createdAt: now)?.id
+        )
 
         let plan = try #require(
             store.rememberCommitment(
@@ -41,10 +43,13 @@ struct RecordStoreReminderTests {
         let store = RecordStore(isStoredInMemoryOnly: true)
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let customDate = now.addingTimeInterval(6 * 60 * 60)
+        let sourceRecordID = try #require(
+            store.addAndReturn(title: "테스트 기록", content: "내용", createdAt: now)?.id
+        )
 
         let plan = try #require(
             store.rememberCommitment(
-                sourceRecordID: UUID(),
+                sourceRecordID: sourceRecordID,
                 name: "책 읽기",
                 quote: "이번 주에는 책을 읽어야겠다",
                 topics: ["독서"],
@@ -218,12 +223,35 @@ struct RecordStoreReminderTests {
         #expect(store.commitments.first?.nextReminderAt == existingDate)
     }
 
+    @Test("존재하지 않는 기록에는 결심을 만들지 않는다")
+    func rejectsCommitmentForMissingRecord() {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+
+        #expect(
+            store.rememberCommitment(
+                sourceRecordID: UUID(),
+                name: "고아 결심",
+                quote: "삭제된 기록에서 늦게 도착한 분석",
+                topics: ["테스트"],
+                reminderTiming: .fallback
+            ) == nil
+        )
+        #expect(store.commitments.isEmpty)
+    }
+
     private func makeCommitment(
         in store: RecordStore,
         now: Date
     ) -> CommitmentReminderPlan? {
-        store.rememberCommitment(
-            sourceRecordID: UUID(),
+        guard let record = store.addAndReturn(
+            title: "테스트 기록",
+            content: "테스트 내용",
+            createdAt: now
+        ) else {
+            return nil
+        }
+        return store.rememberCommitment(
+            sourceRecordID: record.id,
             name: "테스트 결심",
             quote: "이 마음을 기억해야겠다",
             topics: ["테스트"],

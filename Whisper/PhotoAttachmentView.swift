@@ -5,7 +5,10 @@
 
 import SwiftUI
 import PhotosUI
+import ImageIO
+import OSLog
 import UIKit
+import UniformTypeIdentifiers
 import WhisperDesignSystem
 
 struct PhotoAttachmentEditor: View {
@@ -13,6 +16,8 @@ struct PhotoAttachmentEditor: View {
     @State private var selectedItem: PhotosPickerItem?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var photoLoadTask: Task<Void, Never>?
+    @State private var photoLoadGeneration = UUID()
 
     var body: some View {
         Group {
@@ -76,7 +81,16 @@ struct PhotoAttachmentEditor: View {
         }
         .onChange(of: selectedItem) { _, newItem in
             guard let newItem else { return }
-            Task { await loadPhoto(from: newItem) }
+            photoLoadTask?.cancel()
+            let generation = UUID()
+            photoLoadGeneration = generation
+            photoLoadTask = Task {
+                await loadPhoto(from: newItem, generation: generation)
+            }
+        }
+        .onDisappear {
+            photoLoadTask?.cancel()
+            photoLoadGeneration = UUID()
         }
         .alert(
             "사진을 불러올 수 없어요",
@@ -91,22 +105,52 @@ struct PhotoAttachmentEditor: View {
         }
     }
 
-    private func loadPhoto(from item: PhotosPickerItem) async {
+    private func loadPhoto(from item: PhotosPickerItem, generation: UUID) async {
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            if photoLoadGeneration == generation {
+                isLoading = false
+            }
+        }
 
         do {
-            guard let originalData = try await item.loadTransferable(type: Data.self),
-                  let optimizedData = PhotoAttachmentProcessor.optimizedData(from: originalData)
-            else {
-                errorMessage = "지원하지 않는 사진 형식이에요."
+            guard let originalData = try await item.loadTransferable(type: Data.self) else {
+                if photoLoadGeneration == generation {
+                    errorMessage = "지원하지 않는 사진 형식이에요."
+                }
+                return
+            }
+
+            let processingTask = Task.detached(priority: .userInitiated) {
+                PhotoAttachmentProcessor.optimizedData(from: originalData)
+            }
+            let optimizedData = await withTaskCancellationHandler {
+                await processingTask.value
+            } onCancel: {
+                processingTask.cancel()
+            }
+            try Task.checkCancellation()
+            guard photoLoadGeneration == generation else { return }
+
+            guard let optimizedData else {
+                errorMessage = originalData.count > PhotoAttachmentProcessor.maximumInputByteCount
+                    ? "사진 파일이 너무 커요. 다른 사진으로 다시 시도해 주세요."
+                    : "지원하지 않는 사진 형식이에요."
                 return
             }
 
             photoData = optimizedData
             selectedItem = nil
+        } catch is CancellationError {
+            return
         } catch {
-            errorMessage = error.localizedDescription
+            let nsError = error as NSError
+            WhisperDiagnostics.photoLogger.error(
+                "Photo loading failed domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public)"
+            )
+            if photoLoadGeneration == generation {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }
@@ -131,28 +175,55 @@ struct RecordPhotoView: View {
     }
 }
 
-private enum PhotoAttachmentProcessor {
-    static func optimizedData(from data: Data) -> Data? {
-        guard let image = UIImage(data: data) else { return nil }
+enum PhotoAttachmentProcessor {
+    nonisolated static let maximumInputByteCount = 50 * 1_024 * 1_024
 
-        let maximumDimension: CGFloat = 1_600
-        let longestDimension = max(image.size.width, image.size.height)
-        guard longestDimension > 0 else { return nil }
-
-        let scale = min(1, maximumDimension / longestDimension)
-        let targetSize = CGSize(
-            width: image.size.width * scale,
-            height: image.size.height * scale
-        )
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = true
-
-        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
-        let resizedImage = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
+    nonisolated static func optimizedData(from data: Data) -> Data? {
+        guard !Task.isCancelled,
+              !data.isEmpty,
+              data.count <= maximumInputByteCount,
+              let source = CGImageSourceCreateWithData(
+                data as CFData,
+                [kCGImageSourceShouldCache: false] as CFDictionary
+              )
+        else {
+            return nil
         }
-        return resizedImage.jpegData(compressionQuality: 0.82)
+
+        let thumbnailOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: 1_600
+        ]
+        guard !Task.isCancelled,
+              let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+                source,
+                0,
+                thumbnailOptions as CFDictionary
+              )
+        else {
+            return nil
+        }
+
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output,
+            UTType.jpeg.identifier as CFString,
+            1,
+            nil
+        ) else {
+            return nil
+        }
+        CGImageDestinationAddImage(
+            destination,
+            thumbnail,
+            [kCGImageDestinationLossyCompressionQuality: 0.82] as CFDictionary
+        )
+        guard !Task.isCancelled, CGImageDestinationFinalize(destination) else {
+            return nil
+        }
+        return output as Data
     }
 }
 

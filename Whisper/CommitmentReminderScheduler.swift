@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import OSLog
 import UserNotifications
 
 struct ScheduledCommitmentReminder: Sendable {
@@ -14,7 +15,18 @@ struct ScheduledCommitmentReminder: Sendable {
 
 struct CommitmentNotificationState: Sendable {
     let pendingRequestIdentifiers: Set<String>
+    let deliveredRequestIdentifiers: Set<String>
     let deliveredEncounterDates: [UUID: Date]
+
+    var managedRequestIdentifiers: Set<String> {
+        pendingRequestIdentifiers.union(deliveredRequestIdentifiers)
+    }
+
+    func orphanedRequestIdentifiers(
+        trackedRequestIdentifiers: Set<String>
+    ) -> Set<String> {
+        managedRequestIdentifiers.subtracting(trackedRequestIdentifiers)
+    }
 }
 
 enum CommitmentReminderScheduleResult: Sendable {
@@ -163,6 +175,11 @@ enum CommitmentReminderScheduler {
                 .filter { $0.identifier.hasPrefix(requestPrefix) }
                 .map(\.identifier)
         )
+        let deliveredIdentifiers = Set(
+            deliveredNotifications
+                .map(\.request.identifier)
+                .filter { $0.hasPrefix(requestPrefix) }
+        )
         let deliveredDates = deliveredNotifications.reduce(into: [UUID: Date]()) {
             result,
             notification in
@@ -177,6 +194,7 @@ enum CommitmentReminderScheduler {
 
         return CommitmentNotificationState(
             pendingRequestIdentifiers: pendingIdentifiers,
+            deliveredRequestIdentifiers: deliveredIdentifiers,
             deliveredEncounterDates: deliveredDates
         )
     }
@@ -341,11 +359,50 @@ enum CommitmentReminderScheduler {
     }
 }
 
+private actor CommitmentReminderScheduleGate {
+    private var isLocked = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        if !isLocked {
+            isLocked = true
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func release() {
+        guard !waiters.isEmpty else {
+            isLocked = false
+            return
+        }
+        waiters.removeFirst().resume()
+    }
+}
+
 @MainActor
 enum CommitmentReminderCoordinator {
     private static var isSynchronizing = false
+    private static let scheduleGate = CommitmentReminderScheduleGate()
 
     static func schedule(
+        _ plan: CommitmentReminderPlan,
+        in recordStore: RecordStore
+    ) async -> CommitmentReminderApplicationResult {
+        await scheduleGate.acquire()
+        guard !Task.isCancelled else {
+            await scheduleGate.release()
+            return .failed
+        }
+        let result = await scheduleExclusively(plan, in: recordStore)
+        await scheduleGate.release()
+        return result
+    }
+
+    private static func scheduleExclusively(
         _ plan: CommitmentReminderPlan,
         in recordStore: RecordStore
     ) async -> CommitmentReminderApplicationResult {
@@ -385,6 +442,10 @@ enum CommitmentReminderCoordinator {
                 return .scheduled
             }
         } catch {
+            let nsError = error as NSError
+            WhisperDiagnostics.reminderLogger.error(
+                "Reminder schedule failed domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public)"
+            )
             restorePreviousReminderDateIfNeeded(
                 commitmentID: plan.id,
                 previousRequestIdentifiers: previousRequestIdentifiers,
@@ -400,11 +461,23 @@ enum CommitmentReminderCoordinator {
         defer { isSynchronizing = false }
 
         let state = await CommitmentReminderScheduler.currentNotificationState()
-        guard recordStore.reconcileReminderNotifications(with: state),
-              await CommitmentReminderScheduler.isAuthorizationAvailable()
-        else {
+        guard recordStore.reconcileReminderNotifications(with: state) else {
             return
         }
+
+        let orphanedIdentifiers = state.orphanedRequestIdentifiers(
+            trackedRequestIdentifiers: recordStore.trackedNotificationIdentifiers
+        )
+        if !orphanedIdentifiers.isEmpty {
+            WhisperDiagnostics.reminderLogger.notice(
+                "Removing \(orphanedIdentifiers.count, privacy: .public) orphaned reminder requests"
+            )
+            await CommitmentReminderScheduler.cancel(
+                requestIdentifiers: Array(orphanedIdentifiers)
+            )
+        }
+
+        guard await CommitmentReminderScheduler.isAuthorizationAvailable() else { return }
 
         for plan in recordStore.reminderRecoveryPlans() {
             _ = await schedule(plan, in: recordStore)

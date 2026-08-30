@@ -9,6 +9,25 @@ import Testing
 
 @Suite("리마인드 시간 정책", .serialized)
 struct CommitmentReminderPolicyTests {
+    @Test("저장소가 모르는 앱 알림 식별자만 고아 상태로 분류한다")
+    func detectsOrphanedNotificationRequests() {
+        let trackedPending = "whisper.commitment.tracked.pending"
+        let trackedDelivered = "whisper.commitment.tracked.delivered"
+        let orphanedPending = "whisper.commitment.orphaned.pending"
+        let orphanedDelivered = "whisper.commitment.orphaned.delivered"
+        let state = CommitmentNotificationState(
+            pendingRequestIdentifiers: [trackedPending, orphanedPending],
+            deliveredRequestIdentifiers: [trackedDelivered, orphanedDelivered],
+            deliveredEncounterDates: [:]
+        )
+
+        #expect(
+            state.orphanedRequestIdentifiers(
+                trackedRequestIdentifiers: [trackedPending, trackedDelivered]
+            ) == [orphanedPending, orphanedDelivered]
+        )
+    }
+
     private let calendar = Calendar.current
 
     @Test("허용 시간 전이면 같은 날 오전 9시로 조정한다")

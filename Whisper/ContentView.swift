@@ -15,9 +15,11 @@ struct ContentView: View {
     var body: some View {
         Group {
             if !recordStore.isPersistenceAvailable {
-                PersistenceUnavailableView {
-                    recordStore = RecordStore()
-                }
+                PersistenceUnavailableView(
+                    supportCode: recordStore.persistenceSupportCode,
+                    diagnosticSummary: recordStore.persistenceDiagnosticSummary,
+                    onRetry: { recordStore = RecordStore() }
+                )
             } else if hasSeenWelcome {
                 MainTabView(recordStore: recordStore)
             } else {
@@ -29,16 +31,37 @@ struct ContentView: View {
 }
 
 private struct PersistenceUnavailableView: View {
+    let supportCode: String?
+    let diagnosticSummary: String?
     let onRetry: () -> Void
+
+    @State private var didCopyDiagnostics = false
 
     var body: some View {
         ContentUnavailableView {
             Label("기록을 불러올 수 없어요", systemImage: "externaldrive.badge.xmark")
         } description: {
-            Text("작성한 기록을 보호하기 위해 저장 기능을 멈췄어요. 잠시 후 다시 시도해 주세요.")
+            VStack(spacing: 8) {
+                Text("작성한 기록을 보호하기 위해 저장 기능을 멈췄어요. 잠시 후 다시 시도해 주세요.")
+                if let supportCode {
+                    Text("지원 코드: \(supportCode)")
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                }
+            }
         } actions: {
-            Button("다시 시도", action: onRetry)
-                .buttonStyle(.whisperPrimary(size: .compact))
+            VStack(spacing: 12) {
+                Button("다시 시도", action: onRetry)
+                    .buttonStyle(.whisperPrimary(size: .compact))
+
+                if let diagnosticSummary {
+                    Button(didCopyDiagnostics ? "진단 정보 복사됨" : "진단 정보 복사") {
+                        UIPasteboard.general.string = diagnosticSummary
+                        didCopyDiagnostics = true
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
         .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
         .background(Color.whisperBackground.ignoresSafeArea())
