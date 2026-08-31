@@ -1139,6 +1139,54 @@ final class RecordStore {
         return encounters.first { $0.id == encounter.id }
     }
 
+#if DEBUG
+    func futureDebugReminderRequestIdentifiers(
+        at date: Date = .now
+    ) -> Set<String> {
+        Set(encounters.compactMap { encounter in
+            guard let identifier = encounter.notificationIdentifier,
+                  identifier.hasPrefix(CommitmentReminderScheduler.debugRequestPrefix),
+                  encounter.presentedAt == nil,
+                  encounter.openedAt == nil,
+                  encounter.scheduledAt > date
+            else {
+                return nil
+            }
+            return identifier
+        })
+    }
+
+    @discardableResult
+    func removeFutureDebugReminderState(
+        requestIdentifiers: Set<String>,
+        at date: Date = .now
+    ) -> Bool {
+        guard !requestIdentifiers.isEmpty else { return true }
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return false
+        }
+
+        notificationSlots
+            .filter {
+                requestIdentifiers.contains($0.requestIdentifier)
+                    && $0.consumedAt == nil
+                    && $0.scheduledAt > date
+            }
+            .forEach(modelContext.delete)
+        encounters
+            .filter {
+                guard let identifier = $0.notificationIdentifier else { return false }
+                return requestIdentifiers.contains(identifier)
+                    && $0.presentedAt == nil
+                    && $0.openedAt == nil
+                    && $0.scheduledAt > date
+            }
+            .forEach(modelContext.delete)
+        return saveChanges(reloadAfterSave: true)
+    }
+#endif
+
     @discardableResult
     func replaceScheduledEncounters(
         commitmentID: UUID,

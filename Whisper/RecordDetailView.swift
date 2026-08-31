@@ -178,8 +178,14 @@ struct RecordDetailView: View {
                     )
             }
 
-            if reminderEncounter == nil,
-               let commitment = storedCommitment {
+            if let encounter = reminderEncounter,
+               let commitment = reminderCommitment {
+                Spacer(minLength: 40)
+                reminderResponseCard(
+                    encounter: encounter,
+                    commitment: commitment
+                )
+            } else if let commitment = storedCommitment {
                 Spacer(minLength: 40)
                 switch commitment.lifecycleStatus() {
                 case .active:

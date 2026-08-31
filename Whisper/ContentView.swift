@@ -218,6 +218,10 @@ private struct SettingsView: View {
     @State private var notificationStatus = UNAuthorizationStatus.notDetermined
     @State private var isFocusGuidePresented = false
     @State private var notificationErrorMessage: String?
+#if DEBUG
+    @State private var isSchedulingDebugReminder = false
+    @State private var debugReminderMessage: String?
+#endif
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -249,6 +253,35 @@ private struct SettingsView: View {
                         isFocusGuidePresented = true
                     }
                 }
+
+#if DEBUG
+                Section("결심 알림 테스트") {
+                    Button {
+                        Task { await scheduleDebugReminder() }
+                    } label: {
+                        HStack {
+                            Text("10초 뒤 테스트 알림 보내기")
+                            Spacer()
+                            if isSchedulingDebugReminder {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(isSchedulingDebugReminder)
+
+                    Button("예약된 테스트 알림 취소", role: .destructive) {
+                        Task { await cancelDebugReminders() }
+                    }
+                    .disabled(isSchedulingDebugReminder)
+
+                    Text(
+                        debugReminderMessage
+                            ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+#endif
                 
                 Section("앱 정보") {
                     LabeledContent("기록 저장", value: "이 기기")
@@ -317,6 +350,38 @@ private struct SettingsView: View {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }
+
+#if DEBUG
+    private func scheduleDebugReminder() async {
+        isSchedulingDebugReminder = true
+        defer { isSchedulingDebugReminder = false }
+
+        switch await CommitmentReminderCoordinator.scheduleDebugReminder(
+            in: recordStore
+        ) {
+        case let .scheduled(date):
+            debugReminderMessage = "테스트 알림을 \(date.formatted(date: .omitted, time: .standard))에 보낼게요."
+        case .noActiveCommitment:
+            debugReminderMessage = "먼저 기록에서 결심 하나를 간직해 주세요."
+        case .authorizationUnavailable:
+            debugReminderMessage = "알림 권한을 허용한 뒤 다시 시도해 주세요."
+            await refreshNotificationStatus()
+        case .failed:
+            debugReminderMessage = "테스트 알림을 예약하지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+    }
+
+    private func cancelDebugReminders() async {
+        isSchedulingDebugReminder = true
+        defer { isSchedulingDebugReminder = false }
+
+        if await CommitmentReminderCoordinator.cancelDebugReminders(in: recordStore) {
+            debugReminderMessage = "예약된 테스트 알림을 취소했어요."
+        } else {
+            debugReminderMessage = "테스트 알림을 취소하지 못했어요."
+        }
+    }
+#endif
 }
 
 private struct FocusFilterGuideView: View {

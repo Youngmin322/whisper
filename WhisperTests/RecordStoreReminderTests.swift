@@ -294,6 +294,33 @@ struct RecordStoreReminderTests {
         #expect(store.commitments.isEmpty)
     }
 
+#if DEBUG
+    @Test("Debug 테스트 알림 상태를 예약 전에 정리할 수 있다")
+    func removesFutureDebugReminderState() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let identifier = "\(CommitmentReminderScheduler.debugRequestPrefix)test"
+
+        _ = try #require(
+            store.addEncounter(
+                commitmentID: plan.id,
+                scheduledAt: now.addingTimeInterval(60),
+                notificationIdentifier: identifier
+            )
+        )
+
+        #expect(store.futureDebugReminderRequestIdentifiers(at: now) == [identifier])
+        #expect(
+            store.removeFutureDebugReminderState(
+                requestIdentifiers: [identifier],
+                at: now
+            )
+        )
+        #expect(store.encounters.isEmpty)
+    }
+#endif
+
     private func makeCommitment(
         in store: RecordStore,
         now: Date

@@ -48,6 +48,7 @@ struct HomeView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationCornerRadius(WhisperRadius.sheet)
         }
         .navigationDestination(isPresented: $isDetailRecordPresented) {
             DetailedRecordView(draft: $recordDraft) { emotion, photoData in

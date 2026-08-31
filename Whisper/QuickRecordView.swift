@@ -9,6 +9,7 @@ import WhisperDesignSystem
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var draft: RecordDraft
+    @FocusState private var isContentFocused: Bool
     @State private var isSaveErrorPresented = false
     let onSave: () -> Bool
     let onOpenDetail: () -> Void
@@ -22,7 +23,8 @@ struct QuickRecordView: View {
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)
             .scrollBounceBehavior(.basedOnSize)
-            .navigationTitle("빠르게 기록하기")
+            .background(Color.whisperBackground)
+            .navigationTitle("기록하기")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -35,6 +37,10 @@ struct QuickRecordView: View {
                         .accessibilityIdentifier("record.saveButton")
                 }
             }
+            .task {
+                await Task.yield()
+                isContentFocused = true
+            }
         }
         .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("다시 시도", action: save)
@@ -45,69 +51,132 @@ struct QuickRecordView: View {
     }
 
     private var formContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("나중에 다시 만났을 때 떠오를 만큼만 적어도 괜찮아요.")
-                .font(.whisperBody)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(RecordWritingCopy.titleLabel)
-                    .font(.whisperFieldLabel)
+        VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
+            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text("지금 마음에 남은 건 무엇인가요?")
+                    .font(.whisperSectionTitle)
                     .foregroundStyle(Color.whisperTextPrimary)
 
-                TextField(RecordWritingCopy.titleExample, text: $draft.title)
-                    .font(.whisperBodyLarge)
-                    .padding(.horizontal, 16)
-                    .frame(height: 48)
-                    .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-                    .accessibilityIdentifier("record.titleField")
-            }
+                Text("한 문장만 적어도 괜찮아요.")
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextSecondary)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(RecordWritingCopy.contentLabel)
-                    .font(.whisperFieldLabel)
-                    .foregroundStyle(Color.whisperTextPrimary)
+                TextField(
+                    "떠오르는 장면이나 마음을 편하게 적어보세요.",
+                    text: $draft.content,
+                    axis: .vertical
+                )
+                .focused($isContentFocused)
+                .font(.whisperBodyLarge)
+                .lineSpacing(4)
+                .lineLimit(5 ... 7)
+                .padding(16)
+                .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+                .background(
+                    Color.whisperSurfaceSubtle,
+                    in: RoundedRectangle(
+                        cornerRadius: WhisperRadius.medium,
+                        style: .continuous
+                    )
+                )
+                .onChange(of: draft.content) { _, newValue in
+                    guard newValue.count > contentLimit else { return }
+                    draft.content = String(newValue.prefix(contentLimit))
+                }
+                .accessibilityLabel("기록 내용")
+                .accessibilityIdentifier("record.contentField")
 
-                ZStack(alignment: .bottomTrailing) {
-                    TextField(RecordWritingCopy.contentExample, text: $draft.content, axis: .vertical)
-                        .font(.whisperBodyLarge)
-                        .lineLimit(3 ... 4)
-                        .padding(16)
-                        .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
-                        .onChange(of: draft.content) { _, newValue in
-                            guard newValue.count > contentLimit else { return }
-                            draft.content = String(newValue.prefix(contentLimit))
-                        }
-                        .accessibilityIdentifier("record.contentField")
-
+                if shouldShowContentCount {
                     Text("\(draft.content.count) / \(contentLimit)")
                         .font(.whisperCaption)
                         .foregroundStyle(Color.whisperTextSecondary)
-                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .transition(.opacity)
+                        .accessibilityLabel(
+                            "현재 \(draft.content.count)자, 최대 \(contentLimit)자"
+                        )
                 }
-                .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
             }
 
             Button {
                 onOpenDetail()
                 dismiss()
             } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("자세히 기록하기").font(.whisperControl)
-                    Text("감정과 사진까지 함께 남길 수 있어요").font(.whisperCaption).foregroundStyle(Color.whisperTextSecondary)
+                HStack(spacing: WhisperSpacing.small) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .semibold))
+                        .accessibilityHidden(true)
+
+                    detailActionCopy
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .accessibilityHidden(true)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color.whisperTextPrimary)
                 .padding(.horizontal, 16)
-                .frame(height: 58)
-                .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-                .overlay(alignment: .trailing) { Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.whisperTextSecondary).padding(.trailing, 16) }
+                .padding(.vertical, WhisperSpacing.xSmall)
+                .frame(minHeight: WhisperSize.controlCompact)
+                .background(
+                    Color.whisperSurfaceDefault,
+                    in: RoundedRectangle(
+                        cornerRadius: WhisperRadius.medium,
+                        style: .continuous
+                    )
+                )
+                .overlay {
+                    RoundedRectangle(
+                        cornerRadius: WhisperRadius.medium,
+                        style: .continuous
+                    )
+                    .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+                }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(detailActionAccessibilityLabel)
+            .accessibilityHint("제목, 감정, 사진을 추가할 수 있는 상세 기록 화면으로 이동합니다.")
+            .accessibilityIdentifier("record.openDetailButton")
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-        .padding(.top, 16)
+        .padding(.top, WhisperSpacing.large)
         .padding(.bottom, 20)
+    }
+
+    private var shouldShowContentCount: Bool {
+        draft.content.count >= contentLimit - 40
+    }
+
+    @ViewBuilder
+    private var detailActionCopy: some View {
+        if let visibleDraftTitle {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(visibleDraftTitle)
+                    .font(.whisperControl)
+                    .lineLimit(1)
+
+                Text("제목 · 감정 · 사진 편집")
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+            }
+        } else {
+            Text("제목 · 감정 · 사진도 남기기")
+                .font(.whisperControl)
+        }
+    }
+
+    private var visibleDraftTitle: String? {
+        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? nil : title
+    }
+
+    private var detailActionAccessibilityLabel: String {
+        if let visibleDraftTitle {
+            return "제목 \(visibleDraftTitle), 감정과 사진 편집"
+        }
+        return "제목, 감정, 사진도 남기기"
     }
 
     private func save() {
