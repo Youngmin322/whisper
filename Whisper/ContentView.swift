@@ -135,29 +135,7 @@ private struct MainTabView: View {
             )
         }
 
-        // 새 알림은 상세 화면에서 열람·반응과 다음 일정을 한 흐름으로 처리해요.
-        // encounterID가 없는 이전 버전 알림만 기존 방식으로 다시 예약해요.
-        if encounterID == nil, let commitmentID {
-            replanOpenedCommitment(commitmentID)
-        }
-    }
-
-    private func replanOpenedCommitment(_ commitmentID: UUID) {
-        guard let context = recordStore.reminderPlanningContext(for: commitmentID) else { return }
-
-        Task {
-            let timing = await CommitmentAnalyzer().replanReminder(
-                for: context,
-                eventDescription: "사용자가 리마인드 알림을 열었습니다."
-            )
-            guard let plan = recordStore.rescheduleCommitment(
-                commitmentID,
-                reminderTiming: timing
-            ) else {
-                return
-            }
-            _ = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
-        }
+        // 알림 열기는 탐색만 담당합니다. 다음 일정은 사용자의 명시적 반응 뒤에 정해요.
     }
 
     private func synchronizeReminderState() async {

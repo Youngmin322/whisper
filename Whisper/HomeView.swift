@@ -369,7 +369,7 @@ struct HomeView: View {
             if let continuedCommitmentID = analysis.continuedCommitmentID,
                let plan = recordStore.continueCommitment(
                 continuedCommitmentID,
-                reminderTiming: analysis.continuedReminderTiming
+                reminderProfile: analysis.continuedReminderProfile
                ) {
                 let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
                 if result != .scheduled {
@@ -406,7 +406,7 @@ struct HomeView: View {
             name: candidate.name,
             quote: candidate.quote,
             topics: candidate.topics,
-            reminderTiming: candidate.reminderTiming,
+            reminderProfile: candidate.reminderProfile,
             firstReminderDate: firstReminderDate
         ) else {
             return

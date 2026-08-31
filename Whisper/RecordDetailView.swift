@@ -25,6 +25,12 @@ struct RecordDetailView: View {
     @State private var selectedEncounterReaction: ReminderEncounterReaction?
     @State private var didProcessReminderEncounter = false
     @State private var isPreparingReminderResponse = false
+    @State private var isPauseDatePickerPresented = false
+    @State private var pauseUntil = Calendar.current.date(
+        byAdding: .day,
+        value: 30,
+        to: .now
+    ) ?? .now
 
     private let contentLimit = 1_000
 
@@ -137,6 +143,12 @@ struct RecordDetailView: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
             .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isPauseDatePickerPresented) {
+            pauseDatePicker
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
         }
         .task(id: reminderEncounterID) {
             await processReminderEncounterIfNeeded()
@@ -365,24 +377,19 @@ struct RecordDetailView: View {
                     .foregroundStyle(Color.whisperTextSecondary)
                     .lineSpacing(3)
 
-                if isPreparingReminderResponse {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("마음을 정리하고 있어요…")
-                            .font(.whisperCaption)
-                            .foregroundStyle(Color.whisperTextSecondary)
-                    }
-                }
-
                 Button("계속 기억해줘") {
                     applyEncounterReaction(.keep)
                 }
                 .buttonStyle(.whisperPrimary(size: .compact))
                 .disabled(isPreparingReminderResponse)
 
-                Button("30일 동안 쉬어갈게") {
-                    applyEncounterReaction(.pause)
+                Button("잠시 쉬어갈게") {
+                    pauseUntil = Calendar.current.date(
+                        byAdding: .day,
+                        value: 30,
+                        to: .now
+                    ) ?? .now
+                    isPauseDatePickerPresented = true
                 }
                 .buttonStyle(.whisperSecondary)
                 .disabled(isPreparingReminderResponse)
@@ -394,6 +401,44 @@ struct RecordDetailView: View {
                 .foregroundStyle(Color.whisperTextSecondary)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .disabled(isPreparingReminderResponse)
+            }
+        }
+    }
+
+    private var pauseDatePicker: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("언제 다시 만날까요?")
+                    .font(.whisperSectionTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+
+                Text("정한 시각이 알림 가능 시간을 벗어나면 가까운 시간으로 맞춰드려요.")
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+
+                DatePicker(
+                    "다시 만날 시각",
+                    selection: $pauseUntil,
+                    in: Date.now.addingTimeInterval(5 * 60)...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.graphical)
+
+                Spacer()
+            }
+            .padding(WhisperLayout.screenHorizontalPadding)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") {
+                        isPauseDatePickerPresented = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("이때 다시 만나기") {
+                        isPauseDatePickerPresented = false
+                        applyEncounterReaction(.pause, pausedUntil: pauseUntil)
+                    }
+                }
             }
         }
     }
@@ -462,20 +507,42 @@ struct RecordDetailView: View {
         recordStore.commitments.first { $0.sourceRecordID == record.id }
     }
 
-    private func applyEncounterReaction(_ reaction: ReminderEncounterReaction) {
+    private func applyEncounterReaction(
+        _ reaction: ReminderEncounterReaction,
+        pausedUntil: Date? = nil
+    ) {
         guard let reminderEncounterID,
               let commitmentID = reminderEncounter?.commitmentID
         else {
             return
         }
-        if recordStore.react(to: reminderEncounterID, with: reaction) {
+        if recordStore.react(
+            to: reminderEncounterID,
+            with: reaction,
+            pausedUntil: pausedUntil
+        ) {
             selectedEncounterReaction = reaction
-            if reaction == .pause {
+            switch reaction {
+            case .keep:
+                scheduleReminderAfterKeeping(commitmentID: commitmentID)
+            case .pause:
                 scheduleReminderAfterPause(commitmentID: commitmentID)
+            case .release:
+                break
             }
         } else {
             isPersistenceErrorPresented = true
         }
+    }
+
+    private func scheduleReminderAfterKeeping(commitmentID: UUID) {
+        guard let plan = recordStore.nextReminderPlanAfterKeeping(
+            commitmentID: commitmentID
+        ) else {
+            isPersistenceErrorPresented = true
+            return
+        }
+        schedule(plan)
     }
 
     private func scheduleReminderAfterPause(commitmentID: UUID) {
@@ -484,6 +551,10 @@ struct RecordDetailView: View {
             return
         }
 
+        schedule(plan)
+    }
+
+    private func schedule(_ plan: CommitmentReminderPlan) {
         Task {
             let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
             if result != .scheduled {
@@ -503,27 +574,12 @@ struct RecordDetailView: View {
         isPreparingReminderResponse = true
         defer { isPreparingReminderResponse = false }
 
-        guard recordStore.markEncounterOpened(reminderEncounterID),
-              let context = recordStore.reminderPlanningContext(for: encounter.commitmentID)
-        else {
-            return
-        }
-
-        let timing = await CommitmentAnalyzer().replanReminder(
-            for: context,
-            eventDescription: "사용자가 리마인드된 마음을 다시 읽었습니다."
+        guard recordStore.markEncounterOpened(reminderEncounterID) else { return }
+        let didClearFutureReminders = await CommitmentReminderCoordinator.cancel(
+            commitmentIDs: [encounter.commitmentID],
+            in: recordStore
         )
-        guard let plan = recordStore.rescheduleCommitment(
-            encounter.commitmentID,
-            reminderTiming: timing
-        ) else {
-            return
-        }
-
-        let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
-        if result != .scheduled,
-           let commitment = recordStore.commitments.first(where: { $0.id == encounter.commitmentID }),
-           commitment.lifecycleStatus() == .active {
+        if !didClearFutureReminders {
             isReminderErrorPresented = true
         }
     }

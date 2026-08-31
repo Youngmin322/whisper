@@ -10,6 +10,37 @@ import Testing
 @MainActor
 @Suite("리마인드 저장과 상태 전환", .serialized)
 struct RecordStoreReminderTests {
+    @Test("의미 프로필을 저장하고 다음 알림 한 건만 만든다")
+    func storesSemanticProfileAndCreatesOneReminder() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let sourceRecordID = try #require(
+            store.addAndReturn(title: "발표 준비", content: "이번 주 발표를 준비하자", createdAt: now)?.id
+        )
+        let profile = CommitmentReminderProfile(
+            timeSensitivity: .thisWeek,
+            actionability: .concrete,
+            effort: .heavy,
+            cadence: .oneOff,
+            preferredPeriod: .evening
+        )
+
+        let plan = try #require(
+            store.rememberCommitment(
+                sourceRecordID: sourceRecordID,
+                name: "발표 준비",
+                quote: "이번 주 발표를 준비하자",
+                topics: ["발표"],
+                reminderProfile: profile,
+                now: now
+            )
+        )
+
+        #expect(plan.reminderDates.count == 1)
+        #expect(store.commitments.first?.reminderProfile == profile)
+        #expect(store.commitments.first?.nextReminderAt == plan.reminderDates.first)
+    }
+
     @Test("AI 추천 간격으로 첫 알림과 다음 일정을 저장한다")
     func remembersCommitmentWithSuggestedTiming() throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
@@ -89,10 +120,7 @@ struct RecordStoreReminderTests {
             )
         )
 
-        #expect(updatedPlan.reminderDates == [
-            selectedDate,
-            selectedDate.addingTimeInterval(72 * 60 * 60)
-        ])
+        #expect(updatedPlan.reminderDates == [selectedDate])
         #expect(store.commitments.first?.nextReminderAt == selectedDate)
     }
 
@@ -112,6 +140,33 @@ struct RecordStoreReminderTests {
         #expect(store.markEncounterOpened(encounter.id, at: now.addingTimeInterval(60)))
         #expect(store.commitments.first?.encounterCount == 1)
         #expect(store.commitments.first?.lastReadAt == now)
+    }
+
+    @Test("알림을 읽고 반응하지 않으면 자동으로 다음 알림을 만들지 않는다")
+    func waitsForReactionAfterOpeningReminder() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let encounter = try #require(
+            store.addEncounter(
+                commitmentID: plan.id,
+                scheduledAt: now.addingTimeInterval(-60),
+                notificationIdentifier: "test.opened.awaiting-response"
+            )
+        )
+
+        #expect(store.markEncounterOpened(encounter.id, at: now))
+        #expect(store.activeCommitmentIDsAwaitingResponse(at: now) == [plan.id])
+        #expect(store.reminderAllocationInputs(overriding: nil, at: now).isEmpty)
+
+        #expect(store.react(to: encounter.id, with: .keep, at: now))
+        let nextPlan = try #require(
+            store.nextReminderPlanAfterKeeping(commitmentID: plan.id, now: now)
+        )
+        #expect(
+            store.reminderAllocationInputs(overriding: nextPlan, at: now).map(\.plan.id)
+                == [plan.id]
+        )
     }
 
     @Test("잠시 멈춤과 놓아주기가 결심 상태를 올바르게 바꾼다")
@@ -168,7 +223,7 @@ struct RecordStoreReminderTests {
 
         let recoveryPlan = try #require(store.reminderRecoveryPlans(at: now).first)
 
-        #expect(recoveryPlan.reminderDates.first == now.addingTimeInterval(24 * 60 * 60))
+        #expect(recoveryPlan.reminderDates.first == now.addingTimeInterval(72 * 60 * 60))
     }
 
     @Test("아직 열지 않은 예약이 있으면 중복 복구하지 않는다")

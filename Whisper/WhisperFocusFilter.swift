@@ -83,18 +83,55 @@ struct WhisperFocusFilter: SetFocusFilterIntent {
             return .result()
         }
 
-        let reminder: (id: UUID, title: String, content: String)? = await MainActor.run {
-            let recordStore = RecordStore()
-            let selectedIDs = Set(flames.compactMap { UUID(uuidString: $0.id) })
-            let records = recordStore.records.filter { selectedIDs.contains($0.id) }
-            guard !records.isEmpty else { return nil }
-
-            let day = Calendar.current.ordinality(of: .day, in: .era, for: .now) ?? 0
-            let record = records[day % records.count]
-            return (record.id, record.title, record.content)
+        let gate = WhisperNotificationScheduleGate.shared
+        await gate.acquire()
+        guard !Task.isCancelled else {
+            await gate.release()
+            return .result()
         }
-        guard let reminder else { return .result() }
+        do {
+            try await scheduleFocusReminderIfTodayIsAvailable(flames: flames)
+        } catch {
+            await gate.release()
+            throw error
+        }
+        await gate.release()
+        return .result()
+    }
 
+    @MainActor
+    private func scheduleFocusReminderIfTodayIsAvailable(
+        flames: [WhisperRecordEntity]
+    ) async throws {
+        let now = Date.now
+        let calendar = Calendar.current
+        let dayKey = WhisperNotificationDayKey.make(for: now, calendar: calendar)
+        let recordStore = RecordStore()
+
+        guard recordStore.isPersistenceAvailable,
+              recordStore.refreshPersistentState(),
+              recordStore.backfillNotificationDaySlots(at: now)
+        else {
+            return
+        }
+        let systemDates = await CommitmentReminderScheduler
+            .occupiedNotificationDates(excluding: [])
+        let isSystemDayOccupied = systemDates.contains {
+            calendar.isDate($0, inSameDayAs: now)
+        }
+        guard recordStore.refreshPersistentState(),
+              recordStore.notificationSlot(dayKey: dayKey) == nil,
+              !isSystemDayOccupied
+        else {
+            return
+        }
+
+        let selectedIDs = Set(flames.compactMap { UUID(uuidString: $0.id) })
+        let records = recordStore.records.filter { selectedIDs.contains($0.id) }
+        guard !records.isEmpty else { return }
+
+        let day = calendar.ordinality(of: .day, in: .era, for: now) ?? 0
+        let reminder = records[day % records.count]
         let copy = WhisperNotificationContentPolicy.focusReminderCopy(
             title: reminder.title,
             content: reminder.content,
@@ -108,14 +145,71 @@ struct WhisperFocusFilter: SetFocusFilterIntent {
         content.body = copy.body
         content.sound = .default
         content.threadIdentifier = "whisper.focus.records"
-        content.userInfo = ["recordID": reminder.id.uuidString]
+        content.userInfo = [
+            "recordID": reminder.id.uuidString,
+            "notificationDayKey": dayKey,
+            "notificationSource": WhisperNotificationSource.focus.rawValue
+        ]
 
+        let requestIdentifier = "whisper.focus.\(dayKey)"
+        let center = UNUserNotificationCenter.current()
         let request = UNNotificationRequest(
-            identifier: "whisper.focus.\(reminder.id.uuidString)",
+            identifier: requestIdentifier,
             content: content,
             trigger: nil
         )
-        try await UNUserNotificationCenter.current().add(request)
-        return .result()
+
+        let didReserveSlot = recordStore.saveNotificationSlot(
+            NotificationDaySlotDraft(
+                dayKey: dayKey,
+                scheduledAt: now,
+                requestIdentifier: requestIdentifier,
+                sourceStorage: WhisperNotificationSource.focus.rawValue,
+                recordID: reminder.id,
+                createdAt: now
+            )
+        )
+        guard didReserveSlot,
+              let reservedSlot = recordStore.notificationSlot(
+                requestIdentifier: requestIdentifier
+              ),
+              reservedSlot.dayKey == dayKey,
+              reservedSlot.sourceStorage == WhisperNotificationSource.focus.rawValue,
+              reservedSlot.recordID == reminder.id,
+              reservedSlot.consumedAt == nil
+        else {
+            return
+        }
+        let reservedSlotID = reservedSlot.id
+
+        do {
+            try await center.add(request)
+        } catch {
+            rollbackFocusNotification(
+                requestIdentifier: requestIdentifier,
+                using: center
+            )
+            _ = recordStore.removeUnconsumedNotificationSlot(
+                id: reservedSlotID,
+                requestIdentifier: requestIdentifier
+            )
+            throw error
+        }
+
+        // If this save fails, the unconsumed slot remains persisted and still
+        // protects today from another notification.
+        _ = recordStore.markNotificationSlotConsumed(
+            requestIdentifier: requestIdentifier,
+            at: now
+        )
+    }
+
+    @MainActor
+    private func rollbackFocusNotification(
+        requestIdentifier: String,
+        using center: UNUserNotificationCenter
+    ) {
+        center.removePendingNotificationRequests(withIdentifiers: [requestIdentifier])
+        center.removeDeliveredNotifications(withIdentifiers: [requestIdentifier])
     }
 }
