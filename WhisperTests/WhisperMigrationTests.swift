@@ -66,7 +66,7 @@ struct WhisperMigrationTests {
             photoData: photoData
         )
 
-        let currentSchema = Schema(versionedSchema: WhisperSchemaV2.self)
+        let currentSchema = Schema(versionedSchema: WhisperSchemaV4.self)
         let configuration = ModelConfiguration(
             schema: currentSchema,
             url: storeURL,
@@ -82,6 +82,7 @@ struct WhisperMigrationTests {
         let records = try context.fetch(FetchDescriptor<WhisperRecord>())
         let commitments = try context.fetch(FetchDescriptor<WhisperCommitment>())
         let encounters = try context.fetch(FetchDescriptor<ReminderEncounter>())
+        let notificationSlots = try context.fetch(FetchDescriptor<NotificationDaySlot>())
 
         let record = try #require(records.first)
         #expect(records.count == 1)
@@ -108,7 +109,9 @@ struct WhisperMigrationTests {
         #expect(commitment.pausedUntil == nil)
         #expect(commitment.releasedAt == nil)
         #expect(commitment.encounterCount == 0)
+        #expect(commitment.reminderProfile == .fallback)
         #expect(encounters.isEmpty)
+        #expect(notificationSlots.isEmpty)
     }
 
     @Test("Whisper V1 저장소를 현재 스키마로 보존한다")
@@ -135,6 +138,56 @@ struct WhisperMigrationTests {
         #expect(commitments.map(\.id) == [commitmentID])
         #expect(commitments.first?.sourceRecordID == recordID)
         #expect(commitments.first?.pausedUntil == nil)
+    }
+
+    @Test("Whisper V2 저장소를 V3로 옮길 때 기존 데이터는 보존하고 알림 슬롯은 비어 있다")
+    func migratesWhisperV2Store() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        let recordID = UUID()
+        let commitmentID = UUID()
+        let encounterID = UUID()
+        let createdAt = Date(timeIntervalSince1970: 1_800_200_000)
+        let scheduledAt = createdAt.addingTimeInterval(86_400)
+
+        try makeV2Store(
+            at: storeURL,
+            recordID: recordID,
+            commitmentID: commitmentID,
+            encounterID: encounterID,
+            createdAt: createdAt,
+            scheduledAt: scheduledAt
+        )
+
+        let container = try makeCurrentContainer(at: storeURL)
+        let context = container.mainContext
+        let records = try context.fetch(FetchDescriptor<WhisperRecord>())
+        let commitments = try context.fetch(FetchDescriptor<WhisperCommitment>())
+        let encounters = try context.fetch(FetchDescriptor<ReminderEncounter>())
+        let notificationSlots = try context.fetch(FetchDescriptor<NotificationDaySlot>())
+
+        let record = try #require(records.first)
+        #expect(records.count == 1)
+        #expect(record.id == recordID)
+        #expect(record.title == "V2 기록")
+        #expect(record.content == "V3에서도 보존할 내용")
+
+        let commitment = try #require(commitments.first)
+        #expect(commitments.count == 1)
+        #expect(commitment.id == commitmentID)
+        #expect(commitment.sourceRecordID == recordID)
+        #expect(commitment.name == "V2 결심")
+        #expect(commitment.nextReminderAt == scheduledAt)
+        #expect(commitment.encounterCount == 3)
+
+        let encounter = try #require(encounters.first)
+        #expect(encounters.count == 1)
+        #expect(encounter.id == encounterID)
+        #expect(encounter.commitmentID == commitmentID)
+        #expect(encounter.scheduledAt == scheduledAt)
+        #expect(encounter.notificationIdentifier == "whisper.commitment.v2")
+        #expect(notificationSlots.isEmpty)
     }
 
     @Test("현재 저장소는 재실행해도 그대로 열린다")
@@ -233,6 +286,59 @@ struct WhisperMigrationTests {
         try context.save()
     }
 
+    private func makeV2Store(
+        at storeURL: URL,
+        recordID: UUID,
+        commitmentID: UUID,
+        encounterID: UUID,
+        createdAt: Date,
+        scheduledAt: Date
+    ) throws {
+        let schema = Schema(versionedSchema: WhisperSchemaV2.self)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: storeURL,
+            cloudKitDatabase: .none
+        )
+        let container = try ModelContainer(for: schema, configurations: configuration)
+        let context = container.mainContext
+        context.insert(
+            WhisperSchemaV2.WhisperRecord(
+                id: recordID,
+                title: "V2 기록",
+                content: "V3에서도 보존할 내용",
+                createdAt: createdAt,
+                focusMode: "집중",
+                emotion: "평온"
+            )
+        )
+        context.insert(
+            WhisperSchemaV2.WhisperCommitment(
+                id: commitmentID,
+                sourceRecordID: recordID,
+                name: "V2 결심",
+                quote: "기존 결심을 계속 기억하자",
+                topics: ["마이그레이션"],
+                createdAt: createdAt,
+                nextReminderAt: scheduledAt,
+                continuationCount: 2,
+                lastEncounteredAt: createdAt,
+                lastReadAt: createdAt,
+                encounterCount: 3
+            )
+        )
+        context.insert(
+            WhisperSchemaV2.ReminderEncounter(
+                id: encounterID,
+                commitmentID: commitmentID,
+                scheduledAt: scheduledAt,
+                notificationIdentifier: "whisper.commitment.v2",
+                createdAt: createdAt
+            )
+        )
+        try context.save()
+    }
+
     private func makeCurrentStore(at storeURL: URL, recordID: UUID) throws {
         let container = try makeCurrentContainer(at: storeURL)
         container.mainContext.insert(
@@ -246,7 +352,7 @@ struct WhisperMigrationTests {
     }
 
     private func makeCurrentContainer(at storeURL: URL) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: WhisperSchemaV2.self)
+        let schema = Schema(versionedSchema: WhisperSchemaV4.self)
         let configuration = ModelConfiguration(
             schema: schema,
             url: storeURL,

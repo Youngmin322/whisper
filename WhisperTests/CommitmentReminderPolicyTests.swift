@@ -9,6 +9,86 @@ import Testing
 
 @Suite("리마인드 시간 정책", .serialized)
 struct CommitmentReminderPolicyTests {
+    @Test("같은 의미 프로필과 행동에는 항상 같은 다음 시각을 계산한다")
+    func deterministicPolicyProducesSameDate() throws {
+        let now = try makeDate(year: 2026, month: 8, day: 31, hour: 10, minute: 0)
+        let profile = CommitmentReminderProfile(
+            timeSensitivity: .immediate,
+            actionability: .concrete,
+            effort: .light,
+            cadence: .oneOff
+        )
+
+        let first = CommitmentReminderPolicy.nextReminderDate(
+            profile: profile,
+            behavior: .empty,
+            event: .remembered,
+            now: now,
+            calendar: calendar
+        )
+        let second = CommitmentReminderPolicy.nextReminderDate(
+            profile: profile,
+            behavior: .empty,
+            event: .remembered,
+            now: now,
+            calendar: calendar
+        )
+
+        #expect(first == second)
+        #expect(first == now.addingTimeInterval(6 * 60 * 60))
+    }
+
+    @Test("열지 않은 알림이 이어질수록 다음 알림 간격을 늘린다")
+    func backsOffAfterUnopenedReminders() throws {
+        let now = try makeDate(year: 2026, month: 8, day: 31, hour: 10, minute: 0)
+        let profile = CommitmentReminderProfile(timeSensitivity: .soon)
+        let normal = CommitmentReminderPolicy.nextReminderDate(
+            profile: profile,
+            behavior: .empty,
+            event: .remembered,
+            now: now,
+            calendar: calendar
+        )
+        let backedOff = CommitmentReminderPolicy.nextReminderDate(
+            profile: profile,
+            behavior: ReminderBehaviorSummary(
+                consecutiveUnopenedCount: 2,
+                notificationsLast7Days: 2,
+                lastReaction: nil,
+                preferredOpenHour: nil,
+                lastEncounteredAt: nil
+            ),
+            event: .remembered,
+            now: now,
+            calendar: calendar
+        )
+
+        #expect(backedOff > normal)
+    }
+
+    @Test("사용자가 주로 여는 시간이 있으면 의미상 시간대보다 우선한다")
+    func learnedOpenHourWinsOverSemanticPeriod() throws {
+        let now = try makeDate(year: 2026, month: 8, day: 31, hour: 10, minute: 0)
+        let date = CommitmentReminderPolicy.nextReminderDate(
+            profile: CommitmentReminderProfile(
+                timeSensitivity: .soon,
+                preferredPeriod: .morning
+            ),
+            behavior: ReminderBehaviorSummary(
+                consecutiveUnopenedCount: 0,
+                notificationsLast7Days: 0,
+                lastReaction: .keep,
+                preferredOpenHour: 19,
+                lastEncounteredAt: nil
+            ),
+            event: .remembered,
+            now: now,
+            calendar: calendar
+        )
+
+        #expect(calendar.component(.hour, from: date) == 19)
+    }
+
     @Test("저장소가 모르는 앱 알림 식별자만 고아 상태로 분류한다")
     func detectsOrphanedNotificationRequests() {
         let trackedPending = "whisper.commitment.tracked.pending"

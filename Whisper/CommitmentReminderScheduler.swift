@@ -7,6 +7,52 @@ import Foundation
 import OSLog
 import UserNotifications
 
+enum WhisperNotificationSource: String, Sendable {
+    case commitment
+    case focus
+}
+
+enum WhisperNotificationDayKey {
+    nonisolated static func make(
+        for date: Date,
+        calendar: Calendar = .current
+    ) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(
+            format: "%04d-%02d-%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
+    }
+}
+
+actor WhisperNotificationScheduleGate {
+    static let shared = WhisperNotificationScheduleGate()
+
+    private var isLocked = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        if !isLocked {
+            isLocked = true
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func release() {
+        guard !waiters.isEmpty else {
+            isLocked = false
+            return
+        }
+        waiters.removeFirst().resume()
+    }
+}
+
 struct ScheduledCommitmentReminder: Sendable {
     let encounterID: UUID
     let requestIdentifier: String
@@ -29,8 +75,17 @@ struct CommitmentNotificationState: Sendable {
     }
 }
 
-enum CommitmentReminderScheduleResult: Sendable {
-    case scheduled([ScheduledCommitmentReminder])
+fileprivate struct CommitmentReminderReplacementToken: @unchecked Sendable {
+    let previousRequestIdentifiers: Set<String>
+    let previousPendingRequests: [UNNotificationRequest]
+    let newRequestIdentifiers: [String]
+}
+
+fileprivate enum CommitmentReminderBatchScheduleResult: Sendable {
+    case scheduled(
+        remindersByCommitment: [UUID: [ScheduledCommitmentReminder]],
+        replacementToken: CommitmentReminderReplacementToken
+    )
     case authorizationUnavailable
 }
 
@@ -58,89 +113,147 @@ enum CommitmentReminderScheduler {
 
     private static let defaultAllowedStartHour = 9
     private static let defaultAllowedEndHour = 21
-    private static let maximumReminderDatesPerPlan = 2
     private static let maximumCommitmentNotificationsPerDay = 1
     private static let maximumPendingCommitmentNotifications = 48
+    private static let applicationRequestPrefix = "whisper."
     private static let requestPrefix = "whisper.commitment."
 
     static func adjustedToAllowedReminderHours(_ date: Date) -> Date {
         adjustedToAllowedHours(date, calendar: .current)
     }
 
-    static func schedule(
-        _ plan: CommitmentReminderPlan,
-        replacingRequestIdentifiers: Set<String> = []
-    ) async throws -> CommitmentReminderScheduleResult {
+    fileprivate static func allocationPolicy(
+        at date: Date,
+        calendar: Calendar = .current
+    ) -> CommitmentReminderAllocationPolicy {
+        CommitmentReminderAllocationPolicy(
+            now: date,
+            calendar: calendar,
+            allowedStartHour: allowedStartHour,
+            allowedEndHour: allowedEndHour,
+            maximumPerDay: maximumCommitmentNotificationsPerDay,
+            maximumTotal: maximumPendingCommitmentNotifications,
+            horizonDays: 90
+        )
+    }
+
+    fileprivate static func schedule(
+        _ allocation: CommitmentReminderAllocation,
+        inputs: [CommitmentReminderAllocationInput],
+        replacingRequestIdentifiers: Set<String>
+    ) async throws -> CommitmentReminderBatchScheduleResult {
         let center = UNUserNotificationCenter.current()
-        guard try await ensureAuthorization(using: center) else {
-            return .authorizationUnavailable
+        if !allocation.assignments.isEmpty {
+            guard try await ensureAuthorization(using: center) else {
+                return .authorizationUnavailable
+            }
         }
 
-        let pendingRequests = await center.pendingNotificationRequests()
-            .filter { !replacingRequestIdentifiers.contains($0.identifier) }
-        let dates = schedulableDates(
-            from: Array(plan.reminderDates.prefix(maximumReminderDatesPerPlan)),
-            pendingRequests: pendingRequests
-        )
-        guard !dates.isEmpty else {
+        let plansByID = inputs.reduce(into: [UUID: CommitmentReminderPlan]()) {
+            result,
+            input in
+            result[input.plan.id] = input.plan
+        }
+        guard allocation.assignments.allSatisfy({ plansByID[$0.commitmentID] != nil }) else {
             throw CommitmentReminderSchedulerError.noAvailableSchedule
+        }
+
+        let previousPendingRequests = await center.pendingNotificationRequests()
+            .filter { replacingRequestIdentifiers.contains($0.identifier) }
+        center.removePendingNotificationRequests(
+            withIdentifiers: Array(replacingRequestIdentifiers)
+        )
+
+        guard !allocation.assignments.isEmpty else {
+            return .scheduled(
+                remindersByCommitment: [:],
+                replacementToken: CommitmentReminderReplacementToken(
+                    previousRequestIdentifiers: replacingRequestIdentifiers,
+                    previousPendingRequests: previousPendingRequests,
+                    newRequestIdentifiers: []
+                )
+            )
         }
 
         let showPreview = UserDefaults.standard.bool(forKey: showPreviewStorageKey)
         let calendar = Calendar.current
-        var scheduled: [ScheduledCommitmentReminder] = []
+        var remindersByCommitment: [UUID: [ScheduledCommitmentReminder]] = [:]
+        var newRequestIdentifiers: [String] = []
 
         do {
-            for reminderDate in dates {
+            for assignment in allocation.assignments.sorted(by: {
+                if $0.scheduledDate != $1.scheduledDate {
+                    return $0.scheduledDate < $1.scheduledDate
+                }
+                if $0.occurrenceIndex != $1.occurrenceIndex {
+                    return $0.occurrenceIndex < $1.occurrenceIndex
+                }
+                return $0.commitmentID.uuidString < $1.commitmentID.uuidString
+            }) {
+                guard let plan = plansByID[assignment.commitmentID] else { continue }
                 let encounterID = UUID()
                 let identifier = requestIdentifier(
                     commitmentID: plan.id,
                     encounterID: encounterID
                 )
-                let dateComponents = calendar.dateComponents(
-                    [.year, .month, .day, .hour, .minute],
-                    from: reminderDate
-                )
-
-                let content = UNMutableNotificationContent()
-                content.title = "과거의 불꽃"
-                content.body = showPreview
-                    ? "“\(String(plan.quote.prefix(90)))” 그 마음은 지금도 남아 있나요?"
-                    : "기억해 둔 마음을 다시 만나볼까요?"
-                content.sound = .default
-                content.threadIdentifier = "whisper.commitments"
-                content.userInfo = [
-                    "recordID": plan.sourceRecordID.uuidString,
-                    "commitmentID": plan.id.uuidString,
-                    "encounterID": encounterID.uuidString
-                ]
-
-                let request = UNNotificationRequest(
+                let request = notificationRequest(
                     identifier: identifier,
-                    content: content,
-                    trigger: UNCalendarNotificationTrigger(
-                        dateMatching: dateComponents,
-                        repeats: false
-                    )
+                    encounterID: encounterID,
+                    plan: plan,
+                    date: assignment.scheduledDate,
+                    showPreview: showPreview,
+                    calendar: calendar
                 )
+                newRequestIdentifiers.append(identifier)
                 try await center.add(request)
-                scheduled.append(
+                remindersByCommitment[plan.id, default: []].append(
                     ScheduledCommitmentReminder(
                         encounterID: encounterID,
                         requestIdentifier: identifier,
-                        date: reminderDate
+                        date: assignment.scheduledDate
                     )
                 )
             }
         } catch {
-            await cancel(requestIdentifiers: scheduled.map(\.requestIdentifier))
+            await rollbackReplacement(
+                previousPendingRequests: previousPendingRequests,
+                newRequestIdentifiers: newRequestIdentifiers,
+                using: center
+            )
             throw error
         }
 
-        return .scheduled(scheduled)
+        return .scheduled(
+            remindersByCommitment: remindersByCommitment,
+            replacementToken: CommitmentReminderReplacementToken(
+                previousRequestIdentifiers: replacingRequestIdentifiers,
+                previousPendingRequests: previousPendingRequests,
+                newRequestIdentifiers: newRequestIdentifiers
+            )
+        )
     }
 
-    static func cancel(commitmentIDs: [UUID]) async {
+    fileprivate static func rollback(
+        _ token: CommitmentReminderReplacementToken
+    ) async {
+        await rollbackReplacement(
+            previousPendingRequests: token.previousPendingRequests,
+            newRequestIdentifiers: token.newRequestIdentifiers,
+            using: UNUserNotificationCenter.current()
+        )
+    }
+
+    fileprivate static func commit(
+        _ token: CommitmentReminderReplacementToken
+    ) {
+        guard !token.previousRequestIdentifiers.isEmpty else { return }
+        let identifiers = Array(token.previousRequestIdentifiers)
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        center.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+
+    fileprivate static func cancel(commitmentIDs: [UUID]) async {
         guard !commitmentIDs.isEmpty else { return }
         let center = UNUserNotificationCenter.current()
         async let pending = center.pendingNotificationRequests()
@@ -157,11 +270,37 @@ enum CommitmentReminderScheduler {
         )
     }
 
-    static func cancel(requestIdentifiers: [String]) async {
+    fileprivate static func cancel(requestIdentifiers: [String]) async {
         guard !requestIdentifiers.isEmpty else { return }
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: requestIdentifiers)
         center.removeDeliveredNotifications(withIdentifiers: requestIdentifiers)
+    }
+
+    private static func rollbackReplacement(
+        previousPendingRequests: [UNNotificationRequest],
+        newRequestIdentifiers: [String],
+        using center: UNUserNotificationCenter
+    ) async {
+        if !newRequestIdentifiers.isEmpty {
+            center.removePendingNotificationRequests(
+                withIdentifiers: newRequestIdentifiers
+            )
+            center.removeDeliveredNotifications(
+                withIdentifiers: newRequestIdentifiers
+            )
+        }
+
+        for request in previousPendingRequests {
+            do {
+                try await center.add(request)
+            } catch {
+                let nsError = error as NSError
+                WhisperDiagnostics.reminderLogger.error(
+                    "Previous reminder restore failed domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public)"
+                )
+            }
+        }
     }
 
     static func currentNotificationState() async -> CommitmentNotificationState {
@@ -199,6 +338,34 @@ enum CommitmentReminderScheduler {
         )
     }
 
+    static func occupiedNotificationDates(
+        excluding requestIdentifiers: Set<String>
+    ) async -> [Date] {
+        let center = UNUserNotificationCenter.current()
+        async let pending = center.pendingNotificationRequests()
+        async let delivered = center.deliveredNotifications()
+        let (pendingRequests, deliveredNotifications) = await (pending, delivered)
+
+        let pendingDates = pendingRequests.compactMap { request -> Date? in
+            guard request.identifier.hasPrefix(applicationRequestPrefix),
+                  !requestIdentifiers.contains(request.identifier)
+            else {
+                return nil
+            }
+            return notificationDate(request)
+        }
+        let deliveredDates = deliveredNotifications.compactMap { notification -> Date? in
+            let identifier = notification.request.identifier
+            guard identifier.hasPrefix(applicationRequestPrefix),
+                  !requestIdentifiers.contains(identifier)
+            else {
+                return nil
+            }
+            return notification.date
+        }
+        return pendingDates + deliveredDates
+    }
+
     static func isAuthorizationAvailable() async -> Bool {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         switch settings.authorizationStatus {
@@ -209,67 +376,6 @@ enum CommitmentReminderScheduler {
         @unknown default:
             return false
         }
-    }
-
-    private static func schedulableDates(
-        from proposedDates: [Date],
-        pendingRequests: [UNNotificationRequest]
-    ) -> [Date] {
-        let commitmentRequests = pendingRequests.filter {
-            $0.identifier.hasPrefix(requestPrefix)
-        }
-        let availableCount = max(
-            0,
-            maximumPendingCommitmentNotifications - commitmentRequests.count
-        )
-        guard availableCount > 0 else { return [] }
-
-        var occupiedDates = commitmentRequests.compactMap(notificationDate)
-        var result: [Date] = []
-
-        for proposedDate in proposedDates.prefix(availableCount) {
-            guard let availableDate = nextAvailableDate(
-                startingAt: proposedDate,
-                occupiedDates: occupiedDates
-            ) else {
-                continue
-            }
-            result.append(availableDate)
-            occupiedDates.append(availableDate)
-        }
-
-        return result
-    }
-
-    private static func nextAvailableDate(
-        startingAt proposedDate: Date,
-        occupiedDates: [Date]
-    ) -> Date? {
-        let calendar = Calendar.current
-        var candidate = adjustedToAllowedHours(proposedDate, calendar: calendar)
-
-        for _ in 0..<90 {
-            let occupiedCount = occupiedDates.filter {
-                calendar.isDate($0, inSameDayAs: candidate)
-            }.count
-            if occupiedCount < maximumCommitmentNotificationsPerDay {
-                return candidate
-            }
-
-            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: candidate),
-                  let dayStart = calendar.date(
-                    bySettingHour: allowedStartHour,
-                    minute: 0,
-                    second: 0,
-                    of: nextDay
-                  )
-            else {
-                return nil
-            }
-            candidate = dayStart
-        }
-
-        return nil
     }
 
     private static func adjustedToAllowedHours(
@@ -333,6 +439,41 @@ enum CommitmentReminderScheduler {
         return trigger.nextTriggerDate()
     }
 
+    private static func notificationRequest(
+        identifier: String,
+        encounterID: UUID,
+        plan: CommitmentReminderPlan,
+        date: Date,
+        showPreview: Bool,
+        calendar: Calendar
+    ) -> UNNotificationRequest {
+        let dateComponents = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: date
+        )
+        let content = UNMutableNotificationContent()
+        content.title = "과거의 불꽃"
+        content.body = showPreview
+            ? "“\(String(plan.quote.prefix(90)))” 그 마음은 지금도 남아 있나요?"
+            : "기억해 둔 마음을 다시 만나볼까요?"
+        content.sound = .default
+        content.threadIdentifier = "whisper.commitments"
+        content.userInfo = [
+            "recordID": plan.sourceRecordID.uuidString,
+            "commitmentID": plan.id.uuidString,
+            "encounterID": encounterID.uuidString
+        ]
+
+        return UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: UNCalendarNotificationTrigger(
+                dateMatching: dateComponents,
+                repeats: false
+            )
+        )
+    }
+
     private static func ensureAuthorization(
         using center: UNUserNotificationCenter
     ) async throws -> Bool {
@@ -359,86 +500,136 @@ enum CommitmentReminderScheduler {
     }
 }
 
-private actor CommitmentReminderScheduleGate {
-    private var isLocked = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    func acquire() async {
-        if !isLocked {
-            isLocked = true
-            return
-        }
-
-        await withCheckedContinuation { continuation in
-            waiters.append(continuation)
-        }
-    }
-
-    func release() {
-        guard !waiters.isEmpty else {
-            isLocked = false
-            return
-        }
-        waiters.removeFirst().resume()
-    }
-}
-
 @MainActor
 enum CommitmentReminderCoordinator {
     private static var isSynchronizing = false
-    private static let scheduleGate = CommitmentReminderScheduleGate()
 
     static func schedule(
         _ plan: CommitmentReminderPlan,
         in recordStore: RecordStore
     ) async -> CommitmentReminderApplicationResult {
+        let scheduleGate = WhisperNotificationScheduleGate.shared
         await scheduleGate.acquire()
         guard !Task.isCancelled else {
             await scheduleGate.release()
             return .failed
         }
-        let result = await scheduleExclusively(plan, in: recordStore)
+        let result = await rebuildScheduleExclusively(
+            overriding: plan,
+            in: recordStore,
+            at: .now
+        )
         await scheduleGate.release()
         return result
     }
 
-    private static func scheduleExclusively(
-        _ plan: CommitmentReminderPlan,
-        in recordStore: RecordStore
+    @discardableResult
+    static func cancel(
+        commitmentIDs: [UUID],
+        in recordStore: RecordStore,
+        at date: Date = .now
+    ) async -> Bool {
+        guard !commitmentIDs.isEmpty else { return true }
+
+        let scheduleGate = WhisperNotificationScheduleGate.shared
+        await scheduleGate.acquire()
+        await CommitmentReminderScheduler.cancel(commitmentIDs: commitmentIDs)
+        let didRemoveState = recordStore.removeFutureReminderState(
+            commitmentIDs: Set(commitmentIDs),
+            at: date
+        )
+        await scheduleGate.release()
+        return didRemoveState
+    }
+
+    private static func rebuildScheduleExclusively(
+        overriding plan: CommitmentReminderPlan?,
+        in recordStore: RecordStore,
+        at date: Date
     ) async -> CommitmentReminderApplicationResult {
+        guard recordStore.refreshPersistentState() else {
+            return .failed
+        }
+
+        let calendar = Calendar.current
+        let inputs = recordStore.reminderAllocationInputs(
+            overriding: plan,
+            at: date
+        )
         let previousRequestIdentifiers = recordStore
-            .replaceableNotificationIdentifiers(for: plan.id)
+            .replaceableFutureCommitmentRequestIdentifiers(
+                explicitlyReplanningCommitmentID: plan?.id,
+                at: date
+            )
+        let storedOccupiedDates = recordStore.occupiedNotificationDates(
+            excluding: previousRequestIdentifiers,
+            at: date
+        )
+        let systemOccupiedDates = await CommitmentReminderScheduler
+            .occupiedNotificationDates(excluding: previousRequestIdentifiers)
+        let occupiedDates = uniqueOccupiedDates(
+            storedOccupiedDates + systemOccupiedDates,
+            at: date,
+            calendar: calendar
+        )
+        let allocation = CommitmentReminderGlobalPolicy.allocate(
+            inputs: inputs,
+            occupiedDates: occupiedDates,
+            policy: CommitmentReminderScheduler.allocationPolicy(
+                at: date,
+                calendar: calendar
+            )
+        )
+
+        if !allocation.unassignedCommitmentIDs.isEmpty {
+            WhisperDiagnostics.reminderLogger.notice(
+                "Could not allocate every reminder for \(allocation.unassignedCommitmentIDs.count, privacy: .public) commitments"
+            )
+        }
+
+        let previousOverrideIdentifiers = plan.map {
+            recordStore.replaceableNotificationIdentifiers(for: $0.id, at: date)
+        } ?? []
 
         do {
             switch try await CommitmentReminderScheduler.schedule(
-                plan,
+                allocation,
+                inputs: inputs,
                 replacingRequestIdentifiers: previousRequestIdentifiers
             ) {
             case .authorizationUnavailable:
-                restorePreviousReminderDateIfNeeded(
-                    commitmentID: plan.id,
-                    previousRequestIdentifiers: previousRequestIdentifiers,
-                    in: recordStore
-                )
-                return .authorizationUnavailable
-            case .scheduled(let reminders):
-                guard recordStore.replaceScheduledEncounters(
-                    commitmentID: plan.id,
-                    reminders: reminders
-                ) else {
-                    await CommitmentReminderScheduler.cancel(
-                        requestIdentifiers: reminders.map(\.requestIdentifier)
-                    )
+                if let plan {
                     restorePreviousReminderDateIfNeeded(
                         commitmentID: plan.id,
-                        previousRequestIdentifiers: previousRequestIdentifiers,
+                        previousRequestIdentifiers: previousOverrideIdentifiers,
                         in: recordStore
                     )
+                }
+                return .authorizationUnavailable
+            case let .scheduled(remindersByCommitment, replacementToken):
+                let slotDrafts = makeSlotDrafts(
+                    remindersByCommitment: remindersByCommitment,
+                    inputs: inputs,
+                    createdAt: date,
+                    calendar: calendar
+                )
+                guard recordStore.replaceReminderSchedule(
+                    replacingRequestIdentifiers: previousRequestIdentifiers,
+                    remindersByCommitment: remindersByCommitment,
+                    slotDrafts: slotDrafts,
+                    at: date
+                ) else {
+                    await CommitmentReminderScheduler.rollback(replacementToken)
+                    if let plan {
+                        restorePreviousReminderDateIfNeeded(
+                            commitmentID: plan.id,
+                            previousRequestIdentifiers: previousOverrideIdentifiers,
+                            in: recordStore
+                        )
+                    }
                     return .failed
                 }
-                await CommitmentReminderScheduler.cancel(
-                    requestIdentifiers: Array(previousRequestIdentifiers)
-                )
+                CommitmentReminderScheduler.commit(replacementToken)
                 return .scheduled
             }
         } catch {
@@ -446,11 +637,13 @@ enum CommitmentReminderCoordinator {
             WhisperDiagnostics.reminderLogger.error(
                 "Reminder schedule failed domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public)"
             )
-            restorePreviousReminderDateIfNeeded(
-                commitmentID: plan.id,
-                previousRequestIdentifiers: previousRequestIdentifiers,
-                in: recordStore
-            )
+            if let plan {
+                restorePreviousReminderDateIfNeeded(
+                    commitmentID: plan.id,
+                    previousRequestIdentifiers: previousOverrideIdentifiers,
+                    in: recordStore
+                )
+            }
             return .failed
         }
     }
@@ -460,8 +653,25 @@ enum CommitmentReminderCoordinator {
         isSynchronizing = true
         defer { isSynchronizing = false }
 
+        let scheduleGate = WhisperNotificationScheduleGate.shared
+        await scheduleGate.acquire()
+        guard !Task.isCancelled else {
+            await scheduleGate.release()
+            return
+        }
+
+        guard recordStore.refreshPersistentState() else {
+            await scheduleGate.release()
+            return
+        }
+
         let state = await CommitmentReminderScheduler.currentNotificationState()
         guard recordStore.reconcileReminderNotifications(with: state) else {
+            await scheduleGate.release()
+            return
+        }
+        guard recordStore.backfillNotificationDaySlots() else {
+            await scheduleGate.release()
             return
         }
 
@@ -477,11 +687,66 @@ enum CommitmentReminderCoordinator {
             )
         }
 
-        guard await CommitmentReminderScheduler.isAuthorizationAvailable() else { return }
-
-        for plan in recordStore.reminderRecoveryPlans() {
-            _ = await schedule(plan, in: recordStore)
+        guard await CommitmentReminderScheduler.isAuthorizationAvailable() else {
+            await scheduleGate.release()
+            return
         }
+
+        _ = await rebuildScheduleExclusively(
+            overriding: nil,
+            in: recordStore,
+            at: .now
+        )
+        await scheduleGate.release()
+    }
+
+    private static func makeSlotDrafts(
+        remindersByCommitment: [UUID: [ScheduledCommitmentReminder]],
+        inputs: [CommitmentReminderAllocationInput],
+        createdAt: Date,
+        calendar: Calendar
+    ) -> [NotificationDaySlotDraft] {
+        let plansByID = inputs.reduce(into: [UUID: CommitmentReminderPlan]()) {
+            result,
+            input in
+            result[input.plan.id] = input.plan
+        }
+
+        var drafts: [NotificationDaySlotDraft] = []
+        for (commitmentID, reminders) in remindersByCommitment {
+            guard let plan = plansByID[commitmentID] else { continue }
+            drafts.append(contentsOf: reminders.map { reminder in
+                NotificationDaySlotDraft(
+                    dayKey: WhisperNotificationDayKey.make(
+                        for: reminder.date,
+                        calendar: calendar
+                    ),
+                    scheduledAt: reminder.date,
+                    requestIdentifier: reminder.requestIdentifier,
+                    sourceStorage: WhisperNotificationSource.commitment.rawValue,
+                    commitmentID: commitmentID,
+                    recordID: plan.sourceRecordID,
+                    createdAt: createdAt
+                )
+            })
+        }
+        return drafts
+    }
+
+    private static func uniqueOccupiedDates(
+        _ dates: [Date],
+        at date: Date,
+        calendar: Calendar
+    ) -> [Date] {
+        Dictionary(
+            grouping: dates,
+            by: { WhisperNotificationDayKey.make(for: $0, calendar: calendar) }
+        )
+        .values
+        .compactMap { datesOnDay in
+            datesOnDay.filter { $0 > date }.min() ?? datesOnDay.max()
+        }
+        .sorted()
     }
 
     private static func restorePreviousReminderDateIfNeeded(
