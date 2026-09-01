@@ -210,13 +210,12 @@ struct CollectionView: View {
     @State private var selectedCommitmentStatus: CommitmentLifecycleStatus?
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            collectionHeader
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+                collectionHeader
+                searchField
+                filterBar
 
-            searchField
-            filterBar
-
-            ScrollView {
                 if recordStore.records.isEmpty {
                     ContentUnavailableView(
                         "아직 담긴 불꽃이 없어요",
@@ -234,83 +233,86 @@ struct CollectionView: View {
                             .buttonStyle(.bordered)
                     }
                     .frame(maxWidth: .infinity, minHeight: 360)
-                }
-
-                ForEach(monthlyShelves, id: \.title) { shelf in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(shelf.title).font(.whisperSectionTitle)
-                        LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4),
-                            alignment: .leading,
-                            spacing: 14
-                        ) {
-                            ForEach(shelf.records) { record in
-                                NavigationLink {
-                                    RecordDetailView(
-                                        record: record,
-                                        recordStore: recordStore
-                                    )
-                                } label: {
-                                    ZStack(alignment: .bottomTrailing) {
-                                        WhisperJar(size: .shelf)
-
-                                        if record.photoData != nil {
-                                            Image(systemName: "photo.fill")
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundStyle(Color.white)
-                                                .frame(width: 20, height: 20)
-                                                .background(Color.whisperAccent, in: Circle())
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .overlay(alignment: .topLeading) {
-                                        if let commitment = storedCommitment(for: record) {
-                                            commitmentStatusBadge(commitment.lifecycleStatus())
-                                        }
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(
-                                    recordAccessibilityLabel(record)
-                                )
-                            }
+                } else {
+                    ForEach(filteredRecords) { record in
+                        NavigationLink {
+                            RecordDetailView(
+                                record: record,
+                                recordStore: recordStore
+                            )
+                        } label: {
+                            journalRecordCard(for: record)
                         }
-                        Rectangle().fill(Color.whisperDivider).frame(height: 1)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(recordAccessibilityLabel(record))
                     }
                 }
             }
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+            .padding(.top, 12)
+            .padding(.bottom, 30)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 30)
         .scrollIndicators(.hidden)
         .background(Color.whisperBackground)
         .navigationBarHidden(true)
     }
 
     private var collectionHeader: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("불꽃 보관함")
-                    .font(.whisperScreenTitle)
+        VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+            Text("불꽃 보관함")
+                .font(.whisperScreenTitle)
+                .foregroundStyle(Color.whisperTextPrimary)
 
-                Text(
-                    storedFlameCount == 0
-                        ? "아직 간직한 불꽃이 없어요"
-                        : "\(storedFlameCount)개의 불꽃을 간직하고 있어요"
+            HStack(spacing: WhisperSpacing.small) {
+                VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+                    Text("Whisper가 간직한 마음")
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperAccentText)
+
+                    Text(summaryTitle)
+                        .font(.whisperNavigationTitle)
+                        .foregroundStyle(Color.whisperTextPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(monthlySummary)
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                CollectionFlameJar(
+                    storedFlameCount: storedFlameCount,
+                    width: 72
                 )
-                    .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.whisperTextSecondary)
             }
-
-            Spacer(minLength: 8)
-
-            CollectionFlameJar(storedFlameCount: storedFlameCount)
+            .padding(.horizontal, WhisperSpacing.medium)
+            .padding(.vertical, 14)
+            .frame(minHeight: 132)
+            .whisperCardStyle(
+                fill: .whisperSurfaceHighlight,
+                border: .whisperBorderSubtle,
+                hasShadow: true
+            )
         }
-        .padding(.top, 12)
     }
 
     private var storedFlameCount: Int {
         recordStore.records.count
+    }
+
+    private var summaryTitle: String {
+        storedFlameCount == 0
+            ? "아직 간직한 불꽃이 없어요"
+            : "\(storedFlameCount)개의 불꽃을\n간직하고 있어요"
+    }
+
+    private var monthlySummary: String {
+        let count = recordStore.records.filter {
+            Calendar.current.isDate($0.createdAt, equalTo: .now, toGranularity: .month)
+        }.count
+        return count == 0
+            ? "이번 달 새로 담은 불꽃이 없어요"
+            : "이번 달 새로 담은 불꽃 \(count)개"
     }
 
     private var searchField: some View {
@@ -348,23 +350,6 @@ struct CollectionView: View {
         recordStore.commitments.first { $0.sourceRecordID == record.id }
     }
 
-    private func commitmentStatusBadge(
-        _ status: CommitmentLifecycleStatus
-    ) -> some View {
-        let icon = switch status {
-        case .active: "sparkles"
-        case .paused: "moon.zzz.fill"
-        case .released: "checkmark"
-        }
-
-        return Image(systemName: icon)
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(Color.white)
-            .frame(width: 22, height: 22)
-            .background(Color.whisperAccent, in: Circle())
-            .accessibilityHidden(true)
-    }
-
     private func recordAccessibilityLabel(_ record: WhisperRecord) -> String {
         let base = "\(record.title), \(record.createdAt.whisperFullDayDescription)"
         guard let status = storedCommitment(for: record)?.lifecycleStatus() else {
@@ -381,6 +366,18 @@ struct CollectionView: View {
     private var filterBar: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
+                Button {
+                    selectedEmotion = nil
+                    selectedCommitmentStatus = nil
+                } label: {
+                    filterChip(
+                        title: "전체",
+                        isActive: !hasSelectedFilterChips,
+                        showsMenuIndicator: false
+                    )
+                }
+                .buttonStyle(.plain)
+
                 Menu {
                     Button("전체 감정") { selectedEmotion = nil }
                     ForEach(WhisperEmotion.allCases) { emotion in
@@ -391,8 +388,8 @@ struct CollectionView: View {
                 } label: {
                     filterChip(
                         title: selectedEmotion ?? "감정",
-                        systemImage: "face.smiling",
-                        isActive: selectedEmotion != nil
+                        isActive: selectedEmotion != nil,
+                        showsMenuIndicator: true
                     )
                 }
 
@@ -404,15 +401,9 @@ struct CollectionView: View {
                 } label: {
                     filterChip(
                         title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "불꽃 상태",
-                        systemImage: "sparkles",
-                        isActive: selectedCommitmentStatus != nil
+                        isActive: selectedCommitmentStatus != nil,
+                        showsMenuIndicator: true
                     )
-                }
-
-                if hasActiveFilters {
-                    Button("초기화", action: resetFilters)
-                        .font(.whisperCaption)
-                        .foregroundStyle(Color.whisperAccentText)
                 }
             }
         }
@@ -421,29 +412,35 @@ struct CollectionView: View {
 
     private func filterChip(
         title: String,
-        systemImage: String,
-        isActive: Bool
+        isActive: Bool,
+        showsMenuIndicator: Bool
     ) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: systemImage)
             Text(title)
-            Image(systemName: "chevron.down")
-                .font(.system(size: 9, weight: .bold))
+            if showsMenuIndicator {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+            }
         }
-        .font(.whisperCaption)
-        .foregroundStyle(isActive ? Color.whisperAccentText : Color.whisperTextSecondary)
-        .padding(.horizontal, 12)
-        .frame(height: 36)
+        .font(.whisperControl)
+        .foregroundStyle(isActive ? Color.whisperTextOnAccent : Color.whisperTextPrimary)
+        .padding(.horizontal, WhisperSpacing.medium)
+        .frame(height: 40)
         .background(
-            isActive ? Color.whisperSurfaceFocus : Color.whisperSurfaceSubtle,
-            in: Capsule()
+            Capsule()
+                .fill(isActive ? Color.whisperAccent : Color.whisperSurfaceDefault)
+                .overlay {
+                    Capsule()
+                        .stroke(
+                            isActive ? Color.whisperAccent : Color.whisperBorderSubtle,
+                            lineWidth: 1
+                        )
+                }
         )
     }
 
-    private var hasActiveFilters: Bool {
-        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-            selectedEmotion != nil ||
-            selectedCommitmentStatus != nil
+    private var hasSelectedFilterChips: Bool {
+        selectedEmotion != nil || selectedCommitmentStatus != nil
     }
 
     private var filteredRecords: [WhisperRecord] {
@@ -458,6 +455,7 @@ struct CollectionView: View {
                 storedCommitment(for: record)?.lifecycleStatus() == selectedCommitmentStatus
             return matchesSearch && matchesEmotion && matchesCommitmentStatus
         }
+        .sorted { $0.createdAt > $1.createdAt }
     }
 
     private func commitmentStatusTitle(_ status: CommitmentLifecycleStatus) -> String {
@@ -474,16 +472,89 @@ struct CollectionView: View {
         selectedCommitmentStatus = nil
     }
     
-    private var monthlyShelves: [(title: String, records: [WhisperRecord])] {
+    private func journalRecordCard(for record: WhisperRecord) -> some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text(record.title)
+                    .font(.whisperSectionTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .lineLimit(2)
+
+                Text(recordDateLabel(record.createdAt))
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperTextSecondary)
+            }
+
+            Text(record.content)
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextPrimary)
+                .lineSpacing(3)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Rectangle()
+                .fill(Color.whisperDivider)
+                .frame(height: 1)
+
+            HStack(spacing: WhisperSpacing.xSmall) {
+                Text(recordTimestampLabel(record.createdAt))
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: WhisperSpacing.xSmall)
+
+                if record.photoData != nil {
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .accessibilityLabel("사진 있음")
+                }
+
+                Label {
+                    Text(recordStatus(for: record).title)
+                        .font(.whisperLabel)
+                } icon: {
+                    Image(systemName: recordStatus(for: record).icon)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.whisperAccent)
+                }
+                .foregroundStyle(Color.whisperTextSecondary)
+                .lineLimit(1)
+            }
+        }
+        .padding(WhisperSpacing.large)
+        .whisperCardStyle(
+            fill: .whisperSurfaceDefault,
+            border: .whisperBorderSubtle
+        )
+        .contentShape(Rectangle())
+    }
+
+    private func recordStatus(for record: WhisperRecord) -> (title: String, icon: String) {
+        guard let status = storedCommitment(for: record)?.lifecycleStatus() else {
+            return ("간직함", "flame.fill")
+        }
+
+        return switch status {
+        case .active: ("기억 중", "flame.fill")
+        case .paused: ("쉬는 중", "moon.zzz.fill")
+        case .released: ("놓아줌", "checkmark")
+        }
+    }
+
+    private func recordDateLabel(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
-        formatter.dateFormat = "yyyy년 M월"
-        let grouped = Dictionary(grouping: filteredRecords) {
-            formatter.string(from: $0.createdAt)
-        }
-        return grouped
-            .map { (title: $0.key, records: $0.value.sorted { $0.createdAt > $1.createdAt }) }
-            .sorted { $0.records.first!.createdAt > $1.records.first!.createdAt }
+        formatter.dateFormat = "yyyy.MM.dd"
+        return formatter.string(from: date)
+    }
+
+    private func recordTimestampLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "M월 d일 (E) a h:mm"
+        return formatter.string(from: date)
     }
 }
 
