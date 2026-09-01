@@ -46,7 +46,7 @@ struct CommitmentCandidateSheet: View {
                         .font(.whisperNavigationTitle)
                         .foregroundStyle(Color.whisperTextPrimary)
 
-                    Text("다시 만나는 날, 이 마음이 아직 남아 있는지 물어볼게요.")
+                    Text("다시 만나는 날, 그날의 마음을 조용히 다시 건넬게요.")
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                         .fixedSize(horizontal: false, vertical: true)

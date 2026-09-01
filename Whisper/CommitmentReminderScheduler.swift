@@ -95,6 +95,20 @@ enum CommitmentReminderApplicationResult: Sendable, Equatable {
     case failed
 }
 
+#if DEBUG
+enum CommitmentReminderDebugResult: Sendable, Equatable {
+    case scheduled(Date)
+    case noActiveCommitment
+    case authorizationUnavailable
+    case failed
+}
+
+fileprivate enum CommitmentReminderDebugScheduleResult: Sendable {
+    case scheduled(ScheduledCommitmentReminder)
+    case authorizationUnavailable
+}
+#endif
+
 enum CommitmentReminderSchedulerError: LocalizedError {
     case noAvailableSchedule
 
@@ -117,6 +131,9 @@ enum CommitmentReminderScheduler {
     private static let maximumPendingCommitmentNotifications = 48
     private static let applicationRequestPrefix = "whisper."
     private static let requestPrefix = "whisper.commitment."
+#if DEBUG
+    static let debugRequestPrefix = "whisper.debug.commitment."
+#endif
 
     static func adjustedToAllowedReminderHours(_ date: Date) -> Date {
         adjustedToAllowedHours(date, calendar: .current)
@@ -258,7 +275,10 @@ enum CommitmentReminderScheduler {
         let center = UNUserNotificationCenter.current()
         async let pending = center.pendingNotificationRequests()
         async let delivered = center.deliveredNotifications()
-        let prefixes = commitmentIDs.map(commitmentRequestPrefix)
+        var prefixes = commitmentIDs.map(commitmentRequestPrefix)
+#if DEBUG
+        prefixes.append(contentsOf: commitmentIDs.map(debugCommitmentRequestPrefix))
+#endif
         let (pendingRequests, deliveredNotifications) = await (pending, delivered)
         let identifiers = pendingRequests.map(\.identifier) + deliveredNotifications.map {
             $0.request.identifier
@@ -311,18 +331,18 @@ enum CommitmentReminderScheduler {
 
         let pendingIdentifiers = Set(
             pendingRequests
-                .filter { $0.identifier.hasPrefix(requestPrefix) }
+                .filter { isManagedReminderIdentifier($0.identifier) }
                 .map(\.identifier)
         )
         let deliveredIdentifiers = Set(
             deliveredNotifications
                 .map(\.request.identifier)
-                .filter { $0.hasPrefix(requestPrefix) }
+                .filter(isManagedReminderIdentifier)
         )
         let deliveredDates = deliveredNotifications.reduce(into: [UUID: Date]()) {
             result,
             notification in
-            guard notification.request.identifier.hasPrefix(requestPrefix),
+            guard isManagedReminderIdentifier(notification.request.identifier),
                   let value = notification.request.content.userInfo["encounterID"] as? String,
                   let encounterID = UUID(uuidString: value)
             else {
@@ -433,10 +453,13 @@ enum CommitmentReminderScheduler {
     }
 
     nonisolated private static func notificationDate(_ request: UNNotificationRequest) -> Date? {
-        guard let trigger = request.trigger as? UNCalendarNotificationTrigger else {
-            return nil
+        if let trigger = request.trigger as? UNCalendarNotificationTrigger {
+            return trigger.nextTriggerDate()
         }
-        return trigger.nextTriggerDate()
+        if let trigger = request.trigger as? UNTimeIntervalNotificationTrigger {
+            return trigger.nextTriggerDate()
+        }
+        return nil
     }
 
     private static func notificationRequest(
@@ -451,18 +474,11 @@ enum CommitmentReminderScheduler {
             [.year, .month, .day, .hour, .minute],
             from: date
         )
-        let content = UNMutableNotificationContent()
-        content.title = "과거의 불꽃"
-        content.body = showPreview
-            ? "“\(String(plan.quote.prefix(90)))” 그 마음은 지금도 남아 있나요?"
-            : "기억해 둔 마음을 다시 만나볼까요?"
-        content.sound = .default
-        content.threadIdentifier = "whisper.commitments"
-        content.userInfo = [
-            "recordID": plan.sourceRecordID.uuidString,
-            "commitmentID": plan.id.uuidString,
-            "encounterID": encounterID.uuidString
-        ]
+        let content = notificationContent(
+            encounterID: encounterID,
+            plan: plan,
+            showPreview: showPreview
+        )
 
         return UNNotificationRequest(
             identifier: identifier,
@@ -473,6 +489,66 @@ enum CommitmentReminderScheduler {
             )
         )
     }
+
+    private static func notificationContent(
+        encounterID: UUID,
+        plan: CommitmentReminderPlan,
+        showPreview: Bool
+    ) -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+        content.title = "과거의 불꽃"
+        content.body = WhisperNotificationContentPolicy.commitmentReminderBody(
+            quote: plan.quote,
+            showPreview: showPreview
+        )
+        content.sound = .default
+        content.threadIdentifier = "whisper.commitments"
+        content.userInfo = [
+            "recordID": plan.sourceRecordID.uuidString,
+            "commitmentID": plan.id.uuidString,
+            "encounterID": encounterID.uuidString
+        ]
+
+        return content
+    }
+
+#if DEBUG
+    fileprivate static func scheduleDebugReminder(
+        _ plan: CommitmentReminderPlan,
+        after delay: TimeInterval
+    ) async throws -> CommitmentReminderDebugScheduleResult {
+        let center = UNUserNotificationCenter.current()
+        guard try await ensureAuthorization(using: center) else {
+            return .authorizationUnavailable
+        }
+
+        let interval = max(1, delay)
+        let date = Date.now.addingTimeInterval(interval)
+        let encounterID = UUID()
+        let identifier = "\(debugCommitmentRequestPrefix(plan.id))\(encounterID.uuidString)"
+        let content = notificationContent(
+            encounterID: encounterID,
+            plan: plan,
+            showPreview: UserDefaults.standard.bool(forKey: showPreviewStorageKey)
+        )
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(
+                timeInterval: interval,
+                repeats: false
+            )
+        )
+        try await center.add(request)
+        return .scheduled(
+            ScheduledCommitmentReminder(
+                encounterID: encounterID,
+                requestIdentifier: identifier,
+                date: date
+            )
+        )
+    }
+#endif
 
     private static func ensureAuthorization(
         using center: UNUserNotificationCenter
@@ -498,6 +574,23 @@ enum CommitmentReminderScheduler {
     private static func commitmentRequestPrefix(_ commitmentID: UUID) -> String {
         "\(requestPrefix)\(commitmentID.uuidString)."
     }
+
+    private static func isManagedReminderIdentifier(_ identifier: String) -> Bool {
+        if identifier.hasPrefix(requestPrefix) {
+            return true
+        }
+#if DEBUG
+        return identifier.hasPrefix(debugRequestPrefix)
+#else
+        return false
+#endif
+    }
+
+#if DEBUG
+    private static func debugCommitmentRequestPrefix(_ commitmentID: UUID) -> String {
+        "\(debugRequestPrefix)\(commitmentID.uuidString)."
+    }
+#endif
 }
 
 @MainActor
@@ -522,6 +615,94 @@ enum CommitmentReminderCoordinator {
         await scheduleGate.release()
         return result
     }
+
+#if DEBUG
+    static func scheduleDebugReminder(
+        in recordStore: RecordStore,
+        after delay: TimeInterval = 10
+    ) async -> CommitmentReminderDebugResult {
+        let scheduleGate = WhisperNotificationScheduleGate.shared
+        await scheduleGate.acquire()
+        guard !Task.isCancelled,
+              recordStore.refreshPersistentState()
+        else {
+            await scheduleGate.release()
+            return .failed
+        }
+
+        guard let commitment = recordStore.commitments.first(where: {
+            $0.lifecycleStatus() == .active
+        }) else {
+            await scheduleGate.release()
+            return .noActiveCommitment
+        }
+
+        let oldIdentifiers = recordStore.futureDebugReminderRequestIdentifiers()
+        await CommitmentReminderScheduler.cancel(
+            requestIdentifiers: Array(oldIdentifiers)
+        )
+        guard recordStore.removeFutureDebugReminderState(
+            requestIdentifiers: oldIdentifiers
+        ) else {
+            await scheduleGate.release()
+            return .failed
+        }
+
+        let plan = CommitmentReminderPlan(
+            id: commitment.id,
+            sourceRecordID: commitment.sourceRecordID,
+            name: commitment.name,
+            quote: commitment.quote,
+            reminderDates: []
+        )
+
+        do {
+            switch try await CommitmentReminderScheduler.scheduleDebugReminder(
+                plan,
+                after: delay
+            ) {
+            case .authorizationUnavailable:
+                await scheduleGate.release()
+                return .authorizationUnavailable
+            case let .scheduled(reminder):
+                guard recordStore.addEncounter(
+                    commitmentID: commitment.id,
+                    scheduledAt: reminder.date,
+                    notificationIdentifier: reminder.requestIdentifier
+                ) != nil else {
+                    await CommitmentReminderScheduler.cancel(
+                        requestIdentifiers: [reminder.requestIdentifier]
+                    )
+                    await scheduleGate.release()
+                    return .failed
+                }
+                await scheduleGate.release()
+                return .scheduled(reminder.date)
+            }
+        } catch {
+            let nsError = error as NSError
+            WhisperDiagnostics.reminderLogger.error(
+                "Debug reminder failed domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public)"
+            )
+            await scheduleGate.release()
+            return .failed
+        }
+    }
+
+    static func cancelDebugReminders(in recordStore: RecordStore) async -> Bool {
+        let scheduleGate = WhisperNotificationScheduleGate.shared
+        await scheduleGate.acquire()
+        let identifiers = recordStore.futureDebugReminderRequestIdentifiers()
+        await CommitmentReminderScheduler.cancel(
+            requestIdentifiers: Array(identifiers)
+        )
+        let didRemoveState = recordStore.removeFutureDebugReminderState(
+            requestIdentifiers: identifiers
+        )
+        await scheduleGate.release()
+        return didRemoveState
+    }
+#endif
 
     @discardableResult
     static func cancel(
