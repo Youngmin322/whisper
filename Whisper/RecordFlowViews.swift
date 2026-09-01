@@ -211,9 +211,7 @@ struct CollectionView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("불꽃 보관함")
-                .font(.whisperScreenTitle)
-                .padding(.top, 18)
+            collectionHeader
 
             searchField
             filterBar
@@ -287,6 +285,32 @@ struct CollectionView: View {
         .scrollIndicators(.hidden)
         .background(Color.whisperBackground)
         .navigationBarHidden(true)
+    }
+
+    private var collectionHeader: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("불꽃 보관함")
+                    .font(.whisperScreenTitle)
+
+                Text(
+                    storedFlameCount == 0
+                        ? "아직 간직한 불꽃이 없어요"
+                        : "\(storedFlameCount)개의 불꽃을 간직하고 있어요"
+                )
+                    .font(.whisperBodyEmphasis)
+                    .foregroundStyle(Color.whisperTextSecondary)
+            }
+
+            Spacer(minLength: 8)
+
+            CollectionFlameJar(storedFlameCount: storedFlameCount)
+        }
+        .padding(.top, 12)
+    }
+
+    private var storedFlameCount: Int {
+        recordStore.records.count
     }
 
     private var searchField: some View {
