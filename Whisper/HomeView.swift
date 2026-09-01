@@ -215,8 +215,7 @@ struct HomeView: View {
             NavigationLink {
                 RecordDetailView(
                     record: record,
-                    recordStore: recordStore,
-                    reminderEncounterID: dueEncounter(for: commitment)?.id
+                    recordStore: recordStore
                 )
             } label: {
                 resurfacingCard(for: commitment)
@@ -244,7 +243,7 @@ struct HomeView: View {
                     .foregroundStyle(Color.whisperTextSecondary)
                     .lineLimit(2)
 
-                Text("그 마음은 지금도 남아 있나요?")
+                Text("그날의 마음이 다시 찾아왔어요.")
                     .font(.whisperMetadata)
                     .foregroundStyle(Color.whisperTextSecondary)
                     .padding(.top, 4)
@@ -279,7 +278,7 @@ struct HomeView: View {
                 Text(
                     activeCommitmentCount == 0
                         ? "기록 속 결심이 보이면 기억할지 물어볼게요."
-                        : "잊고 지낼 즈음, 조용히 다시 건넬게요."
+                        : "잊고 지낼 즈음, 그날의 마음을 조용히 다시 건넬게요."
                 )
                     .font(.whisperMetadata)
                     .foregroundStyle(Color.whisperTextSecondary)
@@ -304,12 +303,6 @@ struct HomeView: View {
         }
     }
 
-    private func dueEncounter(for commitment: WhisperCommitment) -> ReminderEncounter? {
-        recordStore.encounters(for: commitment.id).first {
-            $0.openedAt == nil && $0.scheduledAt <= .now
-        }
-    }
-    
     private var hasTodayRecord: Bool {
         recordStore.hasRecord(on: .now, calendar: calendar)
     }

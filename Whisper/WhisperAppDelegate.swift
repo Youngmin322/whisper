@@ -13,9 +13,15 @@ enum WhisperNotificationRoute {
     private static let pendingRecordIDKey = "whisper.notification.pendingRecordID"
     private static let pendingCommitmentIDKey = "whisper.notification.pendingCommitmentID"
     private static let pendingEncounterIDKey = "whisper.notification.pendingEncounterID"
+    private static let pendingRequestIdentifierKey = "whisper.notification.pendingRequestIdentifier"
 
     @MainActor
-    static func store(_ recordID: UUID, commitmentID: UUID?, encounterID: UUID?) {
+    static func store(
+        _ recordID: UUID,
+        commitmentID: UUID?,
+        encounterID: UUID?,
+        requestIdentifier: String?
+    ) {
         UserDefaults.standard.set(recordID.uuidString, forKey: pendingRecordIDKey)
         if let commitmentID {
             UserDefaults.standard.set(commitmentID.uuidString, forKey: pendingCommitmentIDKey)
@@ -26,6 +32,11 @@ enum WhisperNotificationRoute {
             UserDefaults.standard.set(encounterID.uuidString, forKey: pendingEncounterIDKey)
         } else {
             UserDefaults.standard.removeObject(forKey: pendingEncounterIDKey)
+        }
+        if let requestIdentifier {
+            UserDefaults.standard.set(requestIdentifier, forKey: pendingRequestIdentifierKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: pendingRequestIdentifierKey)
         }
         NotificationCenter.default.post(name: didSelectRecord, object: nil)
     }
@@ -69,6 +80,18 @@ enum WhisperNotificationRoute {
 
         UserDefaults.standard.removeObject(forKey: pendingEncounterIDKey)
         return encounterID
+    }
+
+    @MainActor
+    static func consumePendingRequestIdentifier() -> String? {
+        guard let identifier = UserDefaults.standard.string(
+            forKey: pendingRequestIdentifierKey
+        ) else {
+            return nil
+        }
+
+        UserDefaults.standard.removeObject(forKey: pendingRequestIdentifierKey)
+        return identifier
     }
 }
 
@@ -114,7 +137,8 @@ final class WhisperAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificat
             WhisperNotificationRoute.store(
                 recordID,
                 commitmentID: commitmentID,
-                encounterID: encounterID
+                encounterID: encounterID,
+                requestIdentifier: response.notification.request.identifier
             )
         }
     }

@@ -16,6 +16,17 @@ struct FocusReminderNotificationCopy: Equatable, Sendable {
 }
 
 enum WhisperNotificationContentPolicy {
+    nonisolated static func commitmentReminderBody(
+        quote: String,
+        showPreview: Bool
+    ) -> String {
+        guard showPreview else {
+            return "기억해 둔 마음이 다시 찾아왔어요."
+        }
+
+        return "“\(String(quote.prefix(90)))” 그날의 마음이 다시 찾아왔어요."
+    }
+
     nonisolated static func focusReminderCopy(
         title: String,
         content: String,

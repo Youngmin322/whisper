@@ -122,6 +122,7 @@ private struct MainTabView: View {
         let recordID = WhisperNotificationRoute.consumePendingRecordID()
         let commitmentID = WhisperNotificationRoute.consumePendingCommitmentID()
         let encounterID = WhisperNotificationRoute.consumePendingEncounterID()
+        let requestIdentifier = WhisperNotificationRoute.consumePendingRequestIdentifier()
 
         if let recordID {
             selectedTab = .home
@@ -130,12 +131,13 @@ private struct MainTabView: View {
                 NotificationRecordRoute(
                     recordID: recordID,
                     commitmentID: commitmentID,
-                    encounterID: encounterID
+                    encounterID: encounterID,
+                    requestIdentifier: requestIdentifier
                 )
             )
         }
 
-        // 알림 열기는 탐색만 담당합니다. 다음 일정은 사용자의 명시적 반응 뒤에 정해요.
+        // 알림 열기는 탐색만 담당합니다. 일정 변경은 명시적인 쉬기/놓아주기에서만 해요.
     }
 
     private func synchronizeReminderState() async {
@@ -153,6 +155,7 @@ private struct NotificationRecordRoute: Hashable {
     let recordID: UUID
     let commitmentID: UUID?
     let encounterID: UUID?
+    let requestIdentifier: String?
 }
 
 private struct NotificationRecordDestination: View {
@@ -164,7 +167,9 @@ private struct NotificationRecordDestination: View {
             RecordDetailView(
                 record: record,
                 recordStore: recordStore,
-                reminderEncounterID: route.encounterID
+                reminderEncounterID: route.encounterID,
+                reminderCommitmentID: route.commitmentID,
+                reminderRequestIdentifier: route.requestIdentifier
             )
         } else {
             ContentUnavailableView(

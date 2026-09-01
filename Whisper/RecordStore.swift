@@ -517,7 +517,7 @@ final class RecordStore {
     func reminderRecoveryPlans(at date: Date = .now) -> [CommitmentReminderPlan] {
         commitments.compactMap { commitment in
             guard commitment.lifecycleStatus(at: date) == .active,
-                  !hasUnresolvedScheduledEncounter(for: commitment.id, at: date)
+                  !hasFutureScheduledEncounter(for: commitment.id, at: date)
             else {
                 return nil
             }
@@ -605,14 +605,12 @@ final class RecordStore {
 
             guard commitment.lifecycleStatus(at: date) == .active else { return nil }
 
-            let unresolvedPastEncounter = encounters.contains { encounter in
+            let pastEncounterWithoutPreferenceChange = encounters.contains { encounter in
                 encounter.commitmentID == commitment.id
                     && encounter.notificationIdentifier != nil
                     && encounter.reaction == nil
                     && encounter.scheduledAt <= date
             }
-            guard !unresolvedPastEncounter else { return nil }
-
             let slotDates = notificationSlots
                 .filter {
                     $0.sourceStorage == WhisperNotificationSource.commitment.rawValue
@@ -633,6 +631,12 @@ final class RecordStore {
                 .map(\.scheduledAt)
                 .sorted()
             let retainedDates = slotDates.isEmpty ? encounterDates : slotDates
+
+            // 아무 선택도 하지 않은 만남은 기본적으로 계속 기억하는 것으로 봐요.
+            // 이미 잡힌 미래 알림은 그대로 두고, 모두 소진된 뒤에만 복구 일정을 만들어요.
+            if pastEncounterWithoutPreferenceChange && !retainedDates.isEmpty {
+                return nil
+            }
 
             let plan: CommitmentReminderPlan
             if !retainedDates.isEmpty {
@@ -663,7 +667,7 @@ final class RecordStore {
         }
     }
 
-    func activeCommitmentIDsAwaitingResponse(
+    func commitmentIDsPreservingFutureReminders(
         at date: Date = .now
     ) -> Set<UUID> {
         Set(commitments.compactMap { commitment in
@@ -685,7 +689,7 @@ final class RecordStore {
         explicitlyReplanningCommitmentID: UUID? = nil,
         at date: Date = .now
     ) -> Set<String> {
-        var protectedCommitmentIDs = activeCommitmentIDsAwaitingResponse(at: date)
+        var protectedCommitmentIDs = commitmentIDsPreservingFutureReminders(at: date)
         if let explicitlyReplanningCommitmentID {
             protectedCommitmentIDs.remove(explicitlyReplanningCommitmentID)
         }
@@ -1116,6 +1120,7 @@ final class RecordStore {
 
     @discardableResult
     func addEncounter(
+        id: UUID = UUID(),
         commitmentID: UUID,
         scheduledAt: Date,
         notificationIdentifier: String? = nil
@@ -1130,6 +1135,7 @@ final class RecordStore {
         }
 
         let encounter = ReminderEncounter(
+            id: id,
             commitmentID: commitmentID,
             scheduledAt: scheduledAt,
             notificationIdentifier: notificationIdentifier
@@ -1411,19 +1417,30 @@ final class RecordStore {
             commitment.pausedUntil = nil
             commitment.releasedAt = date
             commitment.nextReminderAt = nil
+
+            guard let modelContext else {
+                setUnavailablePersistenceError()
+                return false
+            }
+            notificationSlots
+                .filter {
+                    $0.sourceStorage == WhisperNotificationSource.commitment.rawValue
+                        && $0.commitmentID == commitment.id
+                        && $0.consumedAt == nil
+                        && $0.scheduledAt > date
+                }
+                .forEach(modelContext.delete)
+            encounters
+                .filter {
+                    $0.commitmentID == commitment.id
+                        && $0.presentedAt == nil
+                        && $0.openedAt == nil
+                        && $0.scheduledAt > date
+                }
+                .forEach(modelContext.delete)
         }
 
-        let commitmentID = commitment.id
-        let didSave = saveChanges()
-        if didSave && reaction == .release {
-            Task {
-                await CommitmentReminderCoordinator.cancel(
-                    commitmentIDs: [commitmentID],
-                    in: self
-                )
-            }
-        }
-        return didSave
+        return saveChanges(reloadAfterSave: reaction == .release)
     }
 
     func recordCount(inWeekOf date: Date = .now, calendar: Calendar = .current) -> Int {
@@ -1605,18 +1622,16 @@ final class RecordStore {
         )
     }
 
-    private func hasUnresolvedScheduledEncounter(
+    private func hasFutureScheduledEncounter(
         for commitmentID: UUID,
         at date: Date
     ) -> Bool {
         encounters.contains { encounter in
             encounter.commitmentID == commitmentID
                 && encounter.notificationIdentifier != nil
-                && encounter.reaction == nil
-                && (
-                    encounter.scheduledAt <= date
-                        || (encounter.openedAt == nil && encounter.scheduledAt > date)
-                )
+                && encounter.presentedAt == nil
+                && encounter.openedAt == nil
+                && encounter.scheduledAt > date
         }
     }
 

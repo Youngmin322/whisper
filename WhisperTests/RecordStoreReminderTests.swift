@@ -142,8 +142,29 @@ struct RecordStoreReminderTests {
         #expect(store.commitments.first?.lastReadAt == now)
     }
 
-    @Test("알림을 읽고 반응하지 않으면 자동으로 다음 알림을 만들지 않는다")
-    func waitsForReactionAfterOpeningReminder() throws {
+    @Test("알림 경로의 만남 식별자로 누락된 만남 상태를 복원할 수 있다")
+    func restoresEncounterUsingNotificationIdentifier() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let encounterID = UUID()
+
+        let encounter = try #require(
+            store.addEncounter(
+                id: encounterID,
+                commitmentID: plan.id,
+                scheduledAt: now,
+                notificationIdentifier: "test.route.restore"
+            )
+        )
+
+        #expect(encounter.id == encounterID)
+        #expect(store.markEncounterOpened(encounterID, at: now))
+        #expect(store.encounters.first(where: { $0.id == encounterID })?.openedAt == now)
+    }
+
+    @Test("알림을 읽고 아무것도 바꾸지 않으면 활성 상태로 다음 만남을 이어간다")
+    func keepsCommitmentActiveWithoutCreatingKeepReaction() throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let plan = try #require(makeCommitment(in: store, now: now))
@@ -151,22 +172,32 @@ struct RecordStoreReminderTests {
             store.addEncounter(
                 commitmentID: plan.id,
                 scheduledAt: now.addingTimeInterval(-60),
-                notificationIdentifier: "test.opened.awaiting-response"
+                notificationIdentifier: "test.opened.implicit-keep"
             )
         )
 
         #expect(store.markEncounterOpened(encounter.id, at: now))
-        #expect(store.activeCommitmentIDsAwaitingResponse(at: now) == [plan.id])
-        #expect(store.reminderAllocationInputs(overriding: nil, at: now).isEmpty)
+        #expect(store.encounters.first(where: { $0.id == encounter.id })?.reaction == nil)
+        #expect(store.commitments.first?.lifecycleStatus(at: now) == .active)
+        #expect(store.reminderAllocationInputs(overriding: nil, at: now).map(\.plan.id) == [plan.id])
+    }
+
+    @Test("기존 계속 기억하기 응답은 그대로 읽을 수 있다")
+    func preservesLegacyKeepReaction() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let encounter = try #require(
+            store.addEncounter(
+                commitmentID: plan.id,
+                scheduledAt: now.addingTimeInterval(-60),
+                notificationIdentifier: "test.legacy.keep"
+            )
+        )
 
         #expect(store.react(to: encounter.id, with: .keep, at: now))
-        let nextPlan = try #require(
-            store.nextReminderPlanAfterKeeping(commitmentID: plan.id, now: now)
-        )
-        #expect(
-            store.reminderAllocationInputs(overriding: nextPlan, at: now).map(\.plan.id)
-                == [plan.id]
-        )
+        #expect(store.encounters.first(where: { $0.id == encounter.id })?.reaction == .keep)
+        #expect(store.commitments.first?.lifecycleStatus(at: now) == .active)
     }
 
     @Test("잠시 멈춤과 놓아주기가 결심 상태를 올바르게 바꾼다")
@@ -200,6 +231,63 @@ struct RecordStoreReminderTests {
         #expect(releasedStore.react(to: releasedEncounter.id, with: .release, at: now))
         #expect(releasedStore.commitments.first?.lifecycleStatus(at: now) == .released)
         #expect(releasedStore.commitments.first?.nextReminderAt == nil)
+    }
+
+    @Test("놓아주기는 기록을 남기고 저장된 미래 알림 상태를 모두 지운다")
+    func releaseRemovesFutureReminderStateButKeepsRecord() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let currentReminder = ScheduledCommitmentReminder(
+            encounterID: UUID(),
+            requestIdentifier: "test.release.current",
+            date: now.addingTimeInterval(-60)
+        )
+        let futureReminder = ScheduledCommitmentReminder(
+            encounterID: UUID(),
+            requestIdentifier: "test.release.future",
+            date: now.addingTimeInterval(24 * 60 * 60)
+        )
+
+        #expect(
+            store.replaceReminderSchedule(
+                replacingRequestIdentifiers: [],
+                remindersByCommitment: [plan.id: [currentReminder, futureReminder]],
+                slotDrafts: [
+                    NotificationDaySlotDraft(
+                        dayKey: WhisperNotificationDayKey.make(for: currentReminder.date),
+                        scheduledAt: currentReminder.date,
+                        requestIdentifier: currentReminder.requestIdentifier,
+                        sourceStorage: WhisperNotificationSource.commitment.rawValue,
+                        commitmentID: plan.id,
+                        recordID: plan.sourceRecordID,
+                        consumedAt: currentReminder.date,
+                        createdAt: now
+                    ),
+                    NotificationDaySlotDraft(
+                        dayKey: WhisperNotificationDayKey.make(for: futureReminder.date),
+                        scheduledAt: futureReminder.date,
+                        requestIdentifier: futureReminder.requestIdentifier,
+                        sourceStorage: WhisperNotificationSource.commitment.rawValue,
+                        commitmentID: plan.id,
+                        recordID: plan.sourceRecordID,
+                        createdAt: now
+                    )
+                ],
+                at: now
+            )
+        )
+
+        #expect(store.react(to: currentReminder.encounterID, with: .release, at: now))
+        #expect(store.records.count == 1)
+        #expect(store.commitments.first?.lifecycleStatus(at: now) == .released)
+        #expect(store.notificationSlot(requestIdentifier: futureReminder.requestIdentifier) == nil)
+        #expect(!store.encounters.contains(where: {
+            $0.notificationIdentifier == futureReminder.requestIdentifier
+        }))
+        #expect(store.encounters.first(where: {
+            $0.notificationIdentifier == currentReminder.requestIdentifier
+        })?.reaction == .release)
     }
 
     @Test("알림이 없는 활성 결심은 보존한 예정 시각으로 복구한다")

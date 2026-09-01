@@ -497,9 +497,10 @@ enum CommitmentReminderScheduler {
     ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = "과거의 불꽃"
-        content.body = showPreview
-            ? "“\(String(plan.quote.prefix(90)))” 그 마음은 지금도 남아 있나요?"
-            : "기억해 둔 마음을 다시 만나볼까요?"
+        content.body = WhisperNotificationContentPolicy.commitmentReminderBody(
+            quote: plan.quote,
+            showPreview: showPreview
+        )
         content.sound = .default
         content.threadIdentifier = "whisper.commitments"
         content.userInfo = [

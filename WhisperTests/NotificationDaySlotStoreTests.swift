@@ -375,8 +375,8 @@ struct NotificationDaySlotStoreTests {
         #expect(store.commitments.first(where: { $0.id == reading.id })?.nextReminderAt == newReading.date)
     }
 
-    @Test("과거 알림에 응답하기 전에는 그 결심의 미래 알림을 보호한다")
-    func protectsFutureReminderWhileAwaitingPastResponse() throws {
+    @Test("과거 알림을 열기만 해도 그 결심의 기존 미래 알림을 보호한다")
+    func preservesFutureReminderAfterOpeningPastEncounter() throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let plan = try #require(makeCommitment(named: "걷기", in: store, now: now))
@@ -416,11 +416,19 @@ struct NotificationDaySlotStoreTests {
             )
         )
 
-        #expect(store.activeCommitmentIDsAwaitingResponse(at: now) == [plan.id])
+        #expect(store.markEncounterOpened(pastReminder.encounterID, at: now))
+        #expect(store.markEncounterOpened(pastReminder.encounterID, at: now.addingTimeInterval(60)))
+        #expect(store.commitmentIDsPreservingFutureReminders(at: now) == [plan.id])
         #expect(store.replaceableFutureCommitmentRequestIdentifiers(at: now).isEmpty)
+        #expect(store.reminderAllocationInputs(overriding: nil, at: now).isEmpty)
+        #expect(store.notificationSlot(requestIdentifier: futureReminder.requestIdentifier) != nil)
+        #expect(store.encounters.first(where: {
+            $0.id == pastReminder.encounterID
+        })?.reaction == nil)
+        #expect(store.commitments.first?.encounterCount == 1)
     }
 
-    @Test("사용자가 반응해 명시적으로 재계획하면 보호 중인 미래 알림도 교체한다")
+    @Test("사용자가 명시적으로 재계획하면 보호 중인 미래 알림도 교체한다")
     func explicitReplanCanReplaceProtectedFutureReminder() throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
         let now = Date(timeIntervalSince1970: 1_800_000_000)
@@ -461,6 +469,16 @@ struct NotificationDaySlotStoreTests {
             )
         )
 
+        let pausedUntil = now.addingTimeInterval(14 * 24 * 60 * 60)
+        #expect(
+            store.react(
+                to: pastReminder.encounterID,
+                with: .pause,
+                pausedUntil: pausedUntil,
+                at: now
+            )
+        )
+        #expect(store.pausedReminderPlan(for: plan.id)?.reminderDates == [pausedUntil])
         #expect(
             store.replaceableFutureCommitmentRequestIdentifiers(
                 explicitlyReplanningCommitmentID: plan.id,
