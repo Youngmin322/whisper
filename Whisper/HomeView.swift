@@ -72,9 +72,10 @@ struct HomeView: View {
                     presentedCommitmentCandidate = nil
                 }
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.height(360), .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
+            .presentationBackground(Color.whisperBackground)
         }
         .onChange(of: isDetailRecordPresented) { _, isPresented in
             guard !isPresented else { return }
