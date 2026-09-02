@@ -12,28 +12,26 @@ struct CommitmentCandidateSheet: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        ScrollView {
+        VStack(spacing: 0) {
             sheetContent
+            actionBar
         }
-        .scrollIndicators(.hidden)
-        .scrollBounceBehavior(.basedOnSize)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 2) {
-                Button("응, 간직해줘", action: onRemember)
+        .background(Color.whisperBackground)
+        .accessibilityIdentifier("commitment.candidateSheet")
+    }
+
+    private var actionBar: some View {
+        VStack(spacing: 8) {
+            Button("응, 간직해줘", action: onRemember)
                 .buttonStyle(.whisperPrimary(size: .compact))
                 .accessibilityIdentifier("commitment.rememberButton")
 
-                Button("이번에는 괜찮아요", action: onDismiss)
-                    .font(.whisperControl)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-            }
-            .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-            .padding(.top, 10)
-            .padding(.bottom, 12)
-            .background(.bar)
+            Button("이번에는 괜찮아요", action: onDismiss)
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .accessibilityIdentifier("commitment.candidateSheet")
+        .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
     }
 
     private var sheetContent: some View {
@@ -79,7 +77,7 @@ struct CommitmentCandidateSheet: View {
             )
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-        .padding(.top, 12)
-        .padding(.bottom, 12)
+        .padding(.top, 24)
+        .padding(.bottom, 16)
     }
 }
