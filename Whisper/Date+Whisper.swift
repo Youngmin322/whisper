@@ -15,7 +15,7 @@ extension Date {
                 .weekday(.wide)
         )
     }
-
+    
     var whisperFullDayDescription: String {
         formatted(
             Date.FormatStyle()
@@ -26,7 +26,7 @@ extension Date {
                 .weekday(.wide)
         )
     }
-
+    
     var whisperRecordHeaderDescription: String {
         let date = formatted(
             Date.FormatStyle()
@@ -42,7 +42,7 @@ extension Date {
         )
         return "\(date) · \(weekday)"
     }
-
+    
     var whisperTimeDescription: String {
         formatted(
             Date.FormatStyle()
@@ -51,7 +51,7 @@ extension Date {
                 .minute()
         )
     }
-
+    
     var whisperDateDescription: String {
         formatted(
             Date.FormatStyle()
@@ -61,7 +61,7 @@ extension Date {
                 .day()
         )
     }
-
+    
     var whisperDateTimeDescription: String {
         formatted(
             Date.FormatStyle()

@@ -43,14 +43,14 @@ nonisolated enum CommitmentPreferredPeriod: String, Codable, CaseIterable, Senda
 
 nonisolated struct CommitmentReminderProfile: Codable, Equatable, Sendable {
     static let currentVersion = 1
-
+    
     let version: Int
     let timeSensitivity: CommitmentTimeSensitivity
     let actionability: CommitmentActionability
     let effort: CommitmentEffort
     let cadence: CommitmentCadence
     let preferredPeriod: CommitmentPreferredPeriod
-
+    
     init(
         version: Int = currentVersion,
         timeSensitivity: CommitmentTimeSensitivity = .unspecified,
@@ -66,7 +66,7 @@ nonisolated struct CommitmentReminderProfile: Codable, Equatable, Sendable {
         self.cadence = cadence
         self.preferredPeriod = preferredPeriod
     }
-
+    
     static let fallback = CommitmentReminderProfile()
 }
 
@@ -83,7 +83,7 @@ struct ReminderBehaviorSummary: Sendable {
     let lastReaction: ReminderEncounterReaction?
     let preferredOpenHour: Int?
     let lastEncounteredAt: Date?
-
+    
     static let empty = ReminderBehaviorSummary(
         consecutiveUnopenedCount: 0,
         notificationsLast7Days: 0,
@@ -108,7 +108,7 @@ enum CommitmentReminderPolicy {
         intervalHours *= cadenceMultiplier(profile.cadence)
         intervalHours *= unopenedMultiplier(behavior.consecutiveUnopenedCount)
         intervalHours *= recentVolumeMultiplier(behavior.notificationsLast7Days)
-
+        
         let boundedHours = min(2_160, max(6, Int(intervalHours.rounded())))
         let earliest = now.addingTimeInterval(TimeInterval(boundedHours * 60 * 60))
         return alignedDate(
@@ -118,7 +118,7 @@ enum CommitmentReminderPolicy {
             calendar: calendar
         )
     }
-
+    
     private static func baseIntervalHours(
         for sensitivity: CommitmentTimeSensitivity
     ) -> Double {
@@ -130,7 +130,7 @@ enum CommitmentReminderPolicy {
         case .unspecified: 72
         }
     }
-
+    
     private static func eventMultiplier(_ event: CommitmentReminderPolicyEvent) -> Double {
         switch event {
         case .remembered: 1
@@ -139,7 +139,7 @@ enum CommitmentReminderPolicy {
         case .recovery: 1
         }
     }
-
+    
     private static func actionabilityMultiplier(
         _ actionability: CommitmentActionability
     ) -> Double {
@@ -150,7 +150,7 @@ enum CommitmentReminderPolicy {
         case .unspecified: 1
         }
     }
-
+    
     private static func effortMultiplier(_ effort: CommitmentEffort) -> Double {
         switch effort {
         case .light: 0.75
@@ -159,7 +159,7 @@ enum CommitmentReminderPolicy {
         case .unspecified: 1
         }
     }
-
+    
     private static func cadenceMultiplier(_ cadence: CommitmentCadence) -> Double {
         switch cadence {
         case .oneOff: 1
@@ -168,7 +168,7 @@ enum CommitmentReminderPolicy {
         case .unspecified: 1
         }
     }
-
+    
     private static func unopenedMultiplier(_ count: Int) -> Double {
         switch max(0, count) {
         case 0: 1
@@ -177,7 +177,7 @@ enum CommitmentReminderPolicy {
         default: 4
         }
     }
-
+    
     private static func recentVolumeMultiplier(_ count: Int) -> Double {
         switch max(0, count) {
         case 0...1: 1
@@ -185,7 +185,7 @@ enum CommitmentReminderPolicy {
         default: 1.75
         }
     }
-
+    
     private static func alignedDate(
         _ date: Date,
         profile: CommitmentReminderProfile,
@@ -193,24 +193,24 @@ enum CommitmentReminderPolicy {
         calendar: Calendar
     ) -> Date {
         let preferredHour = behavior.preferredOpenHour
-            ?? preferredHour(for: profile.preferredPeriod)
+        ?? preferredHour(for: profile.preferredPeriod)
         guard let preferredHour,
               let aligned = calendar.date(
-                  bySettingHour: preferredHour,
-                  minute: 0,
-                  second: 0,
-                  of: date
+                bySettingHour: preferredHour,
+                minute: 0,
+                second: 0,
+                of: date
               )
         else {
             return date
         }
-
+        
         if aligned >= date {
             return aligned
         }
         return calendar.date(byAdding: .day, value: 1, to: aligned) ?? date
     }
-
+    
     private static func preferredHour(
         for period: CommitmentPreferredPeriod
     ) -> Int? {

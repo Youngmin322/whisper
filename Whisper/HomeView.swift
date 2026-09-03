@@ -155,7 +155,7 @@ struct HomeView: View {
         .padding(16)
         .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle, cornerRadius: WhisperRadius.large)
     }
-
+    
     @ViewBuilder
     private func rhythmDay(date: Date, title: String) -> some View {
         if recordStore.hasRecord(on: date, calendar: calendar) {
@@ -180,21 +180,21 @@ struct HomeView: View {
                 .accessibilityLabel("\(date.whisperFullDayDescription), 기록 없음")
         }
     }
-
+    
     private func rhythmDayLabel(date: Date, title: String) -> some View {
         let isToday = calendar.isDateInToday(date)
         let hasRecord = recordStore.hasRecord(on: date, calendar: calendar)
-
+        
         return VStack(spacing: 7) {
             Text(title)
                 .font(.whisperCaption)
                 .foregroundStyle(Color.whisperTextSecondary)
-
+            
             ZStack {
                 Circle()
                     .fill(isToday ? Color.whisperAccent : Color.whisperSurfaceSubtle)
                     .frame(width: 28, height: 28)
-
+                
                 if hasRecord {
                     Image(systemName: "flame.fill")
                         .font(.system(size: 13, weight: .semibold))
@@ -227,7 +227,7 @@ struct HomeView: View {
             waitingMemoryCard
         }
     }
-
+    
     private func resurfacingCard(for commitment: WhisperCommitment) -> some View {
         return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
@@ -238,12 +238,12 @@ struct HomeView: View {
                 Text(commitment.name)
                     .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.whisperTextPrimary)
-
+                
                 Text("“\(commitment.quote)”")
                     .font(.whisperMetadata)
                     .foregroundStyle(Color.whisperTextSecondary)
                     .lineLimit(2)
-
+                
                 Text("그날의 마음이 다시 찾아왔어요.")
                     .font(.whisperMetadata)
                     .foregroundStyle(Color.whisperTextSecondary)
@@ -258,35 +258,35 @@ struct HomeView: View {
         .whisperCardStyle(fill: .whisperSurfaceSubtle, border: .whisperBorderSubtle, cornerRadius: WhisperRadius.large)
         .contentShape(Rectangle())
     }
-
+    
     private var waitingMemoryCard: some View {
         let activeCommitmentCount = recordStore.commitments.filter(\.isActive).count
-
+        
         return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Whisper가 기억하는 불꽃")
                     .font(.whisperControl)
                     .foregroundStyle(Color.whisperAccentText)
-
+                
                 Text(
                     activeCommitmentCount == 0
-                        ? "아직 기억 중인 결심이 없어요"
-                        : "\(activeCommitmentCount)개의 마음을 간직하고 있어요"
+                    ? "아직 기억 중인 결심이 없어요"
+                    : "\(activeCommitmentCount)개의 마음을 간직하고 있어요"
                 )
-                    .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.whisperTextPrimary)
-
+                .font(.whisperBodyEmphasis)
+                .foregroundStyle(Color.whisperTextPrimary)
+                
                 Text(
                     activeCommitmentCount == 0
-                        ? "기록 속 결심이 보이면 기억할지 물어볼게요."
-                        : "잊고 지낼 즈음, 그날의 마음을 조용히 다시 건넬게요."
+                    ? "기록 속 결심이 보이면 기억할지 물어볼게요."
+                    : "잊고 지낼 즈음, 그날의 마음을 조용히 다시 건넬게요."
                 )
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperTextSecondary)
             }
-
+            
             Spacer(minLength: 4)
-
+            
             WhisperJar(size: .small)
         }
         .padding(18)
@@ -296,18 +296,18 @@ struct HomeView: View {
             cornerRadius: WhisperRadius.large
         )
     }
-
+    
     private var dueCommitment: WhisperCommitment? {
         recordStore.commitments.first {
             $0.lifecycleStatus() == .active
-                && ($0.nextReminderAt ?? .distantFuture) <= .now
+            && ($0.nextReminderAt ?? .distantFuture) <= .now
         }
     }
-
+    
     private var hasTodayRecord: Bool {
         recordStore.hasRecord(on: .now, calendar: calendar)
     }
-
+    
     private func saveDraft(
         emotion: String? = nil,
         photoData: Data? = nil
@@ -315,7 +315,7 @@ struct HomeView: View {
         let title = recordDraft.titleForSaving
         let content = recordDraft.contentForSaving
         let existingCommitments = recordStore.activeCommitmentSnapshots
-
+        
         guard let savedRecord = recordStore.addAndReturn(
             title: title,
             content: content,
@@ -324,7 +324,7 @@ struct HomeView: View {
         ) else {
             return false
         }
-
+        
         recordDraft = RecordDraft()
         analyzeSavedRecord(
             savedRecord,
@@ -334,7 +334,7 @@ struct HomeView: View {
         )
         return true
     }
-
+    
     private func openDetailAfterSheetDismissesIfNeeded() {
         if shouldOpenDetailAfterSheetDismisses {
             shouldOpenDetailAfterSheetDismisses = false
@@ -343,7 +343,7 @@ struct HomeView: View {
             presentPendingCommitmentCandidateIfPossible()
         }
     }
-
+    
     private func analyzeSavedRecord(
         _ record: WhisperRecord,
         title: String,
@@ -357,10 +357,10 @@ struct HomeView: View {
                 content: content,
                 activeCommitments: existingCommitments
             )
-
+            
             // 분석 중 사용자가 원본 기록을 삭제했다면 뒤늦은 결과를 적용하지 않아요.
             guard recordStore.record(withID: record.id) != nil else { return }
-
+            
             if let continuedCommitmentID = analysis.continuedCommitmentID,
                let plan = recordStore.continueCommitment(
                 continuedCommitmentID,
@@ -371,14 +371,14 @@ struct HomeView: View {
                     isReminderUnavailablePresented = true
                 }
             }
-
+            
             if let candidate = analysis.candidate {
                 pendingCommitmentCandidates.append(candidate)
             }
             presentPendingCommitmentCandidateIfPossible()
         }
     }
-
+    
     private func presentPendingCommitmentCandidateIfPossible() {
         guard !isQuickRecordPresented,
               !isDetailRecordPresented,
@@ -387,11 +387,11 @@ struct HomeView: View {
         else {
             return
         }
-
+        
         pendingCommitmentCandidates.removeFirst()
         presentedCommitmentCandidate = candidate
     }
-
+    
     private func remember(
         _ candidate: CommitmentCandidate,
         firstReminderDate: Date?
@@ -406,7 +406,7 @@ struct HomeView: View {
         ) else {
             return
         }
-
+        
         Task {
             let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
             if result != .scheduled {
@@ -418,16 +418,16 @@ struct HomeView: View {
     private var calendar: Calendar {
         Calendar(identifier: .iso8601)
     }
-
+    
     private var weekdayTitles: [String] {
         ["월", "화", "수", "목", "금", "토", "일"]
     }
-
+    
     private var weekDates: [Date] {
         guard let week = calendar.dateInterval(of: .weekOfYear, for: .now) else {
             return []
         }
-
+        
         return (0..<7).compactMap {
             calendar.date(byAdding: .day, value: $0, to: week.start)
         }
@@ -436,7 +436,7 @@ struct HomeView: View {
 
 private struct HomePreview: View {
     private let recordStore: RecordStore
-
+    
     init() {
         let store = RecordStore(isStoredInMemoryOnly: true)
         let oldDate = Calendar.current.date(byAdding: .day, value: -84, to: .now) ?? .now
@@ -457,7 +457,7 @@ private struct HomePreview: View {
         }
         recordStore = store
     }
-
+    
     var body: some View {
         NavigationStack {
             HomeView(recordStore: recordStore)

@@ -13,9 +13,9 @@ enum WhisperEmotion: String, CaseIterable, Identifiable {
     case excitement = "설렘"
     case tired = "지침"
     case anxiety = "불안"
-
+    
     var id: String { rawValue }
-
+    
     var systemImage: String {
         switch self {
         case .calm: "leaf.fill"
@@ -31,7 +31,7 @@ enum WhisperEmotion: String, CaseIterable, Identifiable {
 struct EmotionPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedEmotion: String?
-
+    
     var body: some View {
         NavigationStack {
             List {
@@ -41,7 +41,7 @@ struct EmotionPickerView: View {
                 } label: {
                     emotionRow(title: "선택 안 함", systemImage: "circle.dashed")
                 }
-
+                
                 ForEach(WhisperEmotion.allCases) { emotion in
                     Button {
                         selectedEmotion = emotion.rawValue
@@ -65,19 +65,19 @@ struct EmotionPickerView: View {
             }
         }
     }
-
+    
     private func emotionRow(title: String, systemImage: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: systemImage)
                 .foregroundStyle(Color.whisperAccent)
                 .frame(width: 24)
-
+            
             Text(title)
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
-
+            
             Spacer()
-
+            
             if selectedEmotion == (title == "선택 안 함" ? nil : title) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color.whisperAccent)
@@ -89,7 +89,7 @@ struct EmotionPickerView: View {
 
 private struct EmotionPickerPreview: View {
     @State private var emotion: String? = WhisperEmotion.calm.rawValue
-
+    
     var body: some View {
         EmotionPickerView(selectedEmotion: $emotion)
     }

@@ -29,21 +29,21 @@ enum WhisperNotificationDayKey {
 
 actor WhisperNotificationScheduleGate {
     static let shared = WhisperNotificationScheduleGate()
-
+    
     private var isLocked = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
-
+    
     func acquire() async {
         if !isLocked {
             isLocked = true
             return
         }
-
+        
         await withCheckedContinuation { continuation in
             waiters.append(continuation)
         }
     }
-
+    
     func release() {
         guard !waiters.isEmpty else {
             isLocked = false
@@ -63,11 +63,11 @@ struct CommitmentNotificationState: Sendable {
     let pendingRequestIdentifiers: Set<String>
     let deliveredRequestIdentifiers: Set<String>
     let deliveredEncounterDates: [UUID: Date]
-
+    
     var managedRequestIdentifiers: Set<String> {
         pendingRequestIdentifiers.union(deliveredRequestIdentifiers)
     }
-
+    
     func orphanedRequestIdentifiers(
         trackedRequestIdentifiers: Set<String>
     ) -> Set<String> {
@@ -111,7 +111,7 @@ fileprivate enum CommitmentReminderDebugScheduleResult: Sendable {
 
 enum CommitmentReminderSchedulerError: LocalizedError {
     case noAvailableSchedule
-
+    
     var errorDescription: String? {
         switch self {
         case .noAvailableSchedule:
@@ -124,7 +124,7 @@ enum CommitmentReminderScheduler {
     nonisolated static let showPreviewStorageKey = "whisper.commitment.showNotificationPreview"
     static let allowedStartHourStorageKey = "whisper.commitment.allowedStartHour"
     static let allowedEndHourStorageKey = "whisper.commitment.allowedEndHour"
-
+    
     private static let defaultAllowedStartHour = 9
     private static let defaultAllowedEndHour = 21
     private static let maximumCommitmentNotificationsPerDay = 1
@@ -134,11 +134,11 @@ enum CommitmentReminderScheduler {
 #if DEBUG
     static let debugRequestPrefix = "whisper.debug.commitment."
 #endif
-
+    
     static func adjustedToAllowedReminderHours(_ date: Date) -> Date {
         adjustedToAllowedHours(date, calendar: .current)
     }
-
+    
     fileprivate static func allocationPolicy(
         at date: Date,
         calendar: Calendar = .current
@@ -153,7 +153,7 @@ enum CommitmentReminderScheduler {
             horizonDays: 90
         )
     }
-
+    
     fileprivate static func schedule(
         _ allocation: CommitmentReminderAllocation,
         inputs: [CommitmentReminderAllocationInput],
@@ -165,7 +165,7 @@ enum CommitmentReminderScheduler {
                 return .authorizationUnavailable
             }
         }
-
+        
         let plansByID = inputs.reduce(into: [UUID: CommitmentReminderPlan]()) {
             result,
             input in
@@ -174,13 +174,13 @@ enum CommitmentReminderScheduler {
         guard allocation.assignments.allSatisfy({ plansByID[$0.commitmentID] != nil }) else {
             throw CommitmentReminderSchedulerError.noAvailableSchedule
         }
-
+        
         let previousPendingRequests = await center.pendingNotificationRequests()
             .filter { replacingRequestIdentifiers.contains($0.identifier) }
         center.removePendingNotificationRequests(
             withIdentifiers: Array(replacingRequestIdentifiers)
         )
-
+        
         guard !allocation.assignments.isEmpty else {
             return .scheduled(
                 remindersByCommitment: [:],
@@ -191,12 +191,12 @@ enum CommitmentReminderScheduler {
                 )
             )
         }
-
+        
         let showPreview = UserDefaults.standard.bool(forKey: showPreviewStorageKey)
         let calendar = Calendar.current
         var remindersByCommitment: [UUID: [ScheduledCommitmentReminder]] = [:]
         var newRequestIdentifiers: [String] = []
-
+        
         do {
             for assignment in allocation.assignments.sorted(by: {
                 if $0.scheduledDate != $1.scheduledDate {
@@ -239,7 +239,7 @@ enum CommitmentReminderScheduler {
             )
             throw error
         }
-
+        
         return .scheduled(
             remindersByCommitment: remindersByCommitment,
             replacementToken: CommitmentReminderReplacementToken(
@@ -249,7 +249,7 @@ enum CommitmentReminderScheduler {
             )
         )
     }
-
+    
     fileprivate static func rollback(
         _ token: CommitmentReminderReplacementToken
     ) async {
@@ -259,7 +259,7 @@ enum CommitmentReminderScheduler {
             using: UNUserNotificationCenter.current()
         )
     }
-
+    
     fileprivate static func commit(
         _ token: CommitmentReminderReplacementToken
     ) {
@@ -269,7 +269,7 @@ enum CommitmentReminderScheduler {
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
-
+    
     fileprivate static func cancel(commitmentIDs: [UUID]) async {
         guard !commitmentIDs.isEmpty else { return }
         let center = UNUserNotificationCenter.current()
@@ -289,14 +289,14 @@ enum CommitmentReminderScheduler {
             }
         )
     }
-
+    
     fileprivate static func cancel(requestIdentifiers: [String]) async {
         guard !requestIdentifiers.isEmpty else { return }
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: requestIdentifiers)
         center.removeDeliveredNotifications(withIdentifiers: requestIdentifiers)
     }
-
+    
     private static func rollbackReplacement(
         previousPendingRequests: [UNNotificationRequest],
         newRequestIdentifiers: [String],
@@ -310,7 +310,7 @@ enum CommitmentReminderScheduler {
                 withIdentifiers: newRequestIdentifiers
             )
         }
-
+        
         for request in previousPendingRequests {
             do {
                 try await center.add(request)
@@ -322,13 +322,13 @@ enum CommitmentReminderScheduler {
             }
         }
     }
-
+    
     static func currentNotificationState() async -> CommitmentNotificationState {
         let center = UNUserNotificationCenter.current()
         async let pending = center.pendingNotificationRequests()
         async let delivered = center.deliveredNotifications()
         let (pendingRequests, deliveredNotifications) = await (pending, delivered)
-
+        
         let pendingIdentifiers = Set(
             pendingRequests
                 .filter { isManagedReminderIdentifier($0.identifier) }
@@ -350,14 +350,14 @@ enum CommitmentReminderScheduler {
             }
             result[encounterID] = notification.date
         }
-
+        
         return CommitmentNotificationState(
             pendingRequestIdentifiers: pendingIdentifiers,
             deliveredRequestIdentifiers: deliveredIdentifiers,
             deliveredEncounterDates: deliveredDates
         )
     }
-
+    
     static func occupiedNotificationDates(
         excluding requestIdentifiers: Set<String>
     ) async -> [Date] {
@@ -365,7 +365,7 @@ enum CommitmentReminderScheduler {
         async let pending = center.pendingNotificationRequests()
         async let delivered = center.deliveredNotifications()
         let (pendingRequests, deliveredNotifications) = await (pending, delivered)
-
+        
         let pendingDates = pendingRequests.compactMap { request -> Date? in
             guard request.identifier.hasPrefix(applicationRequestPrefix),
                   !requestIdentifiers.contains(request.identifier)
@@ -385,7 +385,7 @@ enum CommitmentReminderScheduler {
         }
         return pendingDates + deliveredDates
     }
-
+    
     static func isAuthorizationAvailable() async -> Bool {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         switch settings.authorizationStatus {
@@ -397,7 +397,7 @@ enum CommitmentReminderScheduler {
             return false
         }
     }
-
+    
     private static func adjustedToAllowedHours(
         _ date: Date,
         calendar: Calendar
@@ -422,7 +422,7 @@ enum CommitmentReminderScheduler {
         }
         return date
     }
-
+    
     private static var allowedStartHour: Int {
         storedHour(
             forKey: allowedStartHourStorageKey,
@@ -430,7 +430,7 @@ enum CommitmentReminderScheduler {
             validRange: 0...22
         )
     }
-
+    
     private static var allowedEndHour: Int {
         let value = storedHour(
             forKey: allowedEndHourStorageKey,
@@ -439,7 +439,7 @@ enum CommitmentReminderScheduler {
         )
         return max(value, allowedStartHour + 1)
     }
-
+    
     private static func storedHour(
         forKey key: String,
         defaultValue: Int,
@@ -451,7 +451,7 @@ enum CommitmentReminderScheduler {
         let value = UserDefaults.standard.integer(forKey: key)
         return validRange.contains(value) ? value : defaultValue
     }
-
+    
     nonisolated private static func notificationDate(_ request: UNNotificationRequest) -> Date? {
         if let trigger = request.trigger as? UNCalendarNotificationTrigger {
             return trigger.nextTriggerDate()
@@ -461,7 +461,7 @@ enum CommitmentReminderScheduler {
         }
         return nil
     }
-
+    
     private static func notificationRequest(
         identifier: String,
         encounterID: UUID,
@@ -479,7 +479,7 @@ enum CommitmentReminderScheduler {
             plan: plan,
             showPreview: showPreview
         )
-
+        
         return UNNotificationRequest(
             identifier: identifier,
             content: content,
@@ -489,7 +489,7 @@ enum CommitmentReminderScheduler {
             )
         )
     }
-
+    
     private static func notificationContent(
         encounterID: UUID,
         plan: CommitmentReminderPlan,
@@ -508,10 +508,10 @@ enum CommitmentReminderScheduler {
             "commitmentID": plan.id.uuidString,
             "encounterID": encounterID.uuidString
         ]
-
+        
         return content
     }
-
+    
 #if DEBUG
     fileprivate static func scheduleDebugReminder(
         _ plan: CommitmentReminderPlan,
@@ -521,7 +521,7 @@ enum CommitmentReminderScheduler {
         guard try await ensureAuthorization(using: center) else {
             return .authorizationUnavailable
         }
-
+        
         let interval = max(1, delay)
         let date = Date.now.addingTimeInterval(interval)
         let encounterID = UUID()
@@ -549,12 +549,12 @@ enum CommitmentReminderScheduler {
         )
     }
 #endif
-
+    
     private static func ensureAuthorization(
         using center: UNUserNotificationCenter
     ) async throws -> Bool {
         let settings = await center.notificationSettings()
-
+        
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
             return true
@@ -566,15 +566,15 @@ enum CommitmentReminderScheduler {
             return false
         }
     }
-
+    
     static func requestIdentifier(commitmentID: UUID, encounterID: UUID) -> String {
         "\(commitmentRequestPrefix(commitmentID))\(encounterID.uuidString)"
     }
-
+    
     private static func commitmentRequestPrefix(_ commitmentID: UUID) -> String {
         "\(requestPrefix)\(commitmentID.uuidString)."
     }
-
+    
     private static func isManagedReminderIdentifier(_ identifier: String) -> Bool {
         if identifier.hasPrefix(requestPrefix) {
             return true
@@ -585,7 +585,7 @@ enum CommitmentReminderScheduler {
         return false
 #endif
     }
-
+    
 #if DEBUG
     private static func debugCommitmentRequestPrefix(_ commitmentID: UUID) -> String {
         "\(debugRequestPrefix)\(commitmentID.uuidString)."
@@ -596,7 +596,7 @@ enum CommitmentReminderScheduler {
 @MainActor
 enum CommitmentReminderCoordinator {
     private static var isSynchronizing = false
-
+    
     static func schedule(
         _ plan: CommitmentReminderPlan,
         in recordStore: RecordStore
@@ -615,7 +615,7 @@ enum CommitmentReminderCoordinator {
         await scheduleGate.release()
         return result
     }
-
+    
 #if DEBUG
     static func scheduleDebugReminder(
         in recordStore: RecordStore,
@@ -629,14 +629,14 @@ enum CommitmentReminderCoordinator {
             await scheduleGate.release()
             return .failed
         }
-
+        
         guard let commitment = recordStore.commitments.first(where: {
             $0.lifecycleStatus() == .active
         }) else {
             await scheduleGate.release()
             return .noActiveCommitment
         }
-
+        
         let oldIdentifiers = recordStore.futureDebugReminderRequestIdentifiers()
         await CommitmentReminderScheduler.cancel(
             requestIdentifiers: Array(oldIdentifiers)
@@ -647,7 +647,7 @@ enum CommitmentReminderCoordinator {
             await scheduleGate.release()
             return .failed
         }
-
+        
         let plan = CommitmentReminderPlan(
             id: commitment.id,
             sourceRecordID: commitment.sourceRecordID,
@@ -655,7 +655,7 @@ enum CommitmentReminderCoordinator {
             quote: commitment.quote,
             reminderDates: []
         )
-
+        
         do {
             switch try await CommitmentReminderScheduler.scheduleDebugReminder(
                 plan,
@@ -688,7 +688,7 @@ enum CommitmentReminderCoordinator {
             return .failed
         }
     }
-
+    
     static func cancelDebugReminders(in recordStore: RecordStore) async -> Bool {
         let scheduleGate = WhisperNotificationScheduleGate.shared
         await scheduleGate.acquire()
@@ -703,7 +703,7 @@ enum CommitmentReminderCoordinator {
         return didRemoveState
     }
 #endif
-
+    
     @discardableResult
     static func cancel(
         commitmentIDs: [UUID],
@@ -711,7 +711,7 @@ enum CommitmentReminderCoordinator {
         at date: Date = .now
     ) async -> Bool {
         guard !commitmentIDs.isEmpty else { return true }
-
+        
         let scheduleGate = WhisperNotificationScheduleGate.shared
         await scheduleGate.acquire()
         await CommitmentReminderScheduler.cancel(commitmentIDs: commitmentIDs)
@@ -722,7 +722,7 @@ enum CommitmentReminderCoordinator {
         await scheduleGate.release()
         return didRemoveState
     }
-
+    
     private static func rebuildScheduleExclusively(
         overriding plan: CommitmentReminderPlan?,
         in recordStore: RecordStore,
@@ -731,7 +731,7 @@ enum CommitmentReminderCoordinator {
         guard recordStore.refreshPersistentState() else {
             return .failed
         }
-
+        
         let calendar = Calendar.current
         let inputs = recordStore.reminderAllocationInputs(
             overriding: plan,
@@ -761,17 +761,17 @@ enum CommitmentReminderCoordinator {
                 calendar: calendar
             )
         )
-
+        
         if !allocation.unassignedCommitmentIDs.isEmpty {
             WhisperDiagnostics.reminderLogger.notice(
                 "Could not allocate every reminder for \(allocation.unassignedCommitmentIDs.count, privacy: .public) commitments"
             )
         }
-
+        
         let previousOverrideIdentifiers = plan.map {
             recordStore.replaceableNotificationIdentifiers(for: $0.id, at: date)
         } ?? []
-
+        
         do {
             switch try await CommitmentReminderScheduler.schedule(
                 allocation,
@@ -828,24 +828,24 @@ enum CommitmentReminderCoordinator {
             return .failed
         }
     }
-
+    
     static func synchronize(with recordStore: RecordStore) async {
         guard !isSynchronizing else { return }
         isSynchronizing = true
         defer { isSynchronizing = false }
-
+        
         let scheduleGate = WhisperNotificationScheduleGate.shared
         await scheduleGate.acquire()
         guard !Task.isCancelled else {
             await scheduleGate.release()
             return
         }
-
+        
         guard recordStore.refreshPersistentState() else {
             await scheduleGate.release()
             return
         }
-
+        
         let state = await CommitmentReminderScheduler.currentNotificationState()
         guard recordStore.reconcileReminderNotifications(with: state) else {
             await scheduleGate.release()
@@ -855,7 +855,7 @@ enum CommitmentReminderCoordinator {
             await scheduleGate.release()
             return
         }
-
+        
         let orphanedIdentifiers = state.orphanedRequestIdentifiers(
             trackedRequestIdentifiers: recordStore.trackedNotificationIdentifiers
         )
@@ -867,12 +867,12 @@ enum CommitmentReminderCoordinator {
                 requestIdentifiers: Array(orphanedIdentifiers)
             )
         }
-
+        
         guard await CommitmentReminderScheduler.isAuthorizationAvailable() else {
             await scheduleGate.release()
             return
         }
-
+        
         _ = await rebuildScheduleExclusively(
             overriding: nil,
             in: recordStore,
@@ -880,7 +880,7 @@ enum CommitmentReminderCoordinator {
         )
         await scheduleGate.release()
     }
-
+    
     private static func makeSlotDrafts(
         remindersByCommitment: [UUID: [ScheduledCommitmentReminder]],
         inputs: [CommitmentReminderAllocationInput],
@@ -892,7 +892,7 @@ enum CommitmentReminderCoordinator {
             input in
             result[input.plan.id] = input.plan
         }
-
+        
         var drafts: [NotificationDaySlotDraft] = []
         for (commitmentID, reminders) in remindersByCommitment {
             guard let plan = plansByID[commitmentID] else { continue }
@@ -913,7 +913,7 @@ enum CommitmentReminderCoordinator {
         }
         return drafts
     }
-
+    
     private static func uniqueOccupiedDates(
         _ dates: [Date],
         at date: Date,
@@ -929,7 +929,7 @@ enum CommitmentReminderCoordinator {
         }
         .sorted()
     }
-
+    
     private static func restorePreviousReminderDateIfNeeded(
         commitmentID: UUID,
         previousRequestIdentifiers: Set<String>,

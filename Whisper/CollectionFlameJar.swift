@@ -11,36 +11,36 @@ struct CollectionFlameJar: View {
         case single
         case multiple
     }
-
+    
     private static let designSize = CGSize(width: 112, height: 149)
-
+    
     let storedFlameCount: Int
     var width: CGFloat = 72
-
+    
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
+    
     private var height: CGFloat {
         width * Self.designSize.height / Self.designSize.width
     }
-
+    
     private var displayState: DisplayState {
         switch storedFlameCount {
         case ...0:
-            .empty
+                .empty
         case 1:
-            .single
+                .single
         default:
-            .multiple
+                .multiple
         }
     }
-
+    
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
             GeometryReader { geometry in
                 let scaleX = geometry.size.width / Self.designSize.width
                 let scaleY = geometry.size.height / Self.designSize.height
                 let time = timeline.date.timeIntervalSinceReferenceDate
-
+                
                 ZStack(alignment: .topLeading) {
                     fixedAsset(
                         "CollectionJarBody",
@@ -72,13 +72,13 @@ struct CollectionFlameJar: View {
                         scaleX: scaleX,
                         scaleY: scaleY
                     )
-
+                    
                     floatingFlames(
                         time: time,
                         scaleX: scaleX,
                         scaleY: scaleY
                     )
-
+                    
                     fixedAsset(
                         "CollectionJarGlassHighlight",
                         frame: CGRect(x: 25.96, y: 53.37, width: 10.86, height: 55.50),
@@ -92,7 +92,7 @@ struct CollectionFlameJar: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
     }
-
+    
     @ViewBuilder
     private func floatingFlames(
         time: TimeInterval,
@@ -102,7 +102,7 @@ struct CollectionFlameJar: View {
         switch displayState {
         case .empty:
             EmptyView()
-
+            
         case .single:
             movingAsset(
                 "CollectionFlameHero",
@@ -116,7 +116,7 @@ struct CollectionFlameJar: View {
                 scaleX: scaleX,
                 scaleY: scaleY
             )
-
+            
         case .multiple:
             movingAsset(
                 "CollectionFlameHero",
@@ -156,7 +156,7 @@ struct CollectionFlameJar: View {
             )
         }
     }
-
+    
     private func fixedAsset(
         _ name: String,
         frame: CGRect,
@@ -175,7 +175,7 @@ struct CollectionFlameJar: View {
             )
             .accessibilityHidden(true)
     }
-
+    
     private func movingAsset(
         _ name: String,
         frame: CGRect,
@@ -189,9 +189,9 @@ struct CollectionFlameJar: View {
         scaleY: CGFloat
     ) -> some View {
         let progress = reduceMotion
-            ? CGFloat.zero
-            : CGFloat(sin((time / duration) * .pi * 2 + phase))
-
+        ? CGFloat.zero
+        : CGFloat(sin((time / duration) * .pi * 2 + phase))
+        
         return Image(name)
             .resizable()
             .frame(
@@ -208,7 +208,7 @@ struct CollectionFlameJar: View {
             .offset(y: progress * yAmplitude * scaleY)
             .accessibilityHidden(true)
     }
-
+    
     private var accessibilityLabel: String {
         switch displayState {
         case .empty:
