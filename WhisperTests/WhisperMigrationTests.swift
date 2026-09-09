@@ -66,7 +66,7 @@ struct WhisperMigrationTests {
             photoData: photoData
         )
 
-        let currentSchema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let currentSchema = Schema(versionedSchema: WhisperSchemaV5.self)
         let configuration = ModelConfiguration(
             schema: currentSchema,
             url: storeURL,
@@ -94,6 +94,9 @@ struct WhisperMigrationTests {
         #expect(record.focusMode == "집중")
         #expect(record.emotion == "평온")
         #expect(record.photoData == photoData)
+        #expect(record.savedAt == nil)
+        #expect(!record.isReminderExcluded)
+        #expect(record.reminderPausedUntil == nil)
 
         let commitment = try #require(commitments.first)
         #expect(commitments.count == 1)
@@ -190,18 +193,153 @@ struct WhisperMigrationTests {
         #expect(notificationSlots.isEmpty)
     }
 
-    @Test("현재 저장소는 재실행해도 그대로 열린다")
+    @Test("Whisper V4를 V5로 옮겨도 기존 기록과 결심 알림은 그대로 보존한다")
+    func migratesWhisperV4Store() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        let recordID = UUID()
+        let commitmentID = UUID()
+        let encounterID = UUID()
+        let slotID = UUID()
+        let createdAt = Date(timeIntervalSince1970: 1_800_300_000)
+        let scheduledAt = createdAt.addingTimeInterval(86_400)
+        let photoData = Data([0x04, 0x05, 0x06])
+        let profile = CommitmentReminderProfile(
+            timeSensitivity: .thisWeek,
+            actionability: .concrete,
+            effort: .heavy,
+            cadence: .repeating,
+            preferredPeriod: .evening
+        )
+
+        try makeV4Store(
+            at: storeURL,
+            recordID: recordID,
+            commitmentID: commitmentID,
+            encounterID: encounterID,
+            slotID: slotID,
+            createdAt: createdAt,
+            scheduledAt: scheduledAt,
+            photoData: photoData,
+            profile: profile
+        )
+
+        let container = try makeCurrentContainer(at: storeURL)
+        let context = container.mainContext
+        let records = try context.fetch(FetchDescriptor<WhisperRecord>())
+        let commitments = try context.fetch(FetchDescriptor<WhisperCommitment>())
+        let encounters = try context.fetch(FetchDescriptor<ReminderEncounter>())
+        let slots = try context.fetch(FetchDescriptor<NotificationDaySlot>())
+        let recordEncounters = try context.fetch(FetchDescriptor<RecordReminderEncounter>())
+
+        let record = try #require(records.first)
+        #expect(records.count == 1)
+        #expect(record.id == recordID)
+        #expect(record.title == "V4 기록")
+        #expect(record.content == "다시 만날 때도 바뀌지 않아야 하는 원문")
+        #expect(record.createdAt == createdAt)
+        #expect(record.updatedAt == createdAt.addingTimeInterval(600))
+        #expect(record.focusMode == "독서")
+        #expect(record.emotion == "설렘")
+        #expect(record.photoData == photoData)
+        #expect(record.savedAt == nil)
+        #expect(!record.isReminderExcluded)
+        #expect(record.reminderPausedUntil == nil)
+        #expect(recordEncounters.isEmpty)
+
+        let commitment = try #require(commitments.first)
+        #expect(commitments.count == 1)
+        #expect(commitment.id == commitmentID)
+        #expect(commitment.sourceRecordID == recordID)
+        #expect(commitment.name == "V4 결심")
+        #expect(commitment.quote == "매일 조금씩 읽어보자")
+        #expect(commitment.topics == ["독서", "배움"])
+        #expect(commitment.createdAt == createdAt.addingTimeInterval(60))
+        #expect(commitment.lastContinuedAt == createdAt.addingTimeInterval(3_600))
+        #expect(commitment.nextReminderAt == scheduledAt.addingTimeInterval(86_400))
+        #expect(commitment.continuationCount == 4)
+        #expect(commitment.isActive)
+        #expect(commitment.pausedUntil == scheduledAt.addingTimeInterval(172_800))
+        #expect(commitment.releasedAt == nil)
+        #expect(commitment.lastEncounteredAt == scheduledAt.addingTimeInterval(60))
+        #expect(commitment.lastReadAt == scheduledAt.addingTimeInterval(120))
+        #expect(commitment.encounterCount == 2)
+        #expect(commitment.reminderProfile == profile)
+
+        let encounter = try #require(encounters.first)
+        #expect(encounters.count == 1)
+        #expect(encounter.id == encounterID)
+        #expect(encounter.commitmentID == commitmentID)
+        #expect(encounter.scheduledAt == scheduledAt)
+        #expect(encounter.presentedAt == scheduledAt.addingTimeInterval(60))
+        #expect(encounter.openedAt == scheduledAt.addingTimeInterval(120))
+        #expect(encounter.reaction == .pause)
+        #expect(encounter.notificationIdentifier == "whisper.commitment.v4")
+        #expect(encounter.createdAt == createdAt)
+
+        let slot = try #require(slots.first)
+        #expect(slots.count == 1)
+        #expect(slot.id == slotID)
+        #expect(slot.dayKey == WhisperNotificationDayKey.make(for: scheduledAt))
+        #expect(slot.scheduledAt == scheduledAt)
+        #expect(slot.requestIdentifier == "whisper.commitment.v4")
+        #expect(slot.sourceStorage == "commitment")
+        #expect(slot.commitmentID == commitmentID)
+        #expect(slot.recordID == recordID)
+        #expect(slot.consumedAt == scheduledAt.addingTimeInterval(60))
+        #expect(slot.createdAt == createdAt)
+    }
+
+    @Test("V5 재실행 시 기록 날짜와 저장 시각, 제외와 중지, 여러 재발견 이력을 보존한다")
     func reopensCurrentStoreWithoutMigration() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let storeURL = directory.appending(path: "default.store")
         let recordID = UUID()
+        let scheduledEncounterID = UUID()
+        let homeEncounterID = UUID()
+        let createdAt = Date(timeIntervalSince1970: 1_800_400_000)
+        let savedAt = createdAt.addingTimeInterval(604_800)
 
-        try makeCurrentStore(at: storeURL, recordID: recordID)
+        try makeCurrentStore(
+            at: storeURL,
+            recordID: recordID,
+            scheduledEncounterID: scheduledEncounterID,
+            homeEncounterID: homeEncounterID,
+            createdAt: createdAt,
+            savedAt: savedAt
+        )
         let reopenedContainer = try makeCurrentContainer(at: storeURL)
-        let records = try reopenedContainer.mainContext.fetch(FetchDescriptor<WhisperRecord>())
+        let context = reopenedContainer.mainContext
+        let records = try context.fetch(FetchDescriptor<WhisperRecord>())
+        let encounters = try context.fetch(FetchDescriptor<RecordReminderEncounter>())
 
         #expect(records.map(\.id) == [recordID])
+        let record = try #require(records.first)
+        #expect(record.title == "현재 기록")
+        #expect(record.content == "재실행 뒤에도 보존")
+        #expect(record.createdAt == createdAt)
+        #expect(record.savedAt == savedAt)
+        #expect(record.isReminderExcluded)
+        #expect(record.reminderPausedUntil == savedAt.addingTimeInterval(2_592_000))
+
+        #expect(encounters.count == 2)
+        let scheduledEncounter = try #require(encounters.first { $0.id == scheduledEncounterID })
+        #expect(scheduledEncounter.recordID == recordID)
+        #expect(scheduledEncounter.scheduledAt == savedAt.addingTimeInterval(86_400))
+        #expect(scheduledEncounter.presentedAt == nil)
+        #expect(scheduledEncounter.openedAt == nil)
+        #expect(scheduledEncounter.notificationIdentifier == "whisper.record.v5")
+        #expect(scheduledEncounter.createdAt == savedAt)
+
+        let homeEncounter = try #require(encounters.first { $0.id == homeEncounterID })
+        #expect(homeEncounter.recordID == recordID)
+        #expect(homeEncounter.scheduledAt == nil)
+        #expect(homeEncounter.presentedAt == savedAt.addingTimeInterval(600))
+        #expect(homeEncounter.openedAt == savedAt.addingTimeInterval(660))
+        #expect(homeEncounter.notificationIdentifier == nil)
+        #expect(homeEncounter.createdAt == savedAt.addingTimeInterval(600))
     }
 
     private func makeLegacyStore(
@@ -339,20 +477,127 @@ struct WhisperMigrationTests {
         try context.save()
     }
 
-    private func makeCurrentStore(at storeURL: URL, recordID: UUID) throws {
+    private func makeV4Store(
+        at storeURL: URL,
+        recordID: UUID,
+        commitmentID: UUID,
+        encounterID: UUID,
+        slotID: UUID,
+        createdAt: Date,
+        scheduledAt: Date,
+        photoData: Data,
+        profile: CommitmentReminderProfile
+    ) throws {
+        let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: storeURL,
+            cloudKitDatabase: .none
+        )
+        let container = try ModelContainer(for: schema, configurations: configuration)
+        let context = container.mainContext
+        context.insert(
+            WhisperSchemaV4.WhisperRecord(
+                id: recordID,
+                title: "V4 기록",
+                content: "다시 만날 때도 바뀌지 않아야 하는 원문",
+                createdAt: createdAt,
+                updatedAt: createdAt.addingTimeInterval(600),
+                focusMode: "독서",
+                emotion: "설렘",
+                photoData: photoData
+            )
+        )
+        context.insert(
+            WhisperSchemaV4.WhisperCommitment(
+                id: commitmentID,
+                sourceRecordID: recordID,
+                name: "V4 결심",
+                quote: "매일 조금씩 읽어보자",
+                topics: ["독서", "배움"],
+                createdAt: createdAt.addingTimeInterval(60),
+                lastContinuedAt: createdAt.addingTimeInterval(3_600),
+                nextReminderAt: scheduledAt.addingTimeInterval(86_400),
+                continuationCount: 4,
+                isActive: true,
+                pausedUntil: scheduledAt.addingTimeInterval(172_800),
+                lastEncounteredAt: scheduledAt.addingTimeInterval(60),
+                lastReadAt: scheduledAt.addingTimeInterval(120),
+                encounterCount: 2,
+                reminderProfile: profile
+            )
+        )
+        context.insert(
+            WhisperSchemaV4.ReminderEncounter(
+                id: encounterID,
+                commitmentID: commitmentID,
+                scheduledAt: scheduledAt,
+                presentedAt: scheduledAt.addingTimeInterval(60),
+                openedAt: scheduledAt.addingTimeInterval(120),
+                reaction: .pause,
+                notificationIdentifier: "whisper.commitment.v4",
+                createdAt: createdAt
+            )
+        )
+        context.insert(
+            WhisperSchemaV4.NotificationDaySlot(
+                id: slotID,
+                dayKey: WhisperNotificationDayKey.make(for: scheduledAt),
+                scheduledAt: scheduledAt,
+                requestIdentifier: "whisper.commitment.v4",
+                sourceStorage: "commitment",
+                commitmentID: commitmentID,
+                recordID: recordID,
+                consumedAt: scheduledAt.addingTimeInterval(60),
+                createdAt: createdAt
+            )
+        )
+        try context.save()
+    }
+
+    private func makeCurrentStore(
+        at storeURL: URL,
+        recordID: UUID,
+        scheduledEncounterID: UUID,
+        homeEncounterID: UUID,
+        createdAt: Date,
+        savedAt: Date
+    ) throws {
         let container = try makeCurrentContainer(at: storeURL)
         container.mainContext.insert(
             WhisperRecord(
                 id: recordID,
                 title: "현재 기록",
-                content: "재실행 뒤에도 보존"
+                content: "재실행 뒤에도 보존",
+                createdAt: createdAt,
+                savedAt: savedAt,
+                isReminderExcluded: true,
+                reminderPausedUntil: savedAt.addingTimeInterval(2_592_000)
+            )
+        )
+        container.mainContext.insert(
+            RecordReminderEncounter(
+                id: scheduledEncounterID,
+                recordID: recordID,
+                scheduledAt: savedAt.addingTimeInterval(86_400),
+                notificationIdentifier: "whisper.record.v5",
+                createdAt: savedAt
+            )
+        )
+        container.mainContext.insert(
+            RecordReminderEncounter(
+                id: homeEncounterID,
+                recordID: recordID,
+                presentedAt: savedAt.addingTimeInterval(600),
+                openedAt: savedAt.addingTimeInterval(660),
+                createdAt: savedAt.addingTimeInterval(600)
             )
         )
         try container.mainContext.save()
     }
 
     private func makeCurrentContainer(at storeURL: URL) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let schema = Schema(versionedSchema: WhisperSchemaV5.self)
         let configuration = ModelConfiguration(
             schema: schema,
             url: storeURL,

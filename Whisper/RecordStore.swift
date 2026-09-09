@@ -80,6 +80,7 @@ final class RecordStore {
     private(set) var records: [WhisperRecord] = []
     private(set) var commitments: [WhisperCommitment] = []
     private(set) var encounters: [ReminderEncounter] = []
+    private(set) var recordReminderEncounters: [RecordReminderEncounter] = []
     private(set) var notificationSlots: [NotificationDaySlot] = []
     private(set) var persistenceError: String?
     private(set) var persistenceSupportCode: String?
@@ -96,7 +97,7 @@ final class RecordStore {
         )
 
         do {
-            let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+            let schema = Schema(versionedSchema: WhisperSchemaV5.self)
             let container = try ModelContainer(
                 for: schema,
                 migrationPlan: WhisperMigrationPlan.self,
@@ -128,6 +129,7 @@ final class RecordStore {
         title: String,
         content: String,
         createdAt: Date = .now,
+        savedAt: Date = .now,
         focusMode: String? = nil,
         emotion: String? = nil,
         photoData: Data? = nil
@@ -136,6 +138,7 @@ final class RecordStore {
             title: title,
             content: content,
             createdAt: createdAt,
+            savedAt: savedAt,
             focusMode: focusMode,
             emotion: emotion,
             photoData: photoData
@@ -147,6 +150,7 @@ final class RecordStore {
         title: String,
         content: String,
         createdAt: Date = .now,
+        savedAt: Date = .now,
         focusMode: String? = nil,
         emotion: String? = nil,
         photoData: Data? = nil
@@ -159,6 +163,7 @@ final class RecordStore {
             title: title,
             content: content,
             createdAt: createdAt,
+            savedAt: savedAt,
             focusMode: focusMode,
             emotion: emotion,
             photoData: photoData
@@ -200,6 +205,9 @@ final class RecordStore {
             .filter { commitmentIDs.contains($0.commitmentID) }
             .forEach(modelContext.delete)
         relatedCommitments.forEach(modelContext.delete)
+        recordReminderEncounters
+            .filter { $0.recordID == record.id }
+            .forEach(modelContext.delete)
         modelContext.delete(record)
         let didSave = saveChanges(reloadAfterSave: true)
 
@@ -213,6 +221,79 @@ final class RecordStore {
         }
 
         return didSave
+    }
+
+    @discardableResult
+    func updateRecordReminderSettings(
+        recordID: UUID,
+        isExcluded: Bool,
+        pausedUntil: Date?
+    ) -> Bool {
+        guard let record = record(withID: recordID) else { return false }
+        record.isReminderExcluded = isExcluded
+        record.reminderPausedUntil = pausedUntil
+        return saveChanges()
+    }
+
+    func recordReminderEncounters(for recordID: UUID) -> [RecordReminderEncounter] {
+        recordReminderEncounters.filter { $0.recordID == recordID }
+    }
+
+    @discardableResult
+    func addRecordReminderEncounter(
+        id: UUID = UUID(),
+        recordID: UUID,
+        scheduledAt: Date? = nil,
+        notificationIdentifier: String? = nil,
+        createdAt: Date = .now
+    ) -> RecordReminderEncounter? {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return nil
+        }
+        guard record(withID: recordID) != nil else { return nil }
+
+        // Retrying the same encounter must not overwrite its read history or owner.
+        if let existing = recordReminderEncounters.first(where: { $0.id == id }) {
+            guard existing.recordID == recordID,
+                  existing.scheduledAt == scheduledAt,
+                  existing.notificationIdentifier == notificationIdentifier
+            else { return nil }
+            return existing
+        }
+        if let notificationIdentifier,
+           recordReminderEncounters.contains(where: {
+               $0.notificationIdentifier == notificationIdentifier
+           }) {
+            return nil
+        }
+
+        let encounter = RecordReminderEncounter(
+            id: id,
+            recordID: recordID,
+            scheduledAt: scheduledAt,
+            notificationIdentifier: notificationIdentifier,
+            createdAt: createdAt
+        )
+        modelContext.insert(encounter)
+        guard saveChanges(reloadAfterSave: true) else { return nil }
+        return recordReminderEncounters.first { $0.id == id }
+    }
+
+    @discardableResult
+    func markRecordReminderPresented(_ encounterID: UUID, at date: Date = .now) -> Bool {
+        guard let encounter = recordReminderEncounters.first(where: { $0.id == encounterID })
+        else { return false }
+        encounter.presentedAt = encounter.presentedAt ?? date
+        return saveChanges()
+    }
+
+    @discardableResult
+    func markRecordReminderOpened(_ encounterID: UUID, at date: Date = .now) -> Bool {
+        guard let encounter = recordReminderEncounters.first(where: { $0.id == encounterID })
+        else { return false }
+        encounter.openedAt = encounter.openedAt ?? date
+        return saveChanges()
     }
 
     var activeCommitmentSnapshots: [CommitmentSnapshot] {
@@ -1543,6 +1624,7 @@ final class RecordStore {
             records = []
             commitments = []
             encounters = []
+            recordReminderEncounters = []
             notificationSlots = []
             setUnavailablePersistenceError()
             return
@@ -1563,6 +1645,11 @@ final class RecordStore {
                     sortBy: [SortDescriptor(\.scheduledAt, order: .reverse)]
                 )
             )
+            recordReminderEncounters = try modelContext.fetch(
+                FetchDescriptor<RecordReminderEncounter>(
+                    sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+                )
+            )
             notificationSlots = try modelContext.fetch(
                 FetchDescriptor<NotificationDaySlot>(
                     sortBy: [SortDescriptor(\.scheduledAt)]
@@ -1576,6 +1663,7 @@ final class RecordStore {
             records = []
             commitments = []
             encounters = []
+            recordReminderEncounters = []
             notificationSlots = []
             isPersistenceAvailable = false
             recordPersistenceError(error, operation: "model-context-fetch")
@@ -1711,7 +1799,8 @@ final class RecordStore {
                     id: record.id,
                     title: record.title,
                     content: record.content,
-                    createdAt: record.createdAt
+                    createdAt: record.createdAt,
+                    savedAt: nil
                 )
             )
         }

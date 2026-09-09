@@ -730,6 +730,102 @@ enum WhisperSchemaV4: VersionedSchema {
     }
 }
 
+enum WhisperSchemaV5: VersionedSchema {
+    static let versionIdentifier = Schema.Version(5, 0, 0)
+
+    // These models remain unchanged while record-based reminders are introduced.
+    typealias WhisperCommitment = WhisperSchemaV4.WhisperCommitment
+    typealias ReminderEncounter = WhisperSchemaV4.ReminderEncounter
+    typealias NotificationDaySlot = WhisperSchemaV4.NotificationDaySlot
+
+    static var models: [any PersistentModel.Type] {
+        [
+            WhisperRecord.self,
+            WhisperCommitment.self,
+            ReminderEncounter.self,
+            NotificationDaySlot.self,
+            RecordReminderEncounter.self
+        ]
+    }
+
+    @Model
+    final class WhisperRecord {
+        @Attribute(.unique) var id: UUID
+        var title: String
+        var content: String
+        // The date the entry describes, retained for existing archive behavior.
+        var createdAt: Date
+        // Older records have no known save time; migration leaves this nil.
+        var savedAt: Date?
+        var updatedAt: Date
+        var focusMode: String?
+        var emotion: String?
+        @Attribute(.externalStorage) var photoData: Data?
+        var isReminderExcluded: Bool = false
+        var reminderPausedUntil: Date?
+
+        init(
+            id: UUID = UUID(),
+            title: String,
+            content: String,
+            createdAt: Date = .now,
+            savedAt: Date? = .now,
+            updatedAt: Date? = nil,
+            focusMode: String? = nil,
+            emotion: String? = nil,
+            photoData: Data? = nil,
+            isReminderExcluded: Bool = false,
+            reminderPausedUntil: Date? = nil
+        ) {
+            self.id = id
+            self.title = title
+            self.content = content
+            self.createdAt = createdAt
+            self.savedAt = savedAt
+            self.updatedAt = updatedAt ?? savedAt ?? createdAt
+            self.focusMode = focusMode
+            self.emotion = emotion
+            self.photoData = photoData
+            self.isReminderExcluded = isReminderExcluded
+            self.reminderPausedUntil = reminderPausedUntil
+        }
+
+        func allowsReminders(at date: Date = .now) -> Bool {
+            !isReminderExcluded && (reminderPausedUntil.map { $0 <= date } ?? true)
+        }
+    }
+
+    @Model
+    final class RecordReminderEncounter {
+        @Attribute(.unique) var id: UUID
+        var recordID: UUID
+        // Home encounters do not require a notification schedule.
+        var scheduledAt: Date?
+        var presentedAt: Date?
+        var openedAt: Date?
+        var notificationIdentifier: String?
+        var createdAt: Date
+
+        init(
+            id: UUID = UUID(),
+            recordID: UUID,
+            scheduledAt: Date? = nil,
+            presentedAt: Date? = nil,
+            openedAt: Date? = nil,
+            notificationIdentifier: String? = nil,
+            createdAt: Date = .now
+        ) {
+            self.id = id
+            self.recordID = recordID
+            self.scheduledAt = scheduledAt
+            self.presentedAt = presentedAt
+            self.openedAt = openedAt
+            self.notificationIdentifier = notificationIdentifier
+            self.createdAt = createdAt
+        }
+    }
+}
+
 enum WhisperMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
@@ -738,7 +834,8 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             WhisperSchemaV1.self,
             WhisperSchemaV2.self,
             WhisperSchemaV3.self,
-            WhisperSchemaV4.self
+            WhisperSchemaV4.self,
+            WhisperSchemaV5.self
         ]
     }
 
@@ -807,12 +904,17 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: WhisperSchemaV3.self,
                 toVersion: WhisperSchemaV4.self
+            ),
+            .lightweight(
+                fromVersion: WhisperSchemaV4.self,
+                toVersion: WhisperSchemaV5.self
             )
         ]
     }
 }
 
-typealias WhisperRecord = WhisperSchemaV4.WhisperRecord
-typealias WhisperCommitment = WhisperSchemaV4.WhisperCommitment
-typealias ReminderEncounter = WhisperSchemaV4.ReminderEncounter
-typealias NotificationDaySlot = WhisperSchemaV4.NotificationDaySlot
+typealias WhisperRecord = WhisperSchemaV5.WhisperRecord
+typealias WhisperCommitment = WhisperSchemaV5.WhisperCommitment
+typealias ReminderEncounter = WhisperSchemaV5.ReminderEncounter
+typealias NotificationDaySlot = WhisperSchemaV5.NotificationDaySlot
+typealias RecordReminderEncounter = WhisperSchemaV5.RecordReminderEncounter
