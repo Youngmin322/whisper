@@ -77,6 +77,65 @@ struct JournalDomainTests {
         #expect(updated.sourceRecordIDs == [moment.id])
     }
 
+    @Test("자정이 지나면 전날 순간을 새 일기 초안에 섞지 않는다")
+    func separatesMomentsAtLocalMidnight() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let calendar = fixedCalendar
+        let previousDay = try #require(
+            calendar.date(from: DateComponents(
+                year: 2026,
+                month: 9,
+                day: 16,
+                hour: 23,
+                minute: 59
+            ))
+        )
+        let nextDay = try #require(
+            calendar.date(from: DateComponents(
+                year: 2026,
+                month: 9,
+                day: 17,
+                hour: 0,
+                minute: 1
+            ))
+        )
+
+        _ = store.addAndReturn(
+            title: "어제",
+            content: "자정 전의 순간",
+            createdAt: previousDay
+        )
+        let todayMoment = try #require(
+            store.addAndReturn(
+                title: "오늘",
+                content: "자정 뒤의 순간",
+                createdAt: nextDay
+            )
+        )
+
+        let draft = store.journalDraft(on: nextDay, calendar: calendar)
+
+        #expect(draft.body == "자정 뒤의 순간")
+        #expect(draft.sourceRecordIDs == [todayMoment.id])
+        #expect(JournalDayKey.make(for: nextDay, calendar: calendar) == "2026-09-17")
+    }
+
+    @Test("순간이 없는 날은 비어 있는 안전한 초안을 만든다")
+    func composesEmptyDraft() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let calendar = fixedCalendar
+        let day = try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 18, hour: 12))
+        )
+
+        let draft = store.journalDraft(on: day, calendar: calendar)
+
+        #expect(draft.isEmpty)
+        #expect(draft.title == "오늘의 일기")
+        #expect(draft.body.isEmpty)
+        #expect(draft.sourceRecordIDs.isEmpty)
+    }
+
     private var fixedCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current
