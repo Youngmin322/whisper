@@ -22,8 +22,14 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: WhisperSpacing.large) {
                     header
-                    heroCard
-                    recordButton
+                    if isJournalReady {
+                        draftReadyCard
+                        journalReviewButton
+                        recordButton(title: "순간 더 남기기", prominent: false)
+                    } else {
+                        heroCard
+                        recordButton()
+                    }
                     momentsSection
                 }
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
@@ -123,17 +129,80 @@ struct TodayView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var recordButton: some View {
-        Button {
-            isQuickRecordPresented = true
+    @ViewBuilder
+    private func recordButton(
+        title: String = "순간 남기기",
+        prominent: Bool = true
+    ) -> some View {
+        if prominent {
+            Button {
+                isQuickRecordPresented = true
+            } label: {
+                Text(title)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: 25))
+            .controlSize(.large)
+            .accessibilityIdentifier("home.recordButton")
+        } else {
+            Button {
+                isQuickRecordPresented = true
+            } label: {
+                Text(title)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.roundedRectangle(radius: 25))
+            .controlSize(.large)
+            .accessibilityIdentifier("home.recordButton")
+        }
+    }
+
+    private var draftReadyCard: some View {
+        HStack(spacing: WhisperSpacing.large) {
+            WhisperJarAnimation(size: .small)
+
+            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text("오늘의 초안이 준비됐어요")
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color(red: 1, green: 0.71, blue: 0.65))
+                Text("\(todayMoments.count)개의 순간이\n하루로 이어졌어요")
+                    .font(.whisperNavigationTitle)
+                    .foregroundStyle(Color.white)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, WhisperSpacing.xLarge)
+        .frame(maxWidth: .infinity, minHeight: 206)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.12, blue: 0.11),
+                    Color(red: 0.13, green: 0.14, blue: 0.13)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
+        )
+    }
+
+    private var journalReviewButton: some View {
+        NavigationLink {
+            JournalFlowView(recordStore: recordStore)
         } label: {
-            Text("순간 남기기")
+            Text("30초 검토하기")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.roundedRectangle(radius: 25))
         .controlSize(.large)
-        .accessibilityIdentifier("home.recordButton")
+        .accessibilityIdentifier("home.reviewJournalButton")
+    }
+
+    private var isJournalReady: Bool {
+        !todayMoments.isEmpty && recordStore.journal(on: .now) == nil
     }
 
     private var momentsSection: some View {

@@ -92,7 +92,7 @@ private struct MainTabView: View {
             }
             Tab("일기", systemImage: "archivebox.fill", value: MainTab.collection) {
                 NavigationStack {
-                    CollectionView(recordStore: recordStore)
+                    JournalLibraryView(recordStore: recordStore)
                 }
             }
             Tab("설정", systemImage: "gearshape", value: MainTab.settings) {
