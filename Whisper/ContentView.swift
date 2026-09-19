@@ -79,9 +79,9 @@ private struct MainTabView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("기록", systemImage: "flame.fill", value: MainTab.home) {
+            Tab("오늘", systemImage: "flame.fill", value: MainTab.home) {
                 NavigationStack(path: $homePath) {
-                    HomeView(recordStore: recordStore)
+                    TodayView(recordStore: recordStore)
                         .navigationDestination(for: NotificationRecordRoute.self) { route in
                             NotificationRecordDestination(
                                 route: route,
@@ -90,7 +90,7 @@ private struct MainTabView: View {
                         }
                 }
             }
-            Tab("보관함", systemImage: "archivebox.fill", value: MainTab.collection) {
+            Tab("일기", systemImage: "archivebox.fill", value: MainTab.collection) {
                 NavigationStack {
                     CollectionView(recordStore: recordStore)
                 }

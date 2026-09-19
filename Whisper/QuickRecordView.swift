@@ -4,43 +4,49 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
+import UIKit
 
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var draft: RecordDraft
     @FocusState private var isContentFocused: Bool
     @State private var isSaveErrorPresented = false
+    @State private var isClipboardLinkUnavailablePresented = false
     let onSave: () -> Bool
     let onOpenDetail: () -> Void
-    private let contentLimit = 280
+    private let contentLimit = 120
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
             ScrollView {
                 formContent
             }
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)
             .scrollBounceBehavior(.basedOnSize)
-            .background(Color.whisperBackground)
-            .navigationTitle("기록하기")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("닫기") { dismiss() }
-                }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("저장", action: save)
-                        .disabled(!draft.canSave)
-                        .accessibilityIdentifier("record.saveButton")
-                }
+            Button(action: save) {
+                Text("오늘의 순간 저장")
+                    .frame(maxWidth: .infinity)
             }
-            .task {
-                await Task.yield()
-                isContentFocused = true
-            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: 25))
+            .controlSize(.large)
+            .disabled(!draft.canSave)
+            .accessibilityIdentifier("record.saveButton")
+            .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
+            .padding(.top, WhisperSpacing.small)
+
+            Text("저장 후 바로 닫혀요")
+                .font(.whisperCaption)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .padding(.top, WhisperSpacing.xSmall)
+                .padding(.bottom, WhisperSpacing.medium)
+        }
+        .background(Color.whisperBackground)
+        .task {
+            await Task.yield()
+            isContentFocused = true
         }
         .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("다시 시도", action: save)
@@ -48,135 +54,110 @@ struct QuickRecordView: View {
         } message: {
             Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
         }
+        .alert("복사한 링크가 없어요", isPresented: $isClipboardLinkUnavailablePresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("링크를 먼저 복사한 뒤 다시 눌러주세요.")
+        }
     }
 
     private var formContent: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
+        VStack(alignment: .leading, spacing: WhisperSpacing.large) {
             VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                Text("지금 마음에 남은 건 무엇인가요?")
+                Text("지금 떠오른 순간")
                     .font(.whisperSectionTitle)
                     .foregroundStyle(Color.whisperTextPrimary)
 
-                Text("한 문장만 적어도 괜찮아요.")
+                Text("짧아도, 정리되지 않아도 괜찮아요")
                     .font(.whisperBody)
                     .foregroundStyle(Color.whisperTextSecondary)
-
-                TextField(
-                    "떠오르는 장면이나 마음을 편하게 적어보세요.",
-                    text: $draft.content,
-                    axis: .vertical
-                )
-                .focused($isContentFocused)
-                .font(.whisperBodyLarge)
-                .lineSpacing(4)
-                .lineLimit(5 ... 7)
-                .padding(16)
-                .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
-                .background(
-                    Color.whisperSurfaceSubtle,
-                    in: RoundedRectangle(
-                        cornerRadius: WhisperRadius.medium,
-                        style: .continuous
-                    )
-                )
-                .onChange(of: draft.content) { _, newValue in
-                    guard newValue.count > contentLimit else { return }
-                    draft.content = String(newValue.prefix(contentLimit))
-                }
-                .accessibilityLabel("기록 내용")
-                .accessibilityIdentifier("record.contentField")
-
-                if shouldShowContentCount {
-                    Text("\(draft.content.count) / \(contentLimit)")
-                        .font(.whisperCaption)
-                        .foregroundStyle(Color.whisperTextSecondary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .transition(.opacity)
-                        .accessibilityLabel(
-                            "현재 \(draft.content.count)자, 최대 \(contentLimit)자"
-                        )
-                }
             }
 
-            Button {
-                onOpenDetail()
-                dismiss()
-            } label: {
-                HStack(spacing: WhisperSpacing.small) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 13, weight: .semibold))
-                        .accessibilityHidden(true)
-
-                    detailActionCopy
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.whisperTextSecondary)
-                        .accessibilityHidden(true)
-                }
-                .foregroundStyle(Color.whisperTextPrimary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, WhisperSpacing.xSmall)
-                .frame(minHeight: WhisperSize.controlCompact)
-                .background(
-                    Color.whisperSurfaceDefault,
-                    in: RoundedRectangle(
-                        cornerRadius: WhisperRadius.medium,
-                        style: .continuous
-                    )
-                )
-                .overlay {
-                    RoundedRectangle(
-                        cornerRadius: WhisperRadius.medium,
-                        style: .continuous
-                    )
+            TextField(
+                "떠오르는 장면이나 마음을 편하게 적어보세요.",
+                text: $draft.content,
+                axis: .vertical
+            )
+            .focused($isContentFocused)
+            .font(.whisperBodyLarge)
+            .lineSpacing(4)
+            .lineLimit(3 ... 5)
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
+            .background(
+                Color.whisperSurfaceDefault,
+                in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
                     .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+            }
+            .onChange(of: draft.content) { _, newValue in
+                guard newValue.count > contentLimit else { return }
+                draft.content = String(newValue.prefix(contentLimit))
+            }
+            .accessibilityLabel("기록 내용")
+            .accessibilityIdentifier("record.contentField")
+
+            Text("\(draft.content.count) / \(contentLimit)")
+                .font(.whisperCaption)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .accessibilityLabel("현재 \(draft.content.count)자, 최대 \(contentLimit)자")
+
+            HStack(spacing: WhisperSpacing.xSmall) {
+                captureModeButton(title: "한 줄", systemImage: "textformat", isSelected: true) {
+                    isContentFocused = true
+                }
+                captureModeButton(title: "사진", systemImage: "photo") {
+                    onOpenDetail()
+                    dismiss()
+                }
+                captureModeButton(title: "음성", systemImage: "waveform") {
+                    isContentFocused = true
+                }
+                captureModeButton(title: "링크", systemImage: "link") {
+                    pasteLink()
                 }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(detailActionAccessibilityLabel)
-            .accessibilityHint("제목, 감정, 사진을 추가할 수 있는 상세 기록 화면으로 이동합니다.")
-            .accessibilityIdentifier("record.openDetailButton")
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, WhisperSpacing.large)
         .padding(.bottom, 20)
     }
 
-    private var shouldShowContentCount: Bool {
-        draft.content.count >= contentLimit - 40
-    }
-
     @ViewBuilder
-    private var detailActionCopy: some View {
-        if let visibleDraftTitle {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(visibleDraftTitle)
-                    .font(.whisperControl)
-                    .lineLimit(1)
-
-                Text("제목 · 감정 · 사진 편집")
-                    .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperTextSecondary)
+    private func captureModeButton(
+        title: String,
+        systemImage: String,
+        isSelected: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        if isSelected {
+            Button(action: action) {
+                captureModeLabel(title: title, systemImage: systemImage)
             }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: WhisperRadius.medium))
+            .controlSize(.small)
+            .accessibilityIdentifier("record.mode.\(title)")
         } else {
-            Text("제목 · 감정 · 사진도 남기기")
-                .font(.whisperControl)
+            Button(action: action) {
+                captureModeLabel(title: title, systemImage: systemImage)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.roundedRectangle(radius: WhisperRadius.medium))
+            .controlSize(.small)
+            .accessibilityIdentifier("record.mode.\(title)")
         }
     }
 
-    private var visibleDraftTitle: String? {
-        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? nil : title
-    }
-
-    private var detailActionAccessibilityLabel: String {
-        if let visibleDraftTitle {
-            return "제목 \(visibleDraftTitle), 감정과 사진 편집"
+    private func captureModeLabel(title: String, systemImage: String) -> some View {
+        VStack(spacing: WhisperSpacing.xxSmall) {
+            Image(systemName: systemImage)
+            Text(title)
+                .font(.whisperCaption)
         }
-        return "제목, 감정, 사진도 남기기"
+        .frame(maxWidth: .infinity, minHeight: 56)
     }
 
     private func save() {
@@ -185,6 +166,21 @@ struct QuickRecordView: View {
         } else {
             isSaveErrorPresented = true
         }
+    }
+
+    private func pasteLink() {
+        guard let clipboardText = UIPasteboard.general.string?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              let url = URL(string: clipboardText),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme)
+        else {
+            isClipboardLinkUnavailablePresented = true
+            return
+        }
+
+        draft.content = String(clipboardText.prefix(contentLimit))
+        isContentFocused = true
     }
 }
 
