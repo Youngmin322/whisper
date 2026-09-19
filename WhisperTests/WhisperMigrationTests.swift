@@ -66,7 +66,7 @@ struct WhisperMigrationTests {
             photoData: photoData
         )
 
-        let currentSchema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let currentSchema = Schema(versionedSchema: WhisperSchemaV5.self)
         let configuration = ModelConfiguration(
             schema: currentSchema,
             url: storeURL,
@@ -83,6 +83,7 @@ struct WhisperMigrationTests {
         let commitments = try context.fetch(FetchDescriptor<WhisperCommitment>())
         let encounters = try context.fetch(FetchDescriptor<ReminderEncounter>())
         let notificationSlots = try context.fetch(FetchDescriptor<NotificationDaySlot>())
+        let journals = try context.fetch(FetchDescriptor<DailyJournal>())
 
         let record = try #require(records.first)
         #expect(records.count == 1)
@@ -112,6 +113,7 @@ struct WhisperMigrationTests {
         #expect(commitment.reminderProfile == .fallback)
         #expect(encounters.isEmpty)
         #expect(notificationSlots.isEmpty)
+        #expect(journals.isEmpty)
     }
 
     @Test("Whisper V1 저장소를 현재 스키마로 보존한다")
@@ -188,6 +190,40 @@ struct WhisperMigrationTests {
         #expect(encounter.scheduledAt == scheduledAt)
         #expect(encounter.notificationIdentifier == "whisper.commitment.v2")
         #expect(notificationSlots.isEmpty)
+    }
+
+    @Test("Whisper V4 저장소에 하루 일기 저장 공간을 추가한다")
+    func migratesWhisperV4Store() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        let recordID = UUID()
+
+        let oldSchema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let oldConfiguration = ModelConfiguration(
+            schema: oldSchema,
+            url: storeURL,
+            cloudKitDatabase: .none
+        )
+        let oldContainer = try ModelContainer(
+            for: oldSchema,
+            configurations: oldConfiguration
+        )
+        oldContainer.mainContext.insert(
+            WhisperSchemaV4.WhisperRecord(
+                id: recordID,
+                title: "V4 기록",
+                content: "순간으로 이어질 기존 기록"
+            )
+        )
+        try oldContainer.mainContext.save()
+
+        let currentContainer = try makeCurrentContainer(at: storeURL)
+        let records = try currentContainer.mainContext.fetch(FetchDescriptor<WhisperRecord>())
+        let journals = try currentContainer.mainContext.fetch(FetchDescriptor<DailyJournal>())
+
+        #expect(records.map(\.id) == [recordID])
+        #expect(journals.isEmpty)
     }
 
     @Test("현재 저장소는 재실행해도 그대로 열린다")
@@ -352,7 +388,7 @@ struct WhisperMigrationTests {
     }
 
     private func makeCurrentContainer(at storeURL: URL) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let schema = Schema(versionedSchema: WhisperSchemaV5.self)
         let configuration = ModelConfiguration(
             schema: schema,
             url: storeURL,

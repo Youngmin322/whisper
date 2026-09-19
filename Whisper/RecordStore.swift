@@ -78,6 +78,7 @@ private struct LegacyWhisperRecord: Codable {
 @Observable
 final class RecordStore {
     private(set) var records: [WhisperRecord] = []
+    private(set) var journals: [DailyJournal] = []
     private(set) var commitments: [WhisperCommitment] = []
     private(set) var encounters: [ReminderEncounter] = []
     private(set) var notificationSlots: [NotificationDaySlot] = []
@@ -96,7 +97,7 @@ final class RecordStore {
         )
 
         do {
-            let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+            let schema = Schema(versionedSchema: WhisperSchemaV5.self)
             let container = try ModelContainer(
                 for: schema,
                 migrationPlan: WhisperMigrationPlan.self,
@@ -1459,6 +1460,67 @@ final class RecordStore {
         records.filter { calendar.isDate($0.createdAt, inSameDayAs: date) }
     }
 
+    func journal(on date: Date, calendar: Calendar = .current) -> DailyJournal? {
+        let dayKey = JournalDayKey.make(for: date, calendar: calendar)
+        return journals.first { $0.dayKey == dayKey }
+    }
+
+    func journalDraft(
+        on date: Date = .now,
+        calendar: Calendar = .current
+    ) -> DailyJournalDraft {
+        DailyJournalComposer.compose(
+            from: records(on: date, calendar: calendar),
+            on: date,
+            calendar: calendar
+        )
+    }
+
+    @discardableResult
+    func saveJournal(
+        on date: Date,
+        title: String,
+        body: String,
+        reflection: String,
+        emotion: String?,
+        sourceRecordIDs: [UUID],
+        calendar: Calendar = .current,
+        now: Date = .now
+    ) -> DailyJournal? {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return nil
+        }
+
+        let dayKey = JournalDayKey.make(for: date, calendar: calendar)
+        if let existing = journals.first(where: { $0.dayKey == dayKey }) {
+            existing.update(
+                title: title,
+                body: body,
+                reflection: reflection,
+                emotion: emotion,
+                sourceRecordIDs: sourceRecordIDs,
+                at: now
+            )
+        } else {
+            modelContext.insert(
+                DailyJournal(
+                    dayKey: dayKey,
+                    date: calendar.startOfDay(for: date),
+                    title: title,
+                    body: body,
+                    reflection: reflection,
+                    emotion: emotion,
+                    sourceRecordIDs: sourceRecordIDs,
+                    createdAt: now
+                )
+            )
+        }
+
+        guard saveChanges(reloadAfterSave: true) else { return nil }
+        return journal(on: date, calendar: calendar)
+    }
+
     func records(linkedTo focusMode: String) -> [WhisperRecord] {
         records.filter { $0.focusMode == focusMode }
     }
@@ -1541,6 +1603,7 @@ final class RecordStore {
     private func reload() {
         guard let modelContext else {
             records = []
+            journals = []
             commitments = []
             encounters = []
             notificationSlots = []
@@ -1553,6 +1616,11 @@ final class RecordStore {
 
         do {
             records = try modelContext.fetch(descriptor)
+            journals = try modelContext.fetch(
+                FetchDescriptor<DailyJournal>(
+                    sortBy: [SortDescriptor(\.date, order: .reverse)]
+                )
+            )
             commitments = try modelContext.fetch(
                 FetchDescriptor<WhisperCommitment>(
                     sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -1574,6 +1642,7 @@ final class RecordStore {
             isPersistenceAvailable = true
         } catch {
             records = []
+            journals = []
             commitments = []
             encounters = []
             notificationSlots = []
