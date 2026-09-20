@@ -245,13 +245,7 @@ struct TodayView: View {
     }
 
     private var saveToast: some View {
-        Label("오늘에 담았어요", systemImage: "sparkle")
-            .font(.whisperControl)
-            .foregroundStyle(Color.whisperTextPrimary)
-            .padding(.horizontal, WhisperSpacing.medium)
-            .padding(.vertical, WhisperSpacing.small)
-            .background(.regularMaterial, in: Capsule())
-            .shadow(color: Color.black.opacity(0.14), radius: 20, y: 8)
+        WhisperToast("오늘에 담았어요", systemImage: "sparkles")
             .accessibilityIdentifier("home.saveFeedback")
     }
 

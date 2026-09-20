@@ -834,6 +834,15 @@ struct JournalDetailView: View {
         )
         .navigationTitle("일기")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    JournalFlowView(recordStore: recordStore, date: journal.date)
+                } label: {
+                    Label("수정", systemImage: "pencil")
+                }
+            }
+        }
     }
 }
 
@@ -843,19 +852,44 @@ private struct JournalCompletionStep: View {
     let onEdit: () -> Void
     let onClose: () -> Void
 
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button("‹ 일기", action: onClose)
-                Spacer()
-                Button("수정", action: onEdit)
-            }
-            .font(.whisperControl)
-            .padding(.horizontal, WhisperLayout.screenHorizontalPadding - 4)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isSaveFeedbackVisible = false
 
+    var body: some View {
+        ZStack(alignment: .bottom) {
             JournalDetailContent(journal: journal, sourceRecords: sourceRecords)
+
+            if isSaveFeedbackVisible {
+                WhisperToast("오늘의 일기로 저장했어요")
+                    .accessibilityIdentifier("journal.saveFeedback")
+                    .padding(.bottom, WhisperSpacing.large)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("일기")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("일기", systemImage: "chevron.left", action: onClose)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("수정", systemImage: "pencil", action: onEdit)
+            }
+        }
+        .task {
+            withAnimation(reduceMotion ? nil : .spring(duration: 0.36, bounce: 0.18)) {
+                isSaveFeedbackVisible = true
+            }
+
+            try? await Task.sleep(for: .milliseconds(1_600))
+            guard !Task.isCancelled else { return }
+
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                isSaveFeedbackVisible = false
+            }
+        }
     }
 }
 
@@ -874,10 +908,9 @@ private struct JournalDetailContent: View {
                         .font(.whisperScreenTitle)
                 }
 
-                JournalLandscapeArtwork()
-
                 Text(journal.body)
                     .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextPrimary)
                     .lineSpacing(8)
 
                 if !journal.reflection.isEmpty || journal.emotion != nil {
@@ -916,31 +949,37 @@ private struct JournalDetailContent: View {
                     )
                 }
 
-                NavigationLink {
-                    JournalSourcesView(records: sourceRecords)
-                } label: {
+                Divider()
+
+                VStack(alignment: .leading, spacing: WhisperSpacing.small) {
                     HStack {
-                        VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-                            Text("이 일기의 재료")
-                                .font(.whisperCaption)
-                                .foregroundStyle(Color.whisperTextSecondary)
-                            Text("\(sourceRecords.count)개의 순간 보기")
-                                .font(.whisperBody)
-                                .foregroundStyle(Color.whisperTextPrimary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
+                        Text("이 일기를 만든 순간")
+                            .font(.whisperSectionTitle)
                             .foregroundStyle(Color.whisperTextPrimary)
+
+                        Spacer()
+
+                        NavigationLink {
+                            JournalSourcesView(records: sourceRecords)
+                        } label: {
+                            HStack(spacing: WhisperSpacing.xxSmall) {
+                                Text("타임라인 보기")
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(.whisperMetadata)
+                            .foregroundStyle(Color.whisperAccentText)
+                        }
                     }
-                    .padding(WhisperSpacing.medium)
-                    .background(
-                        Color.whisperSurfaceSubtle,
-                        in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                    )
+
+                    JournalSavedSourceStrip(records: sourceRecords)
+
+                    Text("선택한 \(sourceRecords.count)개의 순간을 엮고 직접 확인해 저장했어요")
+                        .font(.whisperCaption)
+                        .foregroundStyle(Color.whisperTextSecondary)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+            .padding(.top, WhisperSpacing.small)
             .padding(.bottom, WhisperSpacing.xxLarge)
         }
         .scrollIndicators(.hidden)
@@ -948,36 +987,39 @@ private struct JournalDetailContent: View {
     }
 }
 
-private struct JournalLandscapeArtwork: View {
+private struct JournalSavedSourceStrip: View {
+    let records: [WhisperRecord]
+
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottom) {
-                Color(red: 0.83, green: 0.89, blue: 0.86)
-                Circle()
-                    .fill(Color(red: 0.98, green: 0.78, blue: 0.60))
-                    .frame(width: 62, height: 62)
-                    .position(x: geometry.size.width * 0.8, y: 52)
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: geometry.size.height))
-                    path.addLine(to: CGPoint(x: geometry.size.width * 0.28, y: 82))
-                    path.addLine(to: CGPoint(x: geometry.size.width * 0.51, y: geometry.size.height))
-                    path.closeSubpath()
+        ScrollView(.horizontal) {
+            HStack(spacing: WhisperSpacing.xSmall) {
+                ForEach(records) { record in
+                    VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+                        Text(record.title)
+                            .font(.whisperMetadata)
+                            .foregroundStyle(Color.whisperTextPrimary)
+                            .lineLimit(1)
+
+                        Text(record.createdAt.whisperTimeDescription)
+                            .font(.whisperLabel)
+                            .foregroundStyle(Color.whisperTextSecondary)
+                    }
+                    .frame(width: 92, alignment: .leading)
+                    .frame(minHeight: 68, alignment: .leading)
+                    .padding(.horizontal, WhisperSpacing.small)
+                    .background(
+                        Color.whisperSurfaceDefault,
+                        in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
+                    )
                 }
-                .fill(Color(red: 0.58, green: 0.72, blue: 0.66))
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: geometry.size.height))
-                    path.addLine(to: CGPoint(x: geometry.size.width * 0.28, y: 128))
-                    path.addLine(to: CGPoint(x: geometry.size.width * 0.52, y: geometry.size.height - 12))
-                    path.addLine(to: CGPoint(x: geometry.size.width * 0.75, y: 105))
-                    path.addLine(to: CGPoint(x: geometry.size.width, y: geometry.size.height))
-                    path.closeSubpath()
-                }
-                .fill(Color(red: 0.42, green: 0.62, blue: 0.55))
             }
+            .padding(WhisperSpacing.xSmall)
         }
-        .frame(height: 206)
-        .clipShape(RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous))
-        .accessibilityHidden(true)
+        .scrollIndicators(.hidden)
+        .background(
+            Color.whisperSurfaceHighlight,
+            in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
+        )
     }
 }
 
