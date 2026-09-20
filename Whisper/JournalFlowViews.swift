@@ -548,128 +548,176 @@ private struct JournalReflectionStep: View {
     private let emotions = ["차분함", "기쁨", "아쉬움"]
 
     var body: some View {
-        VStack(spacing: 0) {
-            journalHeader(
-                leading: "‹ 이전",
-                title: "오늘의 의미",
-                onLeading: onBack
-            )
+        ScrollView {
+            VStack(spacing: WhisperSpacing.xLarge) {
+                ZStack {
+                    Circle()
+                        .fill(Color.whisperSurfaceHighlight)
+                        .frame(width: 112, height: 112)
 
-            ScrollView {
-                VStack(spacing: WhisperSpacing.large) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.whisperSurfaceHighlight)
-                            .frame(width: 154, height: 154)
-                        Image.whisperFlame
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 44, height: 62)
-                    }
+                    Image.whisperFlame
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 34, height: 48)
+                        .accessibilityHidden(true)
+                }
 
-                    VStack(spacing: WhisperSpacing.xSmall) {
-                        Text("오늘, 오래 남기고 싶은 건?")
-                            .font(.whisperScreenTitle)
-                            .multilineTextAlignment(.center)
-                        Text("정답 대신 당신의 한 문장을 더해주세요.")
-                            .font(.whisperControl)
-                            .foregroundStyle(Color.whisperTextSecondary)
-                    }
+                VStack(spacing: WhisperSpacing.xSmall) {
+                    Text("한 문장을 더할까요?")
+                        .font(.whisperScreenTitle)
+                        .foregroundStyle(Color.whisperTextPrimary)
+                        .multilineTextAlignment(.center)
 
-                    VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                        TextEditor(text: $reflection)
-                            .focused($isReflectionFocused)
-                            .font(.whisperBody)
-                            .lineSpacing(5)
-                            .scrollContentBackground(.hidden)
-                            .frame(minHeight: 100)
-                            .onChange(of: reflection) { _, newValue in
-                                guard newValue.count > reflectionLimit else { return }
-                                reflection = String(newValue.prefix(reflectionLimit))
-                            }
-                            .accessibilityIdentifier("journal.reflectionField")
+                    Text("떠오를 때만 적어도 괜찮아요.\n건너뛰어도 일기는 저장돼요.")
+                        .font(.whisperControl)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .multilineTextAlignment(.center)
+                }
 
-                        Divider()
-                        Text("\(reflection.count) / \(reflectionLimit)")
+                reflectionField
+
+                VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("오늘의 감정")
+                            .font(.whisperSectionTitle)
+                            .foregroundStyle(Color.whisperTextPrimary)
+
+                        Spacer()
+
+                        Text("선택 사항")
                             .font(.whisperLabel)
                             .foregroundStyle(Color.whisperTextSecondary)
                     }
-                    .padding(WhisperSpacing.medium)
-                    .background(
-                        Color.whisperSurfaceHighlight.opacity(0.52),
-                        in: RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
-                            .stroke(Color.whisperAccent.opacity(0.5), lineWidth: 1)
-                    }
 
-                    HStack(spacing: WhisperSpacing.xSmall) {
-                        suggestionChip("🙂 평온했어요")
-                        suggestionChip("🌿 가벼움")
-                        suggestionChip("＋ 감정 더하기")
-                    }
-
-                    HStack(spacing: WhisperSpacing.xSmall) {
-                        ForEach(emotions, id: \.self) { value in
-                            emotionChip(value)
+                    ScrollView(.horizontal) {
+                        HStack(spacing: WhisperSpacing.xSmall) {
+                            ForEach(emotions, id: \.self) { value in
+                                emotionChip(value)
+                            }
                         }
-                        Spacer()
                     }
+                    .scrollIndicators(.hidden)
                 }
-                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-                .padding(.bottom, WhisperSpacing.large)
             }
-            .scrollIndicators(.hidden)
-
-            Button("오늘 일기로 남기기", action: onSave)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: 25))
-                .controlSize(.large)
-                .disabled(reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .accessibilityIdentifier("journal.saveButton")
-                .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-
-            Text("언제든 다시 고칠 수 있어요")
-                .font(.whisperCaption)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .padding(.vertical, WhisperSpacing.medium)
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+            .padding(.top, WhisperSpacing.medium)
+            .padding(.bottom, WhisperSpacing.xxLarge)
         }
-        .task {
-            await Task.yield()
-            isReflectionFocused = reflection.isEmpty
+        .scrollDismissesKeyboard(.interactively)
+        .scrollIndicators(.hidden)
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: WhisperSpacing.small) {
+                Button("한 문장 추가하고 저장", action: onSave)
+                    .buttonStyle(.whisperPrimary)
+                    .disabled(trimmedReflection.isEmpty)
+                    .accessibilityIdentifier("journal.saveButton")
+
+                if trimmedReflection.isEmpty {
+                    Button(
+                        emotion == nil ? "한 문장 없이 저장" : "선택한 감정만 저장",
+                        action: onSave
+                    )
+                    .font(.whisperControl)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("journal.skipReflectionButton")
+                } else {
+                    Text("저장한 뒤에도 언제든 다시 고칠 수 있어요")
+                        .font(.whisperCaption)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .frame(minHeight: 44)
+                }
+            }
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+            .padding(.top, WhisperSpacing.small)
+            .background(Color.whisperBackground)
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("내 한 문장")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("일기 편집", systemImage: "chevron.left", action: onBack)
+            }
+
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("완료") {
+                    isReflectionFocused = false
+                }
+            }
+        }
     }
 
-    private func suggestionChip(_ value: String) -> some View {
-        Button(value) {
-            if reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-               value != "＋ 감정 더하기" {
-                reflection = value.replacingOccurrences(of: "🙂 ", with: "")
-                    .replacingOccurrences(of: "🌿 ", with: "")
-            } else {
-                isReflectionFocused = true
-            }
-        }
-        .font(.whisperCaption)
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
-        .tint(Color.whisperTextSecondary)
-        .frame(maxWidth: .infinity)
+    private var trimmedReflection: String {
+        reflection.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    @ViewBuilder
+    private var reflectionField: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+            Text("나에게 남기는 말")
+                .font(.whisperFieldLabel)
+                .foregroundStyle(Color.whisperTextPrimary)
+
+            ZStack(alignment: .topLeading) {
+                if reflection.isEmpty {
+                    Text("예: 서두르지 않아도 다시 시작할 수 있다.")
+                        .font(.whisperBody)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 8)
+                        .allowsHitTesting(false)
+                }
+
+                TextEditor(text: $reflection)
+                    .focused($isReflectionFocused)
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .lineSpacing(5)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 112)
+                    .onChange(of: reflection) { _, newValue in
+                        guard newValue.count > reflectionLimit else { return }
+                        reflection = String(newValue.prefix(reflectionLimit))
+                    }
+                    .accessibilityIdentifier("journal.reflectionField")
+            }
+
+            Divider()
+
+            HStack {
+                Text("한 문장으로 짧게 남겨도 충분해요")
+                Spacer()
+                Text("\(reflection.count) / \(reflectionLimit)")
+            }
+            .font(.whisperLabel)
+            .foregroundStyle(Color.whisperTextSecondary)
+        }
+        .padding(WhisperSpacing.medium)
+        .background(
+            Color.whisperSurfaceDefault,
+            in: RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
+                .stroke(
+                    isReflectionFocused ? Color.whisperAccent : Color.whisperBorderSubtle,
+                    lineWidth: 1
+                )
+        }
+    }
+
     private func emotionChip(_ value: String) -> some View {
-        if emotion == value {
-            Button(value) { emotion = nil }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-        } else {
-            Button(value) { emotion = value }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
+        Button {
+            emotion = emotion == value ? nil : value
+        } label: {
+            WhisperFilterChip(
+                title: value,
+                isSelected: emotion == value
+            )
         }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(emotion == value ? .isSelected : [])
     }
 }
 
@@ -832,18 +880,32 @@ private struct JournalDetailContent: View {
                     .font(.whisperBody)
                     .lineSpacing(8)
 
-                if !journal.reflection.isEmpty {
+                if !journal.reflection.isEmpty || journal.emotion != nil {
                     HStack(alignment: .bottom, spacing: WhisperSpacing.small) {
                         Image.whisperFlame
                             .resizable()
                             .scaledToFit()
                             .frame(width: 34, height: 48)
                         VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                            Text("내가 더한 한 문장")
-                                .font(.whisperLabel)
-                                .foregroundStyle(Color.whisperAccentText)
-                            Text(journal.reflection)
-                                .font(.whisperBody)
+                            HStack {
+                                Text("오늘의 의미")
+                                    .font(.whisperLabel)
+                                    .foregroundStyle(Color.whisperAccentText)
+
+                                if let emotion = journal.emotion {
+                                    Text(emotion)
+                                        .font(.whisperLabel)
+                                        .foregroundStyle(Color.whisperTextPrimary)
+                                        .padding(.horizontal, WhisperSpacing.xSmall)
+                                        .padding(.vertical, WhisperSpacing.xxSmall)
+                                        .background(Color.whisperSurfaceDefault, in: Capsule())
+                                }
+                            }
+
+                            if !journal.reflection.isEmpty {
+                                Text(journal.reflection)
+                                    .font(.whisperBody)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -957,31 +1019,6 @@ private struct JournalSourcesSheet: View {
             }
         }
     }
-}
-
-private func journalHeader(
-    leading: String,
-    title: String,
-    trailing: String? = nil,
-    onLeading: @escaping () -> Void,
-    onTrailing: @escaping () -> Void = {}
-) -> some View {
-    ZStack {
-        Text(title)
-            .font(.whisperNavigationTitle)
-        HStack {
-            Button(leading, action: onLeading)
-                .foregroundStyle(Color.whisperTextSecondary)
-            Spacer()
-            if let trailing {
-                Button(trailing, action: onTrailing)
-                    .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperAccentText)
-            }
-        }
-    }
-    .frame(height: 52)
-    .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
 }
 
 private extension Color {
