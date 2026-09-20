@@ -23,6 +23,8 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
                     header
 
+                    dailyJarHero
+
                     if let unfinishedYesterday {
                         unfinishedYesterdayCard(unfinishedYesterday)
                     }
@@ -128,6 +130,40 @@ struct TodayView: View {
         .background(Color.whisperBackground)
     }
 
+    private var dailyJarHero: some View {
+        HStack(alignment: .center, spacing: WhisperSpacing.medium) {
+            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text(jarEyebrow)
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperAccentText)
+
+                Text(jarTitle)
+                    .font(.whisperNavigationTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(jarDescription)
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            WhisperJarAnimation(size: .today)
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity, minHeight: 138, alignment: .leading)
+        .padding(.leading, WhisperSpacing.large)
+        .padding(.trailing, WhisperSpacing.small)
+        .padding(.vertical, WhisperSpacing.xSmall)
+        .background(
+            Color.whisperSurfaceHighlight,
+            in: RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("home.jarHero")
+    }
+
     private func unfinishedYesterdayCard(_ day: UnfinishedYesterday) -> some View {
         HStack(spacing: WhisperSpacing.xSmall) {
             NavigationLink {
@@ -185,12 +221,6 @@ struct TodayView: View {
 
     private var emptyTimeline: some View {
         VStack(spacing: WhisperSpacing.small) {
-            Image.whisperFlame
-                .resizable()
-                .scaledToFit()
-                .frame(width: 44, height: 61)
-                .accessibilityHidden(true)
-
             Text("아직 남긴 순간이 없어요")
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
@@ -200,7 +230,7 @@ struct TodayView: View {
                 .foregroundStyle(Color.whisperTextSecondary)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, minHeight: 360)
+        .frame(maxWidth: .infinity, minHeight: 160)
         .accessibilityElement(children: .combine)
     }
 
@@ -290,6 +320,35 @@ struct TodayView: View {
     private var todayMoments: [WhisperRecord] {
         recordStore.records(on: .now)
             .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private var jarEyebrow: String {
+        recordStore.journal(on: .now) == nil ? "오늘의 유리병" : "오늘의 일기"
+    }
+
+    private var jarTitle: String {
+        if recordStore.journal(on: .now) != nil {
+            return "오늘을 잘 간직했어요"
+        }
+
+        switch todayMoments.count {
+        case 0:
+            return "첫 순간을 기다리고 있어요"
+        case 1:
+            return "한 개의 순간이 담겼어요"
+        default:
+            return "\(todayMoments.count)개의 순간이 모였어요"
+        }
+    }
+
+    private var jarDescription: String {
+        if recordStore.journal(on: .now) != nil {
+            return "언제든 다시 펼쳐볼 수 있어요."
+        }
+
+        return todayMoments.isEmpty
+            ? "짧은 한 문장부터 시작해도 괜찮아요."
+            : "하루가 끝나면 한 편의 일기로 정리해 보세요."
     }
 
     private var unfinishedYesterday: UnfinishedYesterday? {

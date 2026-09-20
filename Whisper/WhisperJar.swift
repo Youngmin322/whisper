@@ -13,6 +13,7 @@ struct WhisperJarAnimation: View {
         case hero
         case small
         case home
+        case today
 
         var width: CGFloat {
             switch self {
@@ -22,6 +23,8 @@ struct WhisperJarAnimation: View {
                 70
             case .home:
                 50
+            case .today:
+                104
             }
         }
 
@@ -33,12 +36,15 @@ struct WhisperJarAnimation: View {
                 82
             case .home:
                 60
+            case .today:
+                122
             }
         }
     }
 
     let size: Size
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isFlameAnimating = false
 
     var body: some View {
@@ -78,11 +84,12 @@ struct WhisperJarAnimation: View {
             height: size.height
         )
         .onAppear {
-            isFlameAnimating = true
+            isFlameAnimating = !reduceMotion
         }
         .animation(
-            .easeInOut(duration: 0.9)
-                .repeatForever(autoreverses: true),
+            reduceMotion
+                ? nil
+                : .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
             value: isFlameAnimating
         )
     }
