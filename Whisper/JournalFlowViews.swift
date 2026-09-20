@@ -724,17 +724,16 @@ private struct JournalReflectionStep: View {
 struct JournalLibraryView: View {
     let recordStore: RecordStore
 
+    @State private var searchText = ""
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: WhisperSpacing.large) {
-                Text("일기")
-                    .font(.whisperScreenTitle)
-
+            LazyVStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
                 if shouldShowTodayDraft {
                     NavigationLink {
                         JournalFlowView(recordStore: recordStore)
                     } label: {
-                        readyCard
+                        draftCard
                     }
                     .buttonStyle(.plain)
                 }
@@ -746,15 +745,27 @@ struct JournalLibraryView: View {
                         description: Text("오늘의 순간을 남기면 하루 초안을 만들 수 있어요.")
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
+                } else if filteredJournals.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                        .frame(maxWidth: .infinity, minHeight: 360)
                 } else {
-                    LazyVStack(spacing: WhisperSpacing.small) {
-                        ForEach(recordStore.journals.sorted { $0.date > $1.date }) { journal in
-                            NavigationLink {
-                                JournalDetailView(journal: journal, recordStore: recordStore)
-                            } label: {
-                                journalCard(journal)
+                    ForEach(monthSections) { section in
+                        VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                            Text(section.title)
+                                .font(.whisperControl)
+                                .foregroundStyle(Color.whisperTextSecondary)
+
+                            LazyVStack(spacing: WhisperSpacing.small) {
+                                ForEach(section.journals) { journal in
+                                    NavigationLink {
+                                        JournalDetailView(journal: journal, recordStore: recordStore)
+                                    } label: {
+                                        journalCard(journal)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(journalAccessibilityLabel(journal))
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -765,61 +776,166 @@ struct JournalLibraryView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color.whisperBackground)
-        .navigationBarHidden(true)
+        .navigationTitle("일기")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar(.visible, for: .navigationBar)
+        .searchable(text: $searchText, prompt: "제목이나 내용 검색")
     }
 
     private var shouldShowTodayDraft: Bool {
         !recordStore.journalDraft().isEmpty && recordStore.journal(on: .now) == nil
     }
 
-    private var readyCard: some View {
-        HStack(spacing: WhisperSpacing.medium) {
-            WhisperJarAnimation(size: .home)
+    private var draftCard: some View {
+        HStack(spacing: WhisperSpacing.small) {
+            Image.whisperFlame
+                .resizable()
+                .scaledToFit()
+                .frame(width: 26, height: 36)
+                .accessibilityHidden(true)
+
             VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
                 Text("오늘의 초안이 준비됐어요")
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperAccent)
-                Text("30초만 검토하면\n오늘이 일기가 돼요")
-                    .font(.whisperSectionTitle)
-                    .foregroundStyle(Color.whisperTextOnAccent)
+                    .font(.whisperBodyEmphasis)
+                    .foregroundStyle(Color.whisperTextPrimary)
+
+                Text("\(recordStore.journalDraft().sourceRecordIDs.count)개의 순간을 확인하고 일기로 남겨보세요")
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .lineLimit(1)
             }
+
             Spacer()
+
             Image(systemName: "chevron.right")
-                .foregroundStyle(Color.white.opacity(0.8))
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color.whisperTextSecondary)
         }
-        .padding(WhisperSpacing.large)
-        .background(
-            LinearGradient(
-                colors: [Color.whisperColorDark, Color.whisperColorDark.opacity(0.92)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
+        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+        .padding(WhisperSpacing.medium)
+        .whisperCardStyle(
+            fill: .whisperSurfaceHighlight,
+            border: .whisperBorderSubtle,
+            cornerRadius: WhisperRadius.medium
         )
     }
 
     private func journalCard(_ journal: DailyJournal) -> some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-            Text(journal.date.whisperFullDayDescription)
-                .font(.whisperLabel)
+        HStack(spacing: WhisperSpacing.small) {
+            Circle()
+                .fill(Color.whisperAccent)
+                .frame(width: 10, height: 10)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(journal.title)
+                    .font(.whisperBodyEmphasis)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .lineLimit(1)
+
+                Text(journalPreview(journal))
+                    .font(.whisperCaption)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .lineLimit(1)
+
+                Text(journalMetadata(journal))
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: WhisperSpacing.xSmall)
+
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(Color.whisperTextSecondary)
-            Text(journal.title)
-                .font(.whisperSectionTitle)
-                .foregroundStyle(Color.whisperTextPrimary)
-            Text(journal.body)
-                .font(.whisperBody)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .lineLimit(3)
-            Label("\(journal.sourceRecordIDs.count)개의 순간", systemImage: "flame.fill")
-                .font(.whisperCaption)
-                .foregroundStyle(Color.whisperAccentText)
+                .accessibilityHidden(true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(WhisperSpacing.large)
-        .background(
-            Color.whisperSurfaceSubtle,
-            in: RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
+        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+        .padding(WhisperSpacing.medium)
+        .whisperCardStyle(
+            fill: Calendar.current.isDateInToday(journal.date)
+                ? .whisperSurfaceHighlight
+                : .whisperSurfaceDefault,
+            border: .whisperBorderSubtle,
+            cornerRadius: WhisperRadius.medium
         )
+    }
+
+    private var filteredJournals: [DailyJournal] {
+        let sorted = recordStore.journals.sorted { $0.date > $1.date }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return sorted }
+
+        return sorted.filter { journal in
+            journal.title.localizedCaseInsensitiveContains(query) ||
+            journal.body.localizedCaseInsensitiveContains(query) ||
+            journal.reflection.localizedCaseInsensitiveContains(query) ||
+            (journal.emotion?.localizedCaseInsensitiveContains(query) ?? false)
+        }
+    }
+
+    private var monthSections: [JournalMonthSection] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: filteredJournals) { journal in
+            calendar.dateInterval(of: .month, for: journal.date)?.start
+                ?? calendar.startOfDay(for: journal.date)
+        }
+
+        return grouped
+            .map { month, journals in
+                JournalMonthSection(
+                    month: month,
+                    journals: journals.sorted { $0.date > $1.date }
+                )
+            }
+            .sorted { $0.month > $1.month }
+    }
+
+    private func journalPreview(_ journal: DailyJournal) -> String {
+        journal.body
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func journalMetadata(_ journal: DailyJournal) -> String {
+        let date = journal.date.formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .month(.wide)
+                .day()
+        )
+        let context = journal.emotion ?? "\(journal.sourceRecordIDs.count)개의 순간"
+        return "\(date) · \(context)"
+    }
+
+    private func journalAccessibilityLabel(_ journal: DailyJournal) -> String {
+        "\(journal.title), \(journalMetadata(journal)), \(journalPreview(journal))"
+    }
+}
+
+private struct JournalMonthSection: Identifiable {
+    let month: Date
+    let journals: [DailyJournal]
+
+    var id: Date { month }
+
+    var title: String {
+        let calendar = Calendar.current
+        let monthText = month.formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .month(.wide)
+        )
+        let prefix = calendar.isDate(month, equalTo: .now, toGranularity: .year)
+            ? monthText
+            : month.formatted(
+                Date.FormatStyle()
+                    .locale(Locale(identifier: "ko_KR"))
+                    .year()
+                    .month(.wide)
+            )
+        return "\(prefix) · \(journals.count)편"
     }
 }
 
