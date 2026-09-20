@@ -12,9 +12,8 @@ struct QuickRecordView: View {
     @State private var isSaveErrorPresented = false
 
     let onSave: () -> Bool
-    let onOpenDetail: () -> Void
 
-    private let contentLimit = 120
+    private let contentLimit = 500
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,7 +25,7 @@ struct QuickRecordView: View {
             .scrollBounceBehavior(.basedOnSize)
 
             Button(action: save) {
-                Text("오늘에 담기")
+                Text("순간 저장")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.whisperPrimary)
@@ -34,12 +33,7 @@ struct QuickRecordView: View {
             .accessibilityIdentifier("record.saveButton")
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.top, WhisperSpacing.small)
-
-            Text("사진은 선택 사항이에요")
-                .font(.whisperCaption)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .padding(.top, WhisperSpacing.xSmall)
-                .padding(.bottom, WhisperSpacing.medium)
+            .padding(.bottom, WhisperSpacing.medium)
         }
         .background(Color.whisperBackground.ignoresSafeArea())
         .task {
@@ -56,28 +50,41 @@ struct QuickRecordView: View {
 
     private var formContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                Text("지금 떠오른 순간")
+            HStack(alignment: .center, spacing: WhisperSpacing.medium) {
+                Text("순간 남기기")
                     .font(.whisperSheetTitle)
                     .foregroundStyle(Color.whisperTextPrimary)
 
-                Text("완성된 문장보다 지금의 느낌을 먼저 남겨보세요.")
-                    .font(.whisperBody)
-                    .foregroundStyle(Color.whisperTextSecondary)
+                Spacer()
+
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .accessibilityLabel("닫기")
             }
-            .padding(.bottom, WhisperSpacing.xxLarge)
+
+            Text("지금의 감정이나 있었던 일을 편하게 적어보세요.")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .padding(.top, WhisperSpacing.xSmall)
+                .padding(.bottom, WhisperSpacing.xLarge)
 
             TextField(
-                "지금 떠오른 장면이나 마음을 적어보세요.",
+                "무슨 일이 있었나요?",
                 text: $draft.content,
                 axis: .vertical
             )
             .focused($isContentFocused)
             .font(.whisperBodyLarge)
             .lineSpacing(4)
-            .lineLimit(1 ... 3)
+            .lineLimit(4 ... 8)
             .padding(WhisperSpacing.medium)
-            .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
             .background(
                 isContentFocused ? Color.whisperSurfaceFocus : Color.whisperSurfaceDefault,
                 in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
@@ -102,51 +109,10 @@ struct QuickRecordView: View {
                 .accessibilityLabel("현재 \(draft.content.count)자, 최대 \(contentLimit)자")
                 .padding(.horizontal, WhisperSpacing.medium)
                 .padding(.top, WhisperSpacing.xSmall)
-
-            Text("기록 방식")
-                .font(.whisperMetadata)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .padding(.top, WhisperSpacing.xLarge)
-                .padding(.bottom, WhisperSpacing.small)
-
-            HStack(spacing: WhisperSpacing.xSmall) {
-                captureModeButton(title: "텍스트", isSelected: true, identifier: "text") {
-                    isContentFocused = true
-                }
-
-                captureModeButton(title: "사진", identifier: "photo") {
-                    onOpenDetail()
-                    dismiss()
-                }
-            }
-
-            Text("저장하면 타임라인에 쌓이고 바로 닫혀요")
-                .font(.whisperMetadata)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
-                .padding(.horizontal, WhisperSpacing.medium)
-                .background(
-                    Color.whisperSurfaceHighlight,
-                    in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
-                )
-                .padding(.top, WhisperSpacing.xLarge)
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, WhisperSpacing.large)
         .padding(.bottom, WhisperSpacing.large)
-    }
-
-    private func captureModeButton(
-        title: String,
-        isSelected: Bool = false,
-        identifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            WhisperFilterChip(title: title, isSelected: isSelected)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("record.mode.\(identifier)")
     }
 
     private func save() {
@@ -162,7 +128,7 @@ private struct QuickRecordPreview: View {
     @State private var draft = RecordDraft()
 
     var body: some View {
-        QuickRecordView(draft: $draft, onSave: { true }, onOpenDetail: {})
+        QuickRecordView(draft: $draft, onSave: { true })
     }
 }
 

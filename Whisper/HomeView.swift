@@ -9,8 +9,6 @@ import WhisperDesignSystem
 struct HomeView: View {
     let recordStore: RecordStore
     @State private var isQuickRecordPresented = false
-    @State private var isDetailRecordPresented = false
-    @State private var shouldOpenDetailAfterSheetDismisses = false
     @State private var recordDraft = RecordDraft()
     @State private var pendingCommitmentCandidates: [CommitmentCandidate] = []
     @State private var presentedCommitmentCandidate: CommitmentCandidate?
@@ -37,26 +35,15 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(
             isPresented: $isQuickRecordPresented,
-            onDismiss: openDetailAfterSheetDismissesIfNeeded
+            onDismiss: presentPendingCommitmentCandidateIfPossible
         ) {
             QuickRecordView(
                 draft: $recordDraft,
-                onSave: { saveDraft() },
-                onOpenDetail: {
-                    shouldOpenDetailAfterSheetDismisses = true
-                }
+                onSave: { saveDraft() }
             )
             .presentationDetents([.fraction(0.72), .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(WhisperRadius.sheet)
-        }
-        .navigationDestination(isPresented: $isDetailRecordPresented) {
-            DetailedRecordView(draft: $recordDraft) { emotion, photoData in
-                saveDraft(
-                    emotion: emotion,
-                    photoData: photoData
-                )
-            }
         }
         .sheet(
             item: $presentedCommitmentCandidate,
@@ -75,10 +62,6 @@ struct HomeView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
-        }
-        .onChange(of: isDetailRecordPresented) { _, isPresented in
-            guard !isPresented else { return }
-            presentPendingCommitmentCandidateIfPossible()
         }
         .alert("알림을 켜야 다시 건넬 수 있어요", isPresented: $isReminderUnavailablePresented) {
             Button("확인", role: .cancel) {}
@@ -307,10 +290,7 @@ struct HomeView: View {
         recordStore.hasRecord(on: .now, calendar: calendar)
     }
 
-    private func saveDraft(
-        emotion: String? = nil,
-        photoData: Data? = nil
-    ) -> Bool {
+    private func saveDraft() -> Bool {
         let title = recordDraft.titleForSaving
         let content = recordDraft.contentForSaving
         let existingCommitments = recordStore.activeCommitmentSnapshots
@@ -318,8 +298,8 @@ struct HomeView: View {
         guard let savedRecord = recordStore.addAndReturn(
             title: title,
             content: content,
-            emotion: emotion,
-            photoData: photoData
+            emotion: nil,
+            photoData: nil
         ) else {
             return false
         }
@@ -332,15 +312,6 @@ struct HomeView: View {
             existingCommitments: existingCommitments
         )
         return true
-    }
-
-    private func openDetailAfterSheetDismissesIfNeeded() {
-        if shouldOpenDetailAfterSheetDismisses {
-            shouldOpenDetailAfterSheetDismisses = false
-            isDetailRecordPresented = true
-        } else {
-            presentPendingCommitmentCandidateIfPossible()
-        }
     }
 
     private func analyzeSavedRecord(
@@ -380,7 +351,6 @@ struct HomeView: View {
 
     private func presentPendingCommitmentCandidateIfPossible() {
         guard !isQuickRecordPresented,
-              !isDetailRecordPresented,
               presentedCommitmentCandidate == nil,
               let candidate = pendingCommitmentCandidates.first
         else {

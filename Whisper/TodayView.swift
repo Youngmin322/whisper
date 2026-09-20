@@ -12,8 +12,6 @@ struct TodayView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQuickRecordPresented = false
-    @State private var isDetailRecordPresented = false
-    @State private var shouldOpenDetailAfterSheetDismisses = false
     @State private var recordDraft = RecordDraft()
     @State private var isSaveFeedbackVisible = false
     @State private var feedbackTask: Task<Void, Never>?
@@ -28,7 +26,6 @@ struct TodayView: View {
                         emptyTimeline
                     } else {
                         momentsTimeline
-                        dayCompletionSection
                     }
                 }
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
@@ -43,27 +40,19 @@ struct TodayView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            recordButton
+        }
         .background(Color.whisperBackground)
         .navigationBarHidden(true)
-        .sheet(
-            isPresented: $isQuickRecordPresented,
-            onDismiss: openDetailAfterSheetDismissesIfNeeded
-        ) {
+        .sheet(isPresented: $isQuickRecordPresented) {
             QuickRecordView(
                 draft: $recordDraft,
-                onSave: { saveMoment() },
-                onOpenDetail: {
-                    shouldOpenDetailAfterSheetDismisses = true
-                }
+                onSave: { saveMoment() }
             )
-            .presentationDetents([.fraction(0.72), .large])
+            .presentationDetents([.fraction(0.62), .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(WhisperRadius.sheet)
-        }
-        .navigationDestination(isPresented: $isDetailRecordPresented) {
-            DetailedRecordView(draft: $recordDraft) { emotion, photoData in
-                saveMoment(emotion: emotion, photoData: photoData)
-            }
         }
         .onDisappear {
             feedbackTask?.cancel()
@@ -71,88 +60,115 @@ struct TodayView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: WhisperSpacing.medium) {
-            VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-                Text(Date.now.whisperDayDescription)
-                    .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperTextSecondary)
-
-                Text("오늘의 순간")
-                    .font(.whisperScreenTitle)
-                    .foregroundStyle(Color.whisperTextPrimary)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: WhisperSpacing.medium) {
+                headerTitle
+                Spacer(minLength: WhisperSpacing.small)
+                journalAction
             }
 
-            Spacer(minLength: WhisperSpacing.small)
-
-            if !todayMoments.isEmpty {
-                VStack(alignment: .trailing, spacing: WhisperSpacing.xxSmall) {
-                    Text("\(todayMoments.count)개의 순간")
-                        .font(.whisperMetadata)
-                        .foregroundStyle(Color.whisperTextSecondary)
-
-                    Button {
-                        isQuickRecordPresented = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.circle)
-                    .controlSize(.large)
-                    .accessibilityLabel("순간 더 남기기")
-                    .accessibilityIdentifier("home.addMomentButton")
-                }
+            VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+                headerTitle
+                journalAction
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var headerTitle: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+            Text(Date.now.whisperDayDescription)
+                .font(.whisperCaption)
+                .foregroundStyle(Color.whisperTextSecondary)
+
+            Text("오늘의 순간")
+                .font(.whisperScreenTitle)
+                .foregroundStyle(Color.whisperTextPrimary)
+        }
+    }
+
+    @ViewBuilder
+    private var journalAction: some View {
+        if let journal = recordStore.journal(on: .now) {
+            NavigationLink {
+                JournalDetailView(journal: journal, recordStore: recordStore)
+            } label: {
+                Text("오늘 일기 보기")
+            }
+            .buttonStyle(.whisperSecondary)
+            .accessibilityIdentifier("home.openJournalButton")
+        } else {
+            NavigationLink {
+                JournalFlowView(recordStore: recordStore)
+            } label: {
+                Text("오늘 일기 정리")
+            }
+            .buttonStyle(.whisperSecondary)
+            .accessibilityIdentifier("home.reviewJournalButton")
+        }
+    }
+
+    private var recordButton: some View {
+        Button {
+            isQuickRecordPresented = true
+        } label: {
+            Label("순간 남기기", systemImage: "plus")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.whisperPrimary)
+        .accessibilityIdentifier("home.recordButton")
+        .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+        .padding(.vertical, WhisperSpacing.small)
+        .background(Color.whisperBackground)
+    }
+
     private var emptyTimeline: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.large) {
-            Text("오늘의 타임라인")
-                .font(.whisperSectionTitle)
+        VStack(spacing: WhisperSpacing.small) {
+            Image.whisperFlame
+                .resizable()
+                .scaledToFit()
+                .frame(width: 44, height: 61)
+                .accessibilityHidden(true)
+
+            Text("아직 남긴 순간이 없어요")
+                .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
 
-            VStack(spacing: WhisperSpacing.small) {
-                Image.whisperFlame
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 44, height: 61)
-                    .accessibilityHidden(true)
-
-                Text("아직 남긴 순간이 없어요")
-                    .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.whisperTextPrimary)
-
-                Text("오늘 마음에 남은 한 가지부터 시작해보세요.")
-                    .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity, minHeight: 340)
-
-            Button {
-                isQuickRecordPresented = true
-            } label: {
-                Text("첫 순간 남기기")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.whisperPrimary)
-            .accessibilityIdentifier("home.recordButton")
+            Text("지금의 감정이나 있었던 일을 짧게 남겨보세요.")
+                .font(.whisperCaption)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity, minHeight: 360)
+        .accessibilityElement(children: .combine)
     }
 
     private var momentsTimeline: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            Text("오늘 남긴 순간")
-                .font(.whisperSectionTitle)
-                .foregroundStyle(Color.whisperTextPrimary)
+            HStack(alignment: .firstTextBaseline) {
+                Text("오늘 남긴 순간")
+                    .font(.whisperSectionTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+
+                Spacer()
+
+                Text("\(todayMoments.count)개")
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperTextSecondary)
+            }
 
             VStack(spacing: 0) {
                 ForEach(Array(todayMoments.enumerated()), id: \.element.id) { index, moment in
-                    timelineRow(
-                        moment,
-                        showsContinuation: index < todayMoments.count - 1
-                    )
+                    NavigationLink {
+                        RecordDetailView(record: moment, recordStore: recordStore)
+                    } label: {
+                        timelineRow(
+                            moment,
+                            showsContinuation: index < todayMoments.count - 1
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -194,58 +210,20 @@ struct TodayView: View {
                     .foregroundStyle(Color.whisperAccent)
                     .accessibilityLabel("사진 포함")
             }
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.whisperTextSecondary)
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, WhisperSpacing.xSmall)
+        .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }
 
-    private var dayCompletionSection: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.large) {
-            Divider()
-
-            HStack(alignment: .center, spacing: WhisperSpacing.large) {
-                VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                    Text("오늘 \(todayMoments.count)개의 순간")
-                        .font(.whisperMetadata)
-                        .foregroundStyle(Color.whisperTextSecondary)
-
-                    Text(completionPrompt)
-                        .font(.whisperNavigationTitle)
-                        .foregroundStyle(Color.whisperTextPrimary)
-
-                    Text(completionNote)
-                        .font(.whisperCaption)
-                        .foregroundStyle(Color.whisperTextSecondary)
-                }
-
-                Spacer(minLength: 0)
-                WhisperJarAnimation(size: .home)
-            }
-
-            if let journal = recordStore.journal(on: .now) {
-                NavigationLink {
-                    JournalDetailView(journal: journal, recordStore: recordStore)
-                } label: {
-                    Text("오늘의 일기 보기")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.whisperPrimary)
-                .accessibilityIdentifier("home.openJournalButton")
-            } else {
-                NavigationLink {
-                    JournalFlowView(recordStore: recordStore)
-                } label: {
-                    Text("\(todayMoments.count)개의 순간으로 일기 만들기")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.whisperPrimary)
-                .accessibilityIdentifier("home.reviewJournalButton")
-            }
-        }
-    }
-
     private var saveToast: some View {
-        WhisperToast("오늘에 담았어요", systemImage: "sparkles")
+        WhisperToast("순간을 남겼어요", systemImage: "checkmark")
             .accessibilityIdentifier("home.saveFeedback")
     }
 
@@ -254,30 +232,15 @@ struct TodayView: View {
             .sorted { $0.createdAt < $1.createdAt }
     }
 
-    private var completionPrompt: String {
-        recordStore.journal(on: .now) == nil
-            ? "이 순간들로 오늘을\n한 편의 일기로 남길까요?"
-            : "오늘의 일기가\n안전하게 저장되어 있어요"
-    }
-
-    private var completionNote: String {
-        recordStore.journal(on: .now) == nil
-            ? "나중에 만들어도 오늘의 순간은 그대로 남아 있어요"
-            : "언제든 다시 읽거나 수정할 수 있어요"
-    }
-
-    private func saveMoment(
-        emotion: String? = nil,
-        photoData: Data? = nil
-    ) -> Bool {
+    private func saveMoment() -> Bool {
         let content = recordDraft.contentForSaving
         guard !content.isEmpty else { return false }
 
         guard recordStore.add(
             title: recordDraft.titleForSaving,
             content: content,
-            emotion: emotion,
-            photoData: photoData
+            emotion: nil,
+            photoData: nil
         ) else {
             return false
         }
@@ -306,11 +269,6 @@ struct TodayView: View {
         }
     }
 
-    private func openDetailAfterSheetDismissesIfNeeded() {
-        guard shouldOpenDetailAfterSheetDismisses else { return }
-        shouldOpenDetailAfterSheetDismisses = false
-        isDetailRecordPresented = true
-    }
 }
 
 #Preview {
