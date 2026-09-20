@@ -13,15 +13,15 @@ extension Color {
     static let whisperTextSecondary = whisperColor(0x6B726E)
     static let whisperTextOnAccent = whisperColor(0xFFFFFF)
 
-    static let whisperBackground = whisperColor(0xFFFFFF)
+    static let whisperBackground = whisperColor(0xF7F7F5)
     static let whisperSurfaceDefault = whisperColor(0xFFFFFF)
     static let whisperSurfaceElevated = whisperColor(0xFFFFFF)
     static let whisperSurfaceFocus = whisperColor(0xEEF3F1)
-    static let whisperSurfaceHighlight = whisperColor(0xFFF1ED)
+    static let whisperSurfaceHighlight = whisperColor(0xFFF0EB)
     static let whisperSurfaceSubtle = whisperColor(0xF3F5F4)
 
     static let whisperBorderSubtle = whisperColor(0xDCE2DE)
-    static let whisperDivider = whisperColor(0xDCE2DE)
+    static let whisperDivider = whisperColor(0xD9DCD8)
     static let whisperScrim = whisperColor(0x2E1F17, alpha: 0.18)
 
     static let whisperFlameOuter = whisperColor(0xFF7442)

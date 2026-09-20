@@ -7,8 +7,9 @@ import SwiftUI
 import WhisperDesignSystem
 
 struct JournalFlowView: View {
-    private enum Step {
+    private enum Step: Hashable {
         case selection
+        case generating
         case review
         case reflection
         case complete
@@ -19,6 +20,7 @@ struct JournalFlowView: View {
     private let isEditingExistingJournal: Bool
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step = Step.selection
     @State private var title: String
     @State private var bodyText: String
@@ -26,7 +28,6 @@ struct JournalFlowView: View {
     @State private var emotion: String?
     @State private var orderedRecordIDs: [UUID]
     @State private var includedRecordIDs: Set<UUID>
-    @State private var isPreviewPresented = false
     @State private var isSaveErrorPresented = false
 
     init(recordStore: RecordStore, date: Date = .now) {
@@ -57,15 +58,19 @@ struct JournalFlowView: View {
                     onMove: moveMoments,
                     onNext: prepareDraftForReview
                 )
+            case .generating:
+                JournalGeneratingStep {
+                    step = .selection
+                }
             case .review:
                 JournalReviewStep(
                     date: date,
                     title: $title,
                     bodyText: $bodyText,
                     moments: includedOrderedMoments,
-                    onCancel: { step = .selection },
-                    onPreview: { isPreviewPresented = true },
-                    onNext: { step = .reflection }
+                    onBack: { step = .selection },
+                    onAddReflection: { step = .reflection },
+                    onSave: saveJournal
                 )
             case .reflection:
                 JournalReflectionStep(
@@ -86,16 +91,19 @@ struct JournalFlowView: View {
             }
         }
         .background(Color.whisperBackground.ignoresSafeArea())
-        .sheet(isPresented: $isPreviewPresented) {
-            JournalDraftPreview(
-                date: date,
-                title: title,
-                bodyText: bodyText,
-                reflection: reflection
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(WhisperRadius.sheet)
+        .task(id: step) {
+            guard step == .generating else { return }
+
+            do {
+                try await Task.sleep(
+                    for: reduceMotion ? .milliseconds(120) : .milliseconds(700)
+                )
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else { return }
+            step = .review
         }
         .alert("일기를 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("확인", role: .cancel) {}
@@ -126,7 +134,7 @@ struct JournalFlowView: View {
                 .joined(separator: "\n\n")
         }
 
-        step = .review
+        step = isEditingExistingJournal ? .review : .generating
     }
 
     private func saveJournal() {
@@ -250,108 +258,238 @@ private struct JournalSelectionStep: View {
     }
 }
 
+private struct JournalGeneratingStep: View {
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: WhisperSpacing.large) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(Color.whisperSurfaceHighlight)
+                    .frame(width: 102, height: 102)
+
+                Image.whisperFlame
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 34, height: 48)
+                    .accessibilityHidden(true)
+            }
+
+            VStack(spacing: WhisperSpacing.xSmall) {
+                Text("오늘의 순간을 일기로 엮고 있어요")
+                    .font(.whisperSheetTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text("선택한 순간을 흐름대로 정리하고 있어요.")
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            ProgressView()
+                .tint(Color.whisperAccent)
+                .accessibilityLabel("일기 초안 만드는 중")
+
+            Button("취소", action: onCancel)
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperAccentText)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityIdentifier("journal.cancelGenerationButton")
+
+            Spacer()
+            Spacer()
+        }
+        .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
 private struct JournalReviewStep: View {
     let date: Date
     @Binding var title: String
     @Binding var bodyText: String
     let moments: [WhisperRecord]
-    let onCancel: () -> Void
-    let onPreview: () -> Void
-    let onNext: () -> Void
+    let onBack: () -> Void
+    let onAddReflection: () -> Void
+    let onSave: () -> Void
+
+    @State private var isEditingBody = false
+    @State private var isSourcesPresented = false
 
     var body: some View {
         VStack(spacing: 0) {
-            journalHeader(
-                leading: "‹ 순간 선택",
-                title: "일기 초안",
-                trailing: "미리보기",
-                onLeading: onCancel,
-                onTrailing: onPreview
-            )
-
             ScrollView {
                 VStack(alignment: .leading, spacing: WhisperSpacing.large) {
                     VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                        Text("\(date.whisperDayDescription) · \(moments.count)개의 순간")
-                            .font(.whisperLabel)
+                        Text("\(date.whisperFullDayDescription) · \(moments.count)개의 순간")
+                            .font(.whisperCaption)
                             .foregroundStyle(Color.whisperTextSecondary)
 
-                        TextField("일기 제목", text: $title, axis: .vertical)
-                            .font(.whisperScreenTitle)
-                            .foregroundStyle(Color.whisperTextPrimary)
-                            .accessibilityIdentifier("journal.titleField")
+                        if isEditingBody {
+                            TextField("일기 제목", text: $title, axis: .vertical)
+                                .font(.whisperScreenTitle)
+                                .foregroundStyle(Color.whisperTextPrimary)
+                                .accessibilityIdentifier("journal.titleField")
+                        } else {
+                            Text(title)
+                                .font(.whisperScreenTitle)
+                                .foregroundStyle(Color.whisperTextPrimary)
+                        }
                     }
 
-                    JournalMomentStrip(moments: moments)
-
-                    VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                        TextEditor(text: $bodyText)
-                            .font(.whisperBody)
-                            .lineSpacing(6)
-                            .scrollContentBackground(.hidden)
-                            .frame(minHeight: 156)
-                            .accessibilityIdentifier("journal.bodyField")
-
-                        Text("초안을 눌러 직접 고칠 수 있어요")
-                            .font(.whisperLabel)
-                            .foregroundStyle(Color.whisperTextSecondary)
+                    Group {
+                        if isEditingBody {
+                            TextEditor(text: $bodyText)
+                                .scrollContentBackground(.hidden)
+                                .accessibilityIdentifier("journal.bodyField")
+                        } else {
+                            Text(bodyText)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .accessibilityIdentifier("journal.bodyPreview")
+                        }
                     }
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .lineSpacing(7)
+                    .frame(maxWidth: .infinity, minHeight: 248, alignment: .topLeading)
                     .padding(WhisperSpacing.medium)
                     .background(
-                        Color.whisperSurfaceSubtle,
-                        in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
+                        Color.whisperSurfaceDefault,
+                        in: RoundedRectangle(cornerRadius: WhisperRadius.card, style: .continuous)
                     )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                            .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+
+                    VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                        HStack {
+                            Text("이 일기에 담긴 순간")
+                                .font(.whisperSectionTitle)
+                                .foregroundStyle(Color.whisperTextPrimary)
+
+                            Spacer()
+
+                            Button {
+                                isSourcesPresented = true
+                            } label: {
+                                HStack(spacing: WhisperSpacing.xxSmall) {
+                                    Text("\(moments.count)개 보기")
+                                    Image(systemName: "chevron.right")
+                                }
+                            }
+                            .font(.whisperMetadata)
+                            .foregroundStyle(Color.whisperAccentText)
+                        }
+
+                        JournalSourcePreview(moments: moments)
                     }
 
+                    Button(action: onAddReflection) {
+                        HStack(spacing: WhisperSpacing.small) {
+                            Image(systemName: "plus")
+                                .font(.title3)
+                                .foregroundStyle(Color.whisperAccentText)
+                                .frame(width: 24)
+
+                            VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+                                Text("내 한 문장 더하기")
+                                    .font(.whisperControl)
+                                    .foregroundStyle(Color.whisperTextPrimary)
+
+                                Text("선택 사항 · 이 화면에서 바로 추가할 수 있어요")
+                                    .font(.whisperLabel)
+                                    .foregroundStyle(Color.whisperTextSecondary)
+                            }
+
+                            Spacer(minLength: WhisperSpacing.xSmall)
+
+                            ZStack {
+                                Circle()
+                                    .fill(Color.whisperSurfaceDefault.opacity(0.72))
+                                    .frame(width: 58, height: 58)
+
+                                Image.whisperFlame
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 26, height: 36)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+                        .padding(.leading, WhisperSpacing.medium)
+                        .padding(.trailing, WhisperSpacing.xSmall)
+                        .background(
+                            Color.whisperSurfaceHighlight,
+                            in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("journal.addReflectionButton")
                 }
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-                .padding(.bottom, WhisperSpacing.large)
+                .padding(.top, WhisperSpacing.small)
+                .padding(.bottom, WhisperSpacing.xLarge)
             }
             .scrollIndicators(.hidden)
 
-            Button("다음 · 내 한 문장", action: onNext)
+            Button("오늘의 일기로 저장", action: onSave)
                 .buttonStyle(.whisperPrimary)
                 .disabled(
                     title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                     bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                     moments.isEmpty
                 )
-                .accessibilityIdentifier("journal.nextButton")
+                .accessibilityIdentifier("journal.saveDraftButton")
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.bottom, WhisperSpacing.medium)
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("오늘의 일기")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("순간 선택", systemImage: "chevron.left", action: onBack)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(isEditingBody ? "수정 완료" : "본문 수정") {
+                    isEditingBody.toggle()
+                }
+            }
+        }
+        .sheet(isPresented: $isSourcesPresented) {
+            JournalSourcesSheet(records: moments)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(WhisperRadius.sheet)
+        }
     }
 }
 
-private struct JournalMomentStrip: View {
+private struct JournalSourcePreview: View {
     let moments: [WhisperRecord]
 
     var body: some View {
-        HStack(spacing: WhisperSpacing.small) {
-            ForEach(Array(moments.prefix(3))) { moment in
-                Group {
-                    if let photoData = moment.photoData,
-                       let image = UIImage(data: photoData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Image(systemName: "sparkles")
-                            .font(.title2)
-                            .foregroundStyle(Color.whisperAccent)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color.whisperSurfaceHighlight)
-                    }
+        ScrollView(.horizontal) {
+            HStack(spacing: WhisperSpacing.xSmall) {
+                ForEach(moments) { moment in
+                    Text(moment.createdAt.whisperTimeDescription)
+                        .font(.whisperLabel)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .frame(width: 76, height: 40)
+                        .background(
+                            Color.whisperSurfaceDefault,
+                            in: RoundedRectangle(cornerRadius: WhisperRadius.small, style: .continuous)
+                        )
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 76)
-                .clipShape(RoundedRectangle(cornerRadius: WhisperRadius.small, style: .continuous))
             }
+            .padding(WhisperSpacing.small)
         }
+        .scrollIndicators(.hidden)
+        .background(
+            Color.whisperSurfaceHighlight,
+            in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
+        )
     }
 }
 
@@ -694,25 +832,27 @@ private struct JournalDetailContent: View {
                     .font(.whisperBody)
                     .lineSpacing(8)
 
-                HStack(alignment: .bottom, spacing: WhisperSpacing.small) {
-                    Image.whisperFlame
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 34, height: 48)
-                    VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                        Text("내가 더한 한 문장")
-                            .font(.whisperLabel)
-                            .foregroundStyle(Color.whisperAccentText)
-                        Text(journal.reflection)
-                            .font(.whisperBody)
+                if !journal.reflection.isEmpty {
+                    HStack(alignment: .bottom, spacing: WhisperSpacing.small) {
+                        Image.whisperFlame
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 34, height: 48)
+                        VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                            Text("내가 더한 한 문장")
+                                .font(.whisperLabel)
+                                .foregroundStyle(Color.whisperAccentText)
+                            Text(journal.reflection)
+                                .font(.whisperBody)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(WhisperSpacing.large)
+                    .background(
+                        Color.whisperSurfaceHighlight,
+                        in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
+                    )
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(WhisperSpacing.large)
-                .background(
-                    Color.whisperSurfaceHighlight,
-                    in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                )
 
                 NavigationLink {
                     JournalSourcesView(records: sourceRecords)
@@ -798,41 +938,21 @@ private struct JournalSourcesView: View {
     }
 }
 
-private struct JournalDraftPreview: View {
+private struct JournalSourcesSheet: View {
     @Environment(\.dismiss) private var dismiss
-    let date: Date
-    let title: String
-    let bodyText: String
-    let reflection: String
+    let records: [WhisperRecord]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: WhisperSpacing.large) {
-                    Text(date.whisperFullDayDescription)
-                        .font(.whisperLabel)
-                        .foregroundStyle(Color.whisperTextSecondary)
-                    Text(title)
-                        .font(.whisperScreenTitle)
-                    JournalLandscapeArtwork()
-                    Text(bodyText)
-                        .font(.whisperBody)
-                        .lineSpacing(8)
-                    if !reflection.isEmpty {
-                        Text(reflection)
-                            .font(.whisperBodyEmphasis)
-                            .padding(WhisperSpacing.medium)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.whisperSurfaceHighlight, in: RoundedRectangle(cornerRadius: WhisperRadius.large))
-                    }
-                }
-                .padding(WhisperLayout.screenHorizontalPadding)
-            }
-            .navigationTitle("미리보기")
-            .navigationBarTitleDisplayMode(.inline)
+            JournalSourcesView(records: records)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("완료") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel("닫기")
                 }
             }
         }
