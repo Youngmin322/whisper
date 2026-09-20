@@ -7,104 +7,62 @@ import SwiftUI
 import WhisperDesignSystem
 
 struct JournalFlowView: View {
-    private enum Step: Hashable {
-        case selection
-        case generating
-        case review
-        case reflection
-        case complete
-    }
-
     let recordStore: RecordStore
     let date: Date
-    private let isEditingExistingJournal: Bool
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var step = Step.selection
+    @FocusState private var isBodyFocused: Bool
     @State private var title: String
     @State private var bodyText: String
-    @State private var reflection = ""
-    @State private var emotion: String?
-    @State private var orderedRecordIDs: [UUID]
-    @State private var includedRecordIDs: Set<UUID>
+    @State private var sourceRecordIDs: [UUID]
+    @State private var isSourcePickerPresented = false
+    @State private var isShowingSavedJournal = false
     @State private var isSaveErrorPresented = false
+
+    private let preservedReflection: String
+    private let preservedEmotion: String?
 
     init(recordStore: RecordStore, date: Date = .now) {
         self.recordStore = recordStore
         self.date = date
 
         let existing = recordStore.journal(on: date)
-        let draft = recordStore.journalDraft(on: date)
-        let includedSourceIDs = existing?.sourceRecordIDs ?? draft.sourceRecordIDs
-        let remainingSourceIDs = draft.sourceRecordIDs.filter { !includedSourceIDs.contains($0) }
-        let orderedSourceIDs = includedSourceIDs + remainingSourceIDs
-        isEditingExistingJournal = existing != nil
-        _title = State(initialValue: existing?.title ?? draft.title)
-        _bodyText = State(initialValue: existing?.body ?? draft.body)
-        _reflection = State(initialValue: existing?.reflection ?? "")
-        _emotion = State(initialValue: existing?.emotion)
-        _orderedRecordIDs = State(initialValue: orderedSourceIDs)
-        _includedRecordIDs = State(initialValue: Set(includedSourceIDs))
+        _title = State(initialValue: existing?.title ?? "")
+        _bodyText = State(initialValue: existing?.body ?? "")
+        _sourceRecordIDs = State(initialValue: existing?.sourceRecordIDs ?? [])
+        preservedReflection = existing?.reflection ?? ""
+        preservedEmotion = existing?.emotion
     }
 
     var body: some View {
         Group {
-            switch step {
-            case .selection:
-                JournalSelectionStep(
-                    moments: orderedMoments,
-                    includedRecordIDs: $includedRecordIDs,
-                    onMove: moveMoments,
-                    onNext: prepareDraftForReview
-                )
-            case .generating:
-                JournalGeneratingStep {
-                    step = .selection
-                }
-            case .review:
-                JournalReviewStep(
-                    date: date,
-                    title: $title,
-                    bodyText: $bodyText,
-                    moments: includedOrderedMoments,
-                    onBack: { step = .selection },
-                    onAddReflection: { step = .reflection },
-                    onSave: saveJournal
-                )
-            case .reflection:
-                JournalReflectionStep(
-                    reflection: $reflection,
-                    emotion: $emotion,
-                    onBack: { step = .review },
-                    onSave: saveJournal
-                )
-            case .complete:
+            if isShowingSavedJournal {
                 if let journal = recordStore.journal(on: date) {
-                    JournalCompletionStep(
+                    JournalDetailContent(
                         journal: journal,
-                        sourceRecords: sourceRecords(for: journal),
-                        onEdit: { step = .review },
-                        onClose: { dismiss() }
+                        sourceRecords: sourceRecords(for: journal)
                     )
+                    .navigationTitle("일기")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("닫기", systemImage: "chevron.left") {
+                                dismiss()
+                            }
+                        }
+
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("수정", systemImage: "pencil") {
+                                isShowingSavedJournal = false
+                            }
+                        }
+                    }
                 }
+            } else {
+                editor
             }
         }
         .background(Color.whisperBackground.ignoresSafeArea())
-        .task(id: step) {
-            guard step == .generating else { return }
-
-            do {
-                try await Task.sleep(
-                    for: reduceMotion ? .milliseconds(120) : .milliseconds(700)
-                )
-            } catch {
-                return
-            }
-
-            guard !Task.isCancelled else { return }
-            step = .review
-        }
         .alert("일기를 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("확인", role: .cancel) {}
         } message: {
@@ -112,49 +70,255 @@ struct JournalFlowView: View {
         }
     }
 
-    private var orderedMoments: [WhisperRecord] {
-        orderedRecordIDs.compactMap(recordStore.record(withID:))
-    }
+    private var editor: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                Text(date.whisperFullDayDescription)
+                    .font(.whisperLabel)
+                    .foregroundStyle(Color.whisperTextSecondary)
 
-    private var includedOrderedMoments: [WhisperRecord] {
-        orderedMoments.filter { includedRecordIDs.contains($0.id) }
-    }
+                TextField("제목을 입력하세요", text: $title, axis: .vertical)
+                    .font(.whisperScreenTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .accessibilityIdentifier("journal.titleField")
 
-    private func moveMoments(from source: IndexSet, to destination: Int) {
-        orderedRecordIDs.move(fromOffsets: source, toOffset: destination)
-    }
+                Button {
+                    isBodyFocused = false
+                    isSourcePickerPresented = true
+                } label: {
+                    HStack(spacing: WhisperSpacing.small) {
+                        Image(systemName: "tray.and.arrow.down")
+                            .frame(width: 24)
 
-    private func prepareDraftForReview() {
-        guard !includedOrderedMoments.isEmpty else { return }
+                        VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+                            Text("오늘의 순간")
+                                .font(.whisperControl)
+                                .foregroundStyle(Color.whisperTextPrimary)
 
-        if !isEditingExistingJournal {
-            title = "\(includedOrderedMoments.count)개의 순간이 이어진 하루"
-            bodyText = includedOrderedMoments
-                .map(\.content)
-                .joined(separator: "\n\n")
+                            Text(sourcePickerDescription)
+                                .font(.whisperLabel)
+                                .foregroundStyle(Color.whisperTextSecondary)
+                        }
+
+                        Spacer(minLength: WhisperSpacing.xSmall)
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.whisperTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+                    .padding(.horizontal, WhisperSpacing.medium)
+                    .background(
+                        Color.whisperSurfaceDefault,
+                        in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
+                            .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(remainingMoments.isEmpty)
+                .accessibilityIdentifier("journal.sourcePickerButton")
+            }
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+            .padding(.top, WhisperSpacing.small)
+
+            ZStack(alignment: .topLeading) {
+                if bodyText.isEmpty {
+                    Text("오늘 있었던 일과 마음을 자유롭게 적어보세요.")
+                        .font(.whisperBody)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 8)
+                        .allowsHitTesting(false)
+                }
+
+                TextEditor(text: $bodyText)
+                    .focused($isBodyFocused)
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .lineSpacing(8)
+                    .scrollContentBackground(.hidden)
+                    .accessibilityIdentifier("journal.bodyField")
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding - 5)
+            .padding(.top, WhisperSpacing.medium)
         }
+        .navigationTitle("오늘 일기 정리")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("닫기", systemImage: "xmark") {
+                    dismiss()
+                }
+            }
 
-        step = isEditingExistingJournal ? .review : .generating
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("저장", action: saveJournal)
+                    .disabled(trimmedBody.isEmpty)
+                    .accessibilityIdentifier("journal.saveButton")
+            }
+
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("완료") {
+                    isBodyFocused = false
+                }
+            }
+        }
+        .sheet(isPresented: $isSourcePickerPresented) {
+            JournalSourcePickerSheet(
+                moments: remainingMoments,
+                onInsert: insertMoments
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(WhisperRadius.sheet)
+        }
     }
 
     private func saveJournal() {
-        let sourceIDs = orderedRecordIDs.filter(includedRecordIDs.contains)
+        let savedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard recordStore.saveJournal(
             on: date,
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            body: bodyText.trimmingCharacters(in: .whitespacesAndNewlines),
-            reflection: reflection.trimmingCharacters(in: .whitespacesAndNewlines),
-            emotion: emotion,
-            sourceRecordIDs: sourceIDs
+            title: savedTitle.isEmpty ? fallbackTitle : savedTitle,
+            body: trimmedBody,
+            reflection: preservedReflection,
+            emotion: preservedEmotion,
+            sourceRecordIDs: sourceRecordIDs
         ) != nil else {
             isSaveErrorPresented = true
             return
         }
-        step = .complete
+        isBodyFocused = false
+        isShowingSavedJournal = true
     }
 
     private func sourceRecords(for journal: DailyJournal) -> [WhisperRecord] {
         journal.sourceRecordIDs.compactMap(recordStore.record(withID:))
+    }
+
+    private var remainingMoments: [WhisperRecord] {
+        recordStore.records(on: date)
+            .filter { !sourceRecordIDs.contains($0.id) }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private var sourcePickerDescription: String {
+        if remainingMoments.isEmpty {
+            return sourceRecordIDs.isEmpty ? "가져올 순간이 없어요" : "모든 순간을 가져왔어요"
+        }
+        return "\(remainingMoments.count)개 가져오기"
+    }
+
+    private var trimmedBody: String {
+        bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var fallbackTitle: String {
+        date.formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .month(.wide)
+                .day()
+        )
+    }
+
+    private func insertMoments(_ moments: [WhisperRecord]) {
+        guard !moments.isEmpty else { return }
+
+        let paragraphs = moments.map(\.content).joined(separator: "\n\n")
+        if trimmedBody.isEmpty {
+            bodyText = paragraphs
+        } else {
+            bodyText = trimmedBody + "\n\n" + paragraphs
+        }
+        sourceRecordIDs.append(contentsOf: moments.map(\.id))
+        isSourcePickerPresented = false
+        isBodyFocused = true
+    }
+}
+
+private struct JournalSourcePickerSheet: View {
+    let moments: [WhisperRecord]
+    let onInsert: ([WhisperRecord]) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var orderedMoments: [WhisperRecord]
+    @State private var selectedIDs: Set<UUID>
+
+    init(moments: [WhisperRecord], onInsert: @escaping ([WhisperRecord]) -> Void) {
+        self.moments = moments
+        self.onInsert = onInsert
+        _orderedMoments = State(initialValue: moments)
+        _selectedIDs = State(initialValue: Set(moments.map(\.id)))
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Text("체크한 순간을 원하는 순서로 옮긴 뒤 본문에 넣을 수 있어요.")
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
+                    .padding(.vertical, WhisperSpacing.small)
+
+                List {
+                    ForEach(orderedMoments) { moment in
+                        JournalMomentSelectionRow(
+                            moment: moment,
+                            isIncluded: selectedIDs.contains(moment.id),
+                            onToggle: { toggle(moment.id) }
+                        )
+                        .listRowInsets(
+                            EdgeInsets(
+                                top: WhisperSpacing.xSmall,
+                                leading: WhisperLayout.sheetHorizontalPadding,
+                                bottom: WhisperSpacing.xSmall,
+                                trailing: WhisperLayout.sheetHorizontalPadding
+                            )
+                        )
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    }
+                    .onMove { source, destination in
+                        orderedMoments.move(fromOffsets: source, toOffset: destination)
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .environment(\.editMode, .constant(.active))
+
+                Button("\(selectedIDs.count)개 본문에 넣기") {
+                    onInsert(orderedMoments.filter { selectedIDs.contains($0.id) })
+                }
+                .buttonStyle(.whisperPrimary)
+                .disabled(selectedIDs.isEmpty)
+                .accessibilityIdentifier("journal.insertSourcesButton")
+                .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
+                .padding(.vertical, WhisperSpacing.medium)
+            }
+            .background(Color.whisperBackground)
+            .navigationTitle("오늘의 순간")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("닫기", action: dismiss.callAsFunction)
+                }
+            }
+        }
+    }
+
+    private func toggle(_ id: UUID) {
+        if selectedIDs.contains(id) {
+            selectedIDs.remove(id)
+        } else {
+            selectedIDs.insert(id)
+        }
     }
 }
 
@@ -1028,6 +1192,7 @@ private struct JournalDetailContent: View {
                     .font(.whisperBody)
                     .foregroundStyle(Color.whisperTextPrimary)
                     .lineSpacing(8)
+                    .accessibilityIdentifier("journal.bodyPreview")
 
                 if !journal.reflection.isEmpty || journal.emotion != nil {
                     HStack(alignment: .bottom, spacing: WhisperSpacing.small) {

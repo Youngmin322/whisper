@@ -16,28 +16,30 @@ final class JournalFlowUITests: XCTestCase {
         addMoment("바람이 좋아 한 정거장 먼저 내려 걸었다.", in: app)
         openJournalReview(in: app)
 
-        let bodyPreview = app.staticTexts["journal.bodyPreview"]
-        XCTAssertTrue(bodyPreview.waitForExistence(timeout: 4))
-        XCTAssertTrue(bodyPreview.label.contains("바람이 좋아"))
+        let sourcePickerButton = app.buttons["journal.sourcePickerButton"]
+        XCTAssertTrue(sourcePickerButton.waitForExistence(timeout: 2))
+        sourcePickerButton.tap()
 
-        app.buttons["journal.addReflectionButton"].tap()
+        let insertButton = app.buttons["journal.insertSourcesButton"]
+        XCTAssertTrue(insertButton.waitForExistence(timeout: 2))
+        insertButton.tap()
 
-        let reflectionField = app.textViews["journal.reflectionField"]
-        XCTAssertTrue(reflectionField.waitForExistence(timeout: 2))
-        reflectionField.tap()
-        reflectionField.typeText("천천히 가도 괜찮다.")
+        let bodyField = app.textViews["journal.bodyField"]
+        XCTAssertTrue(bodyField.waitForExistence(timeout: 2))
+        XCTAssertTrue((bodyField.value as? String)?.contains("바람이 좋아") == true)
+
+        let titleField = app.textFields["journal.titleField"]
+        titleField.tap()
+        titleField.typeText("천천히 걸은 저녁")
 
         let saveButton = app.buttons["journal.saveButton"]
         XCTAssertTrue(saveButton.isEnabled)
         assertContained(saveButton, in: app)
         saveButton.tap()
 
-        XCTAssertTrue(
-            app.descendants(matching: .any)["journal.saveFeedback"]
-                .waitForExistence(timeout: 2)
-        )
         XCTAssertTrue(app.navigationBars["일기"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["천천히 가도 괜찮다."].exists)
+        XCTAssertTrue(app.staticTexts["천천히 걸은 저녁"].exists)
+        XCTAssertTrue(app.staticTexts["journal.bodyPreview"].label.contains("바람이 좋아"))
     }
 
     func testPrimaryActionsRemainVisibleWithLargeTextAndKeyboard() throws {
@@ -50,27 +52,22 @@ final class JournalFlowUITests: XCTestCase {
         assertContained(reviewButton, in: app)
         reviewButton.tap()
 
-        let createButton = app.buttons["journal.createDraftButton"]
-        XCTAssertTrue(createButton.waitForExistence(timeout: 2))
-        scrollToElement(createButton, in: app)
-        assertContained(createButton, in: app)
-        createButton.tap()
+        let sourcePickerButton = app.buttons["journal.sourcePickerButton"]
+        XCTAssertTrue(sourcePickerButton.waitForExistence(timeout: 2))
+        assertContained(sourcePickerButton, in: app)
+        sourcePickerButton.tap()
 
-        let reflectionButton = app.buttons["journal.addReflectionButton"]
-        XCTAssertTrue(reflectionButton.waitForExistence(timeout: 4))
-        scrollToElement(reflectionButton, in: app)
-        reflectionButton.tap()
+        let insertButton = app.buttons["journal.insertSourcesButton"]
+        XCTAssertTrue(insertButton.waitForExistence(timeout: 2))
+        scrollToElement(insertButton, in: app)
+        insertButton.tap()
 
-        let skipButton = app.buttons["journal.skipReflectionButton"]
-        XCTAssertTrue(skipButton.waitForExistence(timeout: 2))
-        XCTAssertTrue(skipButton.isHittable)
-        assertContained(skipButton, in: app)
+        let bodyField = app.textViews["journal.bodyField"]
+        XCTAssertTrue(bodyField.waitForExistence(timeout: 2))
+        bodyField.tap()
+        bodyField.typeText("\n\n큰 글자에서도 입력할 수 있다.")
 
-        let reflectionField = app.textViews["journal.reflectionField"]
-        reflectionField.tap()
-        reflectionField.typeText("큰 글자에서도 입력할 수 있다.")
-
-        let saveButton = app.buttons["journal.saveButton"]
+        let saveButton = app.navigationBars.buttons["journal.saveButton"]
         XCTAssertTrue(saveButton.isHittable)
         assertContained(saveButton, in: app)
     }
@@ -112,10 +109,7 @@ final class JournalFlowUITests: XCTestCase {
 
     private func openJournalReview(in app: XCUIApplication) {
         app.buttons["home.reviewJournalButton"].tap()
-
-        let createButton = app.buttons["journal.createDraftButton"]
-        XCTAssertTrue(createButton.waitForExistence(timeout: 2))
-        createButton.tap()
+        XCTAssertTrue(app.textViews["journal.bodyField"].waitForExistence(timeout: 2))
     }
 
     private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) {
