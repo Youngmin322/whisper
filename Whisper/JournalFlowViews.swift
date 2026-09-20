@@ -8,6 +8,7 @@ import WhisperDesignSystem
 
 struct JournalFlowView: View {
     private enum Step {
+        case selection
         case review
         case reflection
         case complete
@@ -15,9 +16,10 @@ struct JournalFlowView: View {
 
     let recordStore: RecordStore
     let date: Date
+    private let isEditingExistingJournal: Bool
 
     @Environment(\.dismiss) private var dismiss
-    @State private var step = Step.review
+    @State private var step = Step.selection
     @State private var title: String
     @State private var bodyText: String
     @State private var reflection = ""
@@ -33,29 +35,36 @@ struct JournalFlowView: View {
 
         let existing = recordStore.journal(on: date)
         let draft = recordStore.journalDraft(on: date)
-        let sourceIDs = existing?.sourceRecordIDs ?? draft.sourceRecordIDs
+        let includedSourceIDs = existing?.sourceRecordIDs ?? draft.sourceRecordIDs
+        let remainingSourceIDs = draft.sourceRecordIDs.filter { !includedSourceIDs.contains($0) }
+        let orderedSourceIDs = includedSourceIDs + remainingSourceIDs
+        isEditingExistingJournal = existing != nil
         _title = State(initialValue: existing?.title ?? draft.title)
         _bodyText = State(initialValue: existing?.body ?? draft.body)
         _reflection = State(initialValue: existing?.reflection ?? "")
         _emotion = State(initialValue: existing?.emotion)
-        _orderedRecordIDs = State(initialValue: sourceIDs)
-        _includedRecordIDs = State(initialValue: Set(sourceIDs))
+        _orderedRecordIDs = State(initialValue: orderedSourceIDs)
+        _includedRecordIDs = State(initialValue: Set(includedSourceIDs))
     }
 
     var body: some View {
         Group {
             switch step {
+            case .selection:
+                JournalSelectionStep(
+                    moments: orderedMoments,
+                    includedRecordIDs: $includedRecordIDs,
+                    onMove: moveMoments,
+                    onNext: prepareDraftForReview
+                )
             case .review:
                 JournalReviewStep(
                     date: date,
                     title: $title,
                     bodyText: $bodyText,
-                    moments: orderedMoments,
-                    includedRecordIDs: $includedRecordIDs,
-                    onCancel: { dismiss() },
+                    moments: includedOrderedMoments,
+                    onCancel: { step = .selection },
                     onPreview: { isPreviewPresented = true },
-                    onMoveUp: moveUp,
-                    onMoveDown: moveDown,
                     onNext: { step = .reflection }
                 )
             case .reflection:
@@ -77,7 +86,6 @@ struct JournalFlowView: View {
             }
         }
         .background(Color.whisperBackground.ignoresSafeArea())
-        .navigationBarHidden(true)
         .sheet(isPresented: $isPreviewPresented) {
             JournalDraftPreview(
                 date: date,
@@ -100,16 +108,25 @@ struct JournalFlowView: View {
         orderedRecordIDs.compactMap(recordStore.record(withID:))
     }
 
-    private func moveUp(_ id: UUID) {
-        guard let index = orderedRecordIDs.firstIndex(of: id), index > 0 else { return }
-        orderedRecordIDs.swapAt(index, index - 1)
+    private var includedOrderedMoments: [WhisperRecord] {
+        orderedMoments.filter { includedRecordIDs.contains($0.id) }
     }
 
-    private func moveDown(_ id: UUID) {
-        guard let index = orderedRecordIDs.firstIndex(of: id),
-              index < orderedRecordIDs.count - 1
-        else { return }
-        orderedRecordIDs.swapAt(index, index + 1)
+    private func moveMoments(from source: IndexSet, to destination: Int) {
+        orderedRecordIDs.move(fromOffsets: source, toOffset: destination)
+    }
+
+    private func prepareDraftForReview() {
+        guard !includedOrderedMoments.isEmpty else { return }
+
+        if !isEditingExistingJournal {
+            title = "\(includedOrderedMoments.count)개의 순간이 이어진 하루"
+            bodyText = includedOrderedMoments
+                .map(\.content)
+                .joined(separator: "\n\n")
+        }
+
+        step = .review
     }
 
     private func saveJournal() {
@@ -133,23 +150,120 @@ struct JournalFlowView: View {
     }
 }
 
+private struct JournalSelectionStep: View {
+    let moments: [WhisperRecord]
+    @Binding var includedRecordIDs: Set<UUID>
+    let onMove: (IndexSet, Int) -> Void
+    let onNext: () -> Void
+
+    private var selectedCount: Int {
+        includedRecordIDs.count
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text("일기에 담을 순간을 정해주세요")
+                    .font(.whisperScreenTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("체크로 포함 여부를, 오른쪽 핸들로 흐름을 바꿀 수 있어요.")
+                    .font(.whisperControl)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack {
+                    Text("오늘의 순간")
+                        .font(.whisperSectionTitle)
+                        .foregroundStyle(Color.whisperTextPrimary)
+
+                    Spacer()
+
+                    Text("\(selectedCount)개 선택됨")
+                        .font(.whisperCaption)
+                        .foregroundStyle(Color.whisperAccentText)
+                        .padding(.horizontal, WhisperSpacing.medium)
+                        .frame(minHeight: 34)
+                        .background(Color.whisperSurfaceHighlight, in: Capsule())
+                        .accessibilityLabel("\(selectedCount)개 선택됨")
+                }
+                .padding(.top, WhisperSpacing.medium)
+            }
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+            .padding(.top, WhisperSpacing.small)
+            .padding(.bottom, WhisperSpacing.small)
+
+            List {
+                ForEach(moments) { moment in
+                    JournalMomentSelectionRow(
+                        moment: moment,
+                        isIncluded: includedRecordIDs.contains(moment.id),
+                        onToggle: { toggle(moment.id) }
+                    )
+                    .listRowInsets(
+                        EdgeInsets(
+                            top: WhisperSpacing.xSmall,
+                            leading: WhisperLayout.screenHorizontalPadding,
+                            bottom: WhisperSpacing.xSmall,
+                            trailing: WhisperLayout.screenHorizontalPadding
+                        )
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+                .onMove(perform: onMove)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .environment(\.editMode, .constant(.active))
+
+            Text("체크를 끄면 원본 순간은 남고 일기에서만 제외돼요")
+                .font(.whisperCaption)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, WhisperLayout.sheetHorizontalPadding + WhisperSpacing.medium)
+                .padding(.top, WhisperSpacing.xSmall)
+
+            Button(action: onNext) {
+                Text("\(selectedCount)개의 순간으로 초안 만들기")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.whisperPrimary)
+            .disabled(selectedCount == 0)
+            .accessibilityIdentifier("journal.createDraftButton")
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+            .padding(.top, WhisperSpacing.xLarge)
+            .padding(.bottom, WhisperSpacing.medium)
+        }
+        .navigationTitle("오늘 마무리")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+    }
+
+    private func toggle(_ id: UUID) {
+        if includedRecordIDs.contains(id) {
+            includedRecordIDs.remove(id)
+        } else {
+            includedRecordIDs.insert(id)
+        }
+    }
+}
+
 private struct JournalReviewStep: View {
     let date: Date
     @Binding var title: String
     @Binding var bodyText: String
     let moments: [WhisperRecord]
-    @Binding var includedRecordIDs: Set<UUID>
     let onCancel: () -> Void
     let onPreview: () -> Void
-    let onMoveUp: (UUID) -> Void
-    let onMoveDown: (UUID) -> Void
     let onNext: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             journalHeader(
-                leading: "취소",
-                title: "오늘의 일기",
+                leading: "‹ 순간 선택",
+                title: "일기 초안",
                 trailing: "미리보기",
                 onLeading: onCancel,
                 onTrailing: onPreview
@@ -158,7 +272,7 @@ private struct JournalReviewStep: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: WhisperSpacing.large) {
                     VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                        Text("\(date.whisperDayDescription) · \(includedRecordIDs.count)개의 순간")
+                        Text("\(date.whisperDayDescription) · \(moments.count)개의 순간")
                             .font(.whisperLabel)
                             .foregroundStyle(Color.whisperTextSecondary)
 
@@ -192,28 +306,6 @@ private struct JournalReviewStep: View {
                             .stroke(Color.whisperBorderSubtle, lineWidth: 1)
                     }
 
-                    VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-                        Text("포함할 순간")
-                            .font(.whisperSectionTitle)
-
-                        ForEach(Array(moments.enumerated()), id: \.element.id) { index, moment in
-                            JournalMomentSelectionRow(
-                                moment: moment,
-                                isIncluded: includedRecordIDs.contains(moment.id),
-                                canMoveUp: index > 0,
-                                canMoveDown: index < moments.count - 1,
-                                onToggle: {
-                                    if includedRecordIDs.contains(moment.id) {
-                                        includedRecordIDs.remove(moment.id)
-                                    } else {
-                                        includedRecordIDs.insert(moment.id)
-                                    }
-                                },
-                                onMoveUp: { onMoveUp(moment.id) },
-                                onMoveDown: { onMoveDown(moment.id) }
-                            )
-                        }
-                    }
                 }
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.bottom, WhisperSpacing.large)
@@ -221,18 +313,17 @@ private struct JournalReviewStep: View {
             .scrollIndicators(.hidden)
 
             Button("다음 · 내 한 문장", action: onNext)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: 25))
-                .controlSize(.large)
+                .buttonStyle(.whisperPrimary)
                 .disabled(
                     title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                     bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                    includedRecordIDs.isEmpty
+                    moments.isEmpty
                 )
                 .accessibilityIdentifier("journal.nextButton")
-                .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
+                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.bottom, WhisperSpacing.medium)
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -267,11 +358,7 @@ private struct JournalMomentStrip: View {
 private struct JournalMomentSelectionRow: View {
     let moment: WhisperRecord
     let isIncluded: Bool
-    let canMoveUp: Bool
-    let canMoveDown: Bool
     let onToggle: () -> Void
-    let onMoveUp: () -> Void
-    let onMoveDown: () -> Void
 
     var body: some View {
         HStack(spacing: WhisperSpacing.small) {
@@ -279,42 +366,36 @@ private struct JournalMomentSelectionRow: View {
                 Image(systemName: isIncluded ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(isIncluded ? Color.whisperAccent : Color.whisperTextSecondary)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isIncluded ? "순간 제외" : "순간 포함")
 
             VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-                Text(moment.content)
-                    .font(.whisperBody)
-                    .lineLimit(1)
                 Text("\(moment.createdAt.whisperTimeDescription) · \(moment.photoData == nil ? "텍스트" : "사진")")
                     .font(.whisperLabel)
                     .foregroundStyle(Color.whisperTextSecondary)
+
+                Text(moment.content)
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .lineLimit(2)
             }
 
-            Spacer()
-
-            Menu {
-                Button("위로 이동", systemImage: "arrow.up", action: onMoveUp)
-                    .disabled(!canMoveUp)
-                Button("아래로 이동", systemImage: "arrow.down", action: onMoveDown)
-                    .disabled(!canMoveDown)
-            } label: {
-                Image(systemName: "line.3.horizontal")
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .frame(width: 32, height: 32)
-            }
-            .accessibilityLabel("순서 바꾸기")
+            Spacer(minLength: 0)
         }
-        .padding(WhisperSpacing.small)
+        .frame(minHeight: 68)
+        .padding(.horizontal, WhisperSpacing.small)
+        .padding(.vertical, WhisperSpacing.xSmall)
         .background(
             Color.whisperSurfaceDefault,
-            in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
+            in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
         )
         .overlay {
-            RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
+            RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
                 .stroke(Color.whisperBorderSubtle, lineWidth: 1)
         }
+        .opacity(isIncluded ? 1 : 0.62)
     }
 }
 
@@ -420,6 +501,7 @@ private struct JournalReflectionStep: View {
             await Task.yield()
             isReflectionFocused = reflection.isEmpty
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private func suggestionChip(_ value: String) -> some View {
@@ -587,6 +669,7 @@ private struct JournalCompletionStep: View {
 
             JournalDetailContent(journal: journal, sourceRecords: sourceRecords)
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
