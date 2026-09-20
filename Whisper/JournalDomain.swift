@@ -20,6 +20,13 @@ enum JournalDayKey {
     }
 }
 
+struct UnfinishedJournalDay: Identifiable {
+    let date: Date
+    let records: [WhisperRecord]
+
+    var id: Date { date }
+}
+
 struct DailyJournalDraft: Equatable, Sendable {
     let date: Date
     let title: String

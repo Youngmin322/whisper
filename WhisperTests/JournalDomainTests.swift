@@ -136,6 +136,48 @@ struct JournalDomainTests {
         #expect(draft.sourceRecordIDs.isEmpty)
     }
 
+    @Test("완성하지 않은 날짜만 최근 순서로 다시 찾는다")
+    func findsUnfinishedJournalDays() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let calendar = fixedCalendar
+        let firstDay = try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 16, hour: 9))
+        )
+        let secondDay = try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 17, hour: 9))
+        )
+        let thirdDay = try #require(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 18, hour: 9))
+        )
+
+        let firstMoment = try #require(
+            store.addAndReturn(title: "첫날", content: "첫날의 순간", createdAt: firstDay)
+        )
+        _ = store.addAndReturn(title: "둘째 날", content: "둘째 날의 순간", createdAt: secondDay)
+        _ = store.addAndReturn(title: "셋째 날", content: "셋째 날의 순간", createdAt: thirdDay)
+
+        _ = try #require(
+            store.saveJournal(
+                on: firstDay,
+                title: "완성한 첫날",
+                body: "첫날의 순간",
+                reflection: "",
+                emotion: nil,
+                sourceRecordIDs: [firstMoment.id],
+                calendar: calendar,
+                now: thirdDay
+            )
+        )
+
+        let unfinishedDays = store.unfinishedJournalDays(calendar: calendar)
+
+        #expect(unfinishedDays.map(\.date) == [
+            calendar.startOfDay(for: thirdDay),
+            calendar.startOfDay(for: secondDay)
+        ])
+        #expect(unfinishedDays.map(\.records.count) == [1, 1])
+    }
+
     private var fixedCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 9 * 60 * 60) ?? .current

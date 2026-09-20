@@ -893,22 +893,34 @@ struct JournalLibraryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
-                if shouldShowTodayDraft {
-                    NavigationLink {
-                        JournalFlowView(recordStore: recordStore)
-                    } label: {
-                        draftCard
+                if searchText.isEmpty && !unfinishedDays.isEmpty {
+                    VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                        Text("정리하지 않은 날")
+                            .font(.whisperControl)
+                            .foregroundStyle(Color.whisperTextSecondary)
+
+                        LazyVStack(spacing: WhisperSpacing.small) {
+                            ForEach(unfinishedDays) { day in
+                                NavigationLink {
+                                    JournalFlowView(recordStore: recordStore, date: day.date)
+                                } label: {
+                                    unfinishedDayCard(day)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
 
-                if recordStore.journals.isEmpty {
+                if recordStore.journals.isEmpty && unfinishedDays.isEmpty {
                     ContentUnavailableView(
                         "아직 완성한 일기가 없어요",
                         systemImage: "book.closed",
-                        description: Text("오늘의 순간을 남기면 하루 초안을 만들 수 있어요.")
+                        description: Text("순간을 남기고 하루가 끝날 때 일기로 정리해 보세요.")
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
+                } else if recordStore.journals.isEmpty {
+                    EmptyView()
                 } else if filteredJournals.isEmpty {
                     ContentUnavailableView.search(text: searchText)
                         .frame(maxWidth: .infinity, minHeight: 360)
@@ -946,24 +958,25 @@ struct JournalLibraryView: View {
         .searchable(text: $searchText, prompt: "제목이나 내용 검색")
     }
 
-    private var shouldShowTodayDraft: Bool {
-        !recordStore.journalDraft().isEmpty && recordStore.journal(on: .now) == nil
+    private var unfinishedDays: [UnfinishedJournalDay] {
+        recordStore.unfinishedJournalDays()
     }
 
-    private var draftCard: some View {
+    private func unfinishedDayCard(_ day: UnfinishedJournalDay) -> some View {
         HStack(spacing: WhisperSpacing.small) {
-            Image.whisperFlame
-                .resizable()
-                .scaledToFit()
-                .frame(width: 26, height: 36)
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.title3)
+                .foregroundStyle(Color.whisperAccentText)
+                .frame(width: 36, height: 36)
+                .background(Color.whisperSurfaceDefault, in: Circle())
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-                Text("오늘의 초안이 준비됐어요")
+                Text(unfinishedDayTitle(day.date))
                     .font(.whisperBodyEmphasis)
                     .foregroundStyle(Color.whisperTextPrimary)
 
-                Text("\(recordStore.journalDraft().sourceRecordIDs.count)개의 순간을 확인하고 일기로 남겨보세요")
+                Text("\(day.records.count)개의 순간 · 눌러서 일기 정리")
                     .font(.whisperCaption)
                     .foregroundStyle(Color.whisperTextSecondary)
                     .lineLimit(1)
@@ -982,6 +995,23 @@ struct JournalLibraryView: View {
             border: .whisperBorderSubtle,
             cornerRadius: WhisperRadius.medium
         )
+        .accessibilityIdentifier("library.unfinishedDay")
+    }
+
+    private func unfinishedDayTitle(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "오늘의 기록"
+        }
+        if calendar.isDateInYesterday(date) {
+            return "어제의 기록"
+        }
+        return date.formatted(
+            Date.FormatStyle()
+                .locale(Locale(identifier: "ko_KR"))
+                .month(.wide)
+                .day()
+        ) + "의 기록"
     }
 
     private func journalCard(_ journal: DailyJournal) -> some View {

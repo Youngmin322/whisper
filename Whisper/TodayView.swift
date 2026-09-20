@@ -11,6 +11,7 @@ struct TodayView: View {
     let recordStore: RecordStore
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("today.dismissedUnfinishedDayKey") private var dismissedUnfinishedDayKey = ""
     @State private var isQuickRecordPresented = false
     @State private var recordDraft = RecordDraft()
     @State private var isSaveFeedbackVisible = false
@@ -21,6 +22,10 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
                     header
+
+                    if let unfinishedYesterday {
+                        unfinishedYesterdayCard(unfinishedYesterday)
+                    }
 
                     if todayMoments.isEmpty {
                         emptyTimeline
@@ -121,6 +126,61 @@ struct TodayView: View {
         .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
         .padding(.vertical, WhisperSpacing.small)
         .background(Color.whisperBackground)
+    }
+
+    private func unfinishedYesterdayCard(_ day: UnfinishedYesterday) -> some View {
+        HStack(spacing: WhisperSpacing.xSmall) {
+            NavigationLink {
+                JournalFlowView(recordStore: recordStore, date: day.date)
+            } label: {
+                HStack(spacing: WhisperSpacing.small) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.whisperAccentText)
+                        .frame(width: 32, height: 32)
+                        .background(Color.whisperSurfaceDefault, in: Circle())
+
+                    VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+                        Text("어제의 기록을 정리할까요?")
+                            .font(.whisperBodyEmphasis)
+                            .foregroundStyle(Color.whisperTextPrimary)
+
+                        Text("남겨둔 순간 \(day.count)개가 있어요")
+                            .font(.whisperCaption)
+                            .foregroundStyle(Color.whisperTextSecondary)
+                    }
+
+                    Spacer(minLength: WhisperSpacing.xSmall)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("home.unfinishedYesterdayButton")
+
+            Button {
+                dismissedUnfinishedDayKey = day.dayKey
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("어제 기록 알림 닫기")
+        }
+        .padding(.leading, WhisperSpacing.medium)
+        .padding(.trailing, WhisperSpacing.xxSmall)
+        .padding(.vertical, WhisperSpacing.xSmall)
+        .whisperCardStyle(
+            fill: .whisperSurfaceHighlight,
+            border: .whisperBorderSubtle,
+            cornerRadius: WhisperRadius.medium
+        )
     }
 
     private var emptyTimeline: some View {
@@ -232,6 +292,23 @@ struct TodayView: View {
             .sorted { $0.createdAt < $1.createdAt }
     }
 
+    private var unfinishedYesterday: UnfinishedYesterday? {
+        let calendar = Calendar.current
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: .now) else {
+            return nil
+        }
+
+        let dayKey = JournalDayKey.make(for: yesterday, calendar: calendar)
+        guard dismissedUnfinishedDayKey != dayKey,
+              recordStore.journal(on: yesterday, calendar: calendar) == nil else {
+            return nil
+        }
+
+        let count = recordStore.records(on: yesterday, calendar: calendar).count
+        guard count > 0 else { return nil }
+        return UnfinishedYesterday(date: yesterday, dayKey: dayKey, count: count)
+    }
+
     private func saveMoment() -> Bool {
         let content = recordDraft.contentForSaving
         guard !content.isEmpty else { return false }
@@ -269,6 +346,12 @@ struct TodayView: View {
         }
     }
 
+}
+
+private struct UnfinishedYesterday {
+    let date: Date
+    let dayKey: String
+    let count: Int
 }
 
 #Preview {

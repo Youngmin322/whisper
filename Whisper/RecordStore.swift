@@ -1476,6 +1476,23 @@ final class RecordStore {
         )
     }
 
+    func unfinishedJournalDays(
+        calendar: Calendar = .current
+    ) -> [UnfinishedJournalDay] {
+        let grouped = Dictionary(grouping: records) { record in
+            calendar.startOfDay(for: record.createdAt)
+        }
+
+        return grouped.compactMap { date, records in
+            guard journal(on: date, calendar: calendar) == nil else { return nil }
+            return UnfinishedJournalDay(
+                date: date,
+                records: records.sorted { $0.createdAt < $1.createdAt }
+            )
+        }
+        .sorted { $0.date > $1.date }
+    }
+
     @discardableResult
     func saveJournal(
         on date: Date,
