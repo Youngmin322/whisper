@@ -35,6 +35,20 @@
                ReferencedContainer = "container:Whisper.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "4B0000010000000000000006"
+               BuildableName = "WhisperUITests.xctest"
+               BlueprintName = "WhisperUITests"
+               ReferencedContainer = "container:Whisper.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -52,6 +66,17 @@
                BlueprintIdentifier = "4A0000010000000000000006"
                BuildableName = "WhisperTests.xctest"
                BlueprintName = "WhisperTests"
+               ReferencedContainer = "container:Whisper.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "4B0000010000000000000006"
+               BuildableName = "WhisperUITests.xctest"
+               BlueprintName = "WhisperUITests"
                ReferencedContainer = "container:Whisper.xcodeproj">
             </BuildableReference>
          </TestableReference>

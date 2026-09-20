@@ -10,7 +10,21 @@ import UIKit
 
 struct ContentView: View {
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
-    @State private var recordStore = RecordStore()
+    @State private var recordStore: RecordStore
+
+    init() {
+        #if DEBUG
+        let isUITesting = ProcessInfo.processInfo.arguments.contains("-ui-testing")
+        if isUITesting {
+            UIView.setAnimationsEnabled(false)
+        }
+        _recordStore = State(
+            initialValue: RecordStore(isStoredInMemoryOnly: isUITesting)
+        )
+        #else
+        _recordStore = State(initialValue: RecordStore())
+        #endif
+    }
     
     var body: some View {
         Group {

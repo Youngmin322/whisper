@@ -20,11 +20,19 @@
 			remoteGlobalIDString = 1D97B5A3302AB12500C4F5E8;
 			remoteInfo = Whisper;
 		};
+		4B000001000000000000000A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D97B59C302AB12500C4F5E8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1D97B5A3302AB12500C4F5E8;
+			remoteInfo = Whisper;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		1D97B5A4302AB12500C4F5E8 /* Whisper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Whisper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A0000010000000000000001 /* WhisperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WhisperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4B0000010000000000000001 /* WhisperUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WhisperUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -51,6 +59,11 @@
 			path = WhisperTests;
 			sourceTree = "<group>";
 		};
+		4B0000010000000000000002 /* WhisperUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WhisperUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +84,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4B0000010000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -79,6 +99,7 @@
 			children = (
 				1D97B5A6302AB12500C4F5E8 /* Whisper */,
 				4A0000010000000000000002 /* WhisperTests */,
+				4B0000010000000000000002 /* WhisperUITests */,
 				1DF412E1303BCB2F00B271A4 /* Frameworks */,
 				1D97B5A5302AB12500C4F5E8 /* Products */,
 			);
@@ -89,6 +110,7 @@
 			children = (
 				1D97B5A4302AB12500C4F5E8 /* Whisper.app */,
 				4A0000010000000000000001 /* WhisperTests.xctest */,
+				4B0000010000000000000001 /* WhisperUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -151,6 +173,29 @@
 			productReference = 4A0000010000000000000001 /* WhisperTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		4B0000010000000000000006 /* WhisperUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4B0000010000000000000007 /* Build configuration list for PBXNativeTarget "WhisperUITests" */;
+			buildPhases = (
+				4B0000010000000000000003 /* Sources */,
+				4B0000010000000000000004 /* Frameworks */,
+				4B0000010000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4B000001000000000000000B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				4B0000010000000000000002 /* WhisperUITests */,
+			);
+			name = WhisperUITests;
+			packageProductDependencies = (
+			);
+			productName = WhisperUITests;
+			productReference = 4B0000010000000000000001 /* WhisperUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,6 +234,7 @@
 			targets = (
 				1D97B5A3302AB12500C4F5E8 /* Whisper */,
 				4A0000010000000000000006 /* WhisperTests */,
+				4B0000010000000000000006 /* WhisperUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -202,6 +248,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4A0000010000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4B0000010000000000000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -225,6 +278,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4B0000010000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -232,6 +292,11 @@
 			isa = PBXTargetDependency;
 			target = 1D97B5A3302AB12500C4F5E8 /* Whisper */;
 			targetProxy = 4A000001000000000000000A /* PBXContainerItemProxy */;
+		};
+		4B000001000000000000000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1D97B5A3302AB12500C4F5E8 /* Whisper */;
+			targetProxy = 4B000001000000000000000A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -475,6 +540,54 @@
 			};
 			name = Release;
 		};
+		4B0000010000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5R33532VPH;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.kr.youngmin.WhisperUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Whisper;
+			};
+			name = Debug;
+		};
+		4B0000010000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5R33532VPH;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.kr.youngmin.WhisperUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Whisper;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -501,6 +614,15 @@
 			buildConfigurations = (
 				4A0000010000000000000008 /* Debug */,
 				4A0000010000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4B0000010000000000000007 /* Build configuration list for PBXNativeTarget "WhisperUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4B0000010000000000000008 /* Debug */,
+				4B0000010000000000000009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

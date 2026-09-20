@@ -21,7 +21,8 @@ struct WhisperNotificationContentPolicyTests {
             recordID,
             commitmentID: commitmentID,
             encounterID: encounterID,
-            requestIdentifier: requestIdentifier
+            requestIdentifier: requestIdentifier,
+            postsSelectionNotification: false
         )
 
         #expect(WhisperNotificationRoute.consumePendingRecordID() == recordID)
