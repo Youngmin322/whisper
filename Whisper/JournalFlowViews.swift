@@ -18,7 +18,11 @@ struct JournalFlowView: View {
     @State private var isSourcePickerPresented = false
     @State private var isShowingSavedJournal = false
     @State private var isSaveErrorPresented = false
+    @State private var isDiscardAlertPresented = false
 
+    @State private var savedTitleSnapshot: String
+    @State private var savedBodySnapshot: String
+    @State private var savedSourceRecordIDsSnapshot: [UUID]
     private let preservedReflection: String
     private let preservedEmotion: String?
 
@@ -27,9 +31,15 @@ struct JournalFlowView: View {
         self.date = date
 
         let existing = recordStore.journal(on: date)
-        _title = State(initialValue: existing?.title ?? "")
-        _bodyText = State(initialValue: existing?.body ?? "")
-        _sourceRecordIDs = State(initialValue: existing?.sourceRecordIDs ?? [])
+        let existingTitle = existing?.title ?? ""
+        let existingBody = existing?.body ?? ""
+        let existingSourceRecordIDs = existing?.sourceRecordIDs ?? []
+        _title = State(initialValue: existingTitle)
+        _bodyText = State(initialValue: existingBody)
+        _sourceRecordIDs = State(initialValue: existingSourceRecordIDs)
+        _savedTitleSnapshot = State(initialValue: existingTitle)
+        _savedBodySnapshot = State(initialValue: existingBody)
+        _savedSourceRecordIDsSnapshot = State(initialValue: existingSourceRecordIDs)
         preservedReflection = existing?.reflection ?? ""
         preservedEmotion = existing?.emotion
     }
@@ -67,6 +77,14 @@ struct JournalFlowView: View {
             Button("확인", role: .cancel) {}
         } message: {
             Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
+        }
+        .alert("작성 중인 일기를 닫을까요?", isPresented: $isDiscardAlertPresented) {
+            Button("계속 작성", role: .cancel) {}
+            Button("변경 사항 버리기", role: .destructive) {
+                dismiss()
+            }
+        } message: {
+            Text("아직 저장하지 않은 내용은 사라져요.")
         }
     }
 
@@ -152,7 +170,7 @@ struct JournalFlowView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button("닫기", systemImage: "xmark") {
-                    dismiss()
+                    closeEditor()
                 }
             }
 
@@ -194,6 +212,9 @@ struct JournalFlowView: View {
             return
         }
         isBodyFocused = false
+        savedTitleSnapshot = title
+        savedBodySnapshot = bodyText
+        savedSourceRecordIDsSnapshot = sourceRecordIDs
         isShowingSavedJournal = true
     }
 
@@ -218,6 +239,12 @@ struct JournalFlowView: View {
         bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var hasUnsavedChanges: Bool {
+        title != savedTitleSnapshot ||
+        bodyText != savedBodySnapshot ||
+        sourceRecordIDs != savedSourceRecordIDsSnapshot
+    }
+
     private var fallbackTitle: String {
         date.formatted(
             Date.FormatStyle()
@@ -239,6 +266,15 @@ struct JournalFlowView: View {
         sourceRecordIDs.append(contentsOf: moments.map(\.id))
         isSourcePickerPresented = false
         isBodyFocused = true
+    }
+
+    private func closeEditor() {
+        isBodyFocused = false
+        if hasUnsavedChanges {
+            isDiscardAlertPresented = true
+        } else {
+            dismiss()
+        }
     }
 }
 
