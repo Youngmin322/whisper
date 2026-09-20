@@ -1194,69 +1194,35 @@ private struct JournalDetailContent: View {
                     .lineSpacing(8)
                     .accessibilityIdentifier("journal.bodyPreview")
 
-                if !journal.reflection.isEmpty || journal.emotion != nil {
-                    HStack(alignment: .bottom, spacing: WhisperSpacing.small) {
-                        Image.whisperFlame
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 34, height: 48)
-                        VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                            HStack {
-                                Text("오늘의 의미")
-                                    .font(.whisperLabel)
-                                    .foregroundStyle(Color.whisperAccentText)
+                if !sourceRecords.isEmpty {
+                    Divider()
 
-                                if let emotion = journal.emotion {
-                                    Text(emotion)
-                                        .font(.whisperLabel)
-                                        .foregroundStyle(Color.whisperTextPrimary)
-                                        .padding(.horizontal, WhisperSpacing.xSmall)
-                                        .padding(.vertical, WhisperSpacing.xxSmall)
-                                        .background(Color.whisperSurfaceDefault, in: Capsule())
+                    VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                        HStack {
+                            Text("가져온 순간")
+                                .font(.whisperSectionTitle)
+                                .foregroundStyle(Color.whisperTextPrimary)
+
+                            Spacer()
+
+                            NavigationLink {
+                                JournalSourcesView(records: sourceRecords)
+                            } label: {
+                                HStack(spacing: WhisperSpacing.xxSmall) {
+                                    Text("모두 보기")
+                                    Image(systemName: "chevron.right")
                                 }
-                            }
-
-                            if !journal.reflection.isEmpty {
-                                Text(journal.reflection)
-                                    .font(.whisperBody)
+                                .font(.whisperMetadata)
+                                .foregroundStyle(Color.whisperAccentText)
                             }
                         }
+
+                        JournalSavedSourceStrip(records: sourceRecords)
+
+                        Text("\(sourceRecords.count)개의 순간을 본문에 가져왔어요")
+                            .font(.whisperCaption)
+                            .foregroundStyle(Color.whisperTextSecondary)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(WhisperSpacing.large)
-                    .background(
-                        Color.whisperSurfaceHighlight,
-                        in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                    )
-                }
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-                    HStack {
-                        Text("이 일기를 만든 순간")
-                            .font(.whisperSectionTitle)
-                            .foregroundStyle(Color.whisperTextPrimary)
-
-                        Spacer()
-
-                        NavigationLink {
-                            JournalSourcesView(records: sourceRecords)
-                        } label: {
-                            HStack(spacing: WhisperSpacing.xxSmall) {
-                                Text("타임라인 보기")
-                                Image(systemName: "chevron.right")
-                            }
-                            .font(.whisperMetadata)
-                            .foregroundStyle(Color.whisperAccentText)
-                        }
-                    }
-
-                    JournalSavedSourceStrip(records: sourceRecords)
-
-                    Text("선택한 \(sourceRecords.count)개의 순간을 엮고 직접 확인해 저장했어요")
-                        .font(.whisperCaption)
-                        .foregroundStyle(Color.whisperTextSecondary)
                 }
             }
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
