@@ -56,7 +56,7 @@ struct TodayView: View {
                     shouldOpenDetailAfterSheetDismisses = true
                 }
             )
-            .presentationDetents([.fraction(0.68), .large])
+            .presentationDetents([.fraction(0.72), .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(WhisperRadius.sheet)
         }

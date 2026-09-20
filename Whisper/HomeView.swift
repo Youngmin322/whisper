@@ -46,7 +46,7 @@ struct HomeView: View {
                     shouldOpenDetailAfterSheetDismisses = true
                 }
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.fraction(0.72), .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(WhisperRadius.sheet)
         }

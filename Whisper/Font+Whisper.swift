@@ -30,6 +30,13 @@ extension Font {
         relativeTo: .headline
     )
 
+    /// Figma: Whisper Current/Sheet Title
+    static let whisperSheetTitle = Font.custom(
+        "Pretendard-Bold",
+        size: 22,
+        relativeTo: .title2
+    )
+
     /// Figma: Whisper/Section Title
     static let whisperSectionTitle = Font.custom(
         "Pretendard-Bold",

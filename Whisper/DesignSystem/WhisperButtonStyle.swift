@@ -84,6 +84,40 @@ struct WhisperSecondaryButtonStyle: ButtonStyle {
     }
 }
 
+struct WhisperFilterChip: View {
+    let title: String
+    let isSelected: Bool
+    var showsMenuIndicator = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+
+            if showsMenuIndicator {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+            }
+        }
+        .font(.whisperControl)
+        .foregroundStyle(isSelected ? Color.whisperTextOnAccent : Color.whisperTextPrimary)
+        .padding(.horizontal, WhisperSpacing.medium)
+        .frame(height: 40)
+        .background {
+            Capsule()
+                .fill(isSelected ? Color.whisperAccent : Color.whisperSurfaceDefault)
+                .overlay {
+                    Capsule()
+                        .stroke(
+                            isSelected ? Color.whisperAccent : Color.whisperBorderSubtle,
+                            lineWidth: 1
+                        )
+                }
+        }
+        .padding(.vertical, 2)
+        .contentShape(.capsule)
+    }
+}
+
 extension ButtonStyle where Self == WhisperPrimaryButtonStyle {
     static var whisperPrimary: WhisperPrimaryButtonStyle {
         WhisperPrimaryButtonStyle()

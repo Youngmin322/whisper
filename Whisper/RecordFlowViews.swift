@@ -415,27 +415,10 @@ struct CollectionView: View {
         isActive: Bool,
         showsMenuIndicator: Bool
     ) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-            if showsMenuIndicator {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .bold))
-            }
-        }
-        .font(.whisperControl)
-        .foregroundStyle(isActive ? Color.whisperTextOnAccent : Color.whisperTextPrimary)
-        .padding(.horizontal, WhisperSpacing.medium)
-        .frame(height: 40)
-        .background(
-            Capsule()
-                .fill(isActive ? Color.whisperAccent : Color.whisperSurfaceDefault)
-                .overlay {
-                    Capsule()
-                        .stroke(
-                            isActive ? Color.whisperAccent : Color.whisperBorderSubtle,
-                            lineWidth: 1
-                        )
-                }
+        WhisperFilterChip(
+            title: title,
+            isSelected: isActive,
+            showsMenuIndicator: showsMenuIndicator
         )
     }
 

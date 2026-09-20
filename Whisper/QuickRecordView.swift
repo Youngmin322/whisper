@@ -4,16 +4,16 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var draft: RecordDraft
     @FocusState private var isContentFocused: Bool
     @State private var isSaveErrorPresented = false
-    @State private var isClipboardLinkUnavailablePresented = false
+
     let onSave: () -> Bool
     let onOpenDetail: () -> Void
+
     private let contentLimit = 120
 
     var body: some View {
@@ -26,24 +26,22 @@ struct QuickRecordView: View {
             .scrollBounceBehavior(.basedOnSize)
 
             Button(action: save) {
-                Text("오늘의 순간 저장")
+                Text("오늘에 담기")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 25))
-            .controlSize(.large)
+            .buttonStyle(.whisperPrimary)
             .disabled(!draft.canSave)
             .accessibilityIdentifier("record.saveButton")
-            .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
+            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.top, WhisperSpacing.small)
 
-            Text("저장 후 바로 닫혀요")
+            Text("사진은 선택 사항이에요")
                 .font(.whisperCaption)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .padding(.top, WhisperSpacing.xSmall)
                 .padding(.bottom, WhisperSpacing.medium)
         }
-        .background(Color.whisperBackground)
+        .background(Color.whisperBackground.ignoresSafeArea())
         .task {
             await Task.yield()
             isContentFocused = true
@@ -54,43 +52,42 @@ struct QuickRecordView: View {
         } message: {
             Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
         }
-        .alert("복사한 링크가 없어요", isPresented: $isClipboardLinkUnavailablePresented) {
-            Button("확인", role: .cancel) {}
-        } message: {
-            Text("링크를 먼저 복사한 뒤 다시 눌러주세요.")
-        }
     }
 
     private var formContent: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.large) {
+        VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
                 Text("지금 떠오른 순간")
-                    .font(.whisperSectionTitle)
+                    .font(.whisperSheetTitle)
                     .foregroundStyle(Color.whisperTextPrimary)
 
-                Text("짧아도, 정리되지 않아도 괜찮아요")
+                Text("완성된 문장보다 지금의 느낌을 먼저 남겨보세요.")
                     .font(.whisperBody)
                     .foregroundStyle(Color.whisperTextSecondary)
             }
+            .padding(.bottom, WhisperSpacing.xxLarge)
 
             TextField(
-                "떠오르는 장면이나 마음을 편하게 적어보세요.",
+                "지금 떠오른 장면이나 마음을 적어보세요.",
                 text: $draft.content,
                 axis: .vertical
             )
             .focused($isContentFocused)
             .font(.whisperBodyLarge)
             .lineSpacing(4)
-            .lineLimit(3 ... 5)
-            .padding(16)
+            .lineLimit(1 ... 3)
+            .padding(WhisperSpacing.medium)
             .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
             .background(
-                Color.whisperSurfaceDefault,
+                isContentFocused ? Color.whisperSurfaceFocus : Color.whisperSurfaceDefault,
                 in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
-                    .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+                    .stroke(
+                        isContentFocused ? Color.whisperAccent : Color.whisperBorderSubtle,
+                        lineWidth: isContentFocused ? 2 : 1
+                    )
             }
             .onChange(of: draft.content) { _, newValue in
                 guard newValue.count > contentLimit else { return }
@@ -103,61 +100,53 @@ struct QuickRecordView: View {
                 .font(.whisperCaption)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .accessibilityLabel("현재 \(draft.content.count)자, 최대 \(contentLimit)자")
+                .padding(.horizontal, WhisperSpacing.medium)
+                .padding(.top, WhisperSpacing.xSmall)
+
+            Text("기록 방식")
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .padding(.top, WhisperSpacing.xLarge)
+                .padding(.bottom, WhisperSpacing.small)
 
             HStack(spacing: WhisperSpacing.xSmall) {
-                captureModeButton(title: "한 줄", systemImage: "textformat", isSelected: true) {
+                captureModeButton(title: "텍스트", isSelected: true, identifier: "text") {
                     isContentFocused = true
                 }
-                captureModeButton(title: "사진", systemImage: "photo") {
+
+                captureModeButton(title: "사진", identifier: "photo") {
                     onOpenDetail()
                     dismiss()
                 }
-                captureModeButton(title: "음성", systemImage: "waveform") {
-                    isContentFocused = true
-                }
-                captureModeButton(title: "링크", systemImage: "link") {
-                    pasteLink()
-                }
             }
+
+            Text("저장하면 타임라인에 쌓이고 바로 닫혀요")
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+                .padding(.horizontal, WhisperSpacing.medium)
+                .background(
+                    Color.whisperSurfaceHighlight,
+                    in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous)
+                )
+                .padding(.top, WhisperSpacing.xLarge)
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, WhisperSpacing.large)
-        .padding(.bottom, 20)
+        .padding(.bottom, WhisperSpacing.large)
     }
 
-    @ViewBuilder
     private func captureModeButton(
         title: String,
-        systemImage: String,
         isSelected: Bool = false,
+        identifier: String,
         action: @escaping () -> Void
     ) -> some View {
-        if isSelected {
-            Button(action: action) {
-                captureModeLabel(title: title, systemImage: systemImage)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: WhisperRadius.medium))
-            .controlSize(.small)
-            .accessibilityIdentifier("record.mode.\(title)")
-        } else {
-            Button(action: action) {
-                captureModeLabel(title: title, systemImage: systemImage)
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.roundedRectangle(radius: WhisperRadius.medium))
-            .controlSize(.small)
-            .accessibilityIdentifier("record.mode.\(title)")
+        Button(action: action) {
+            WhisperFilterChip(title: title, isSelected: isSelected)
         }
-    }
-
-    private func captureModeLabel(title: String, systemImage: String) -> some View {
-        VStack(spacing: WhisperSpacing.xxSmall) {
-            Image(systemName: systemImage)
-            Text(title)
-                .font(.whisperCaption)
-        }
-        .frame(maxWidth: .infinity, minHeight: 56)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("record.mode.\(identifier)")
     }
 
     private func save() {
@@ -166,21 +155,6 @@ struct QuickRecordView: View {
         } else {
             isSaveErrorPresented = true
         }
-    }
-
-    private func pasteLink() {
-        guard let clipboardText = UIPasteboard.general.string?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              let url = URL(string: clipboardText),
-              let scheme = url.scheme?.lowercased(),
-              ["http", "https"].contains(scheme)
-        else {
-            isClipboardLinkUnavailablePresented = true
-            return
-        }
-
-        draft.content = String(clipboardText.prefix(contentLimit))
-        isContentFocused = true
     }
 }
 
