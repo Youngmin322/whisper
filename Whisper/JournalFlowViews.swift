@@ -54,9 +54,10 @@ struct JournalFlowView: View {
                     )
                     .navigationTitle("일기")
                     .navigationBarTitleDisplayMode(.inline)
+                    .navigationBarBackButtonHidden(true)
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            Button("닫기", systemImage: "chevron.left") {
+                            Button("뒤로", systemImage: "chevron.left") {
                                 dismiss()
                             }
                         }
@@ -99,45 +100,6 @@ struct JournalFlowView: View {
                     .font(.whisperScreenTitle)
                     .foregroundStyle(Color.whisperTextPrimary)
                     .accessibilityIdentifier("journal.titleField")
-
-                Button {
-                    isBodyFocused = false
-                    isSourcePickerPresented = true
-                } label: {
-                    HStack(spacing: WhisperSpacing.small) {
-                        Image(systemName: "tray.and.arrow.down")
-                            .frame(width: 24)
-
-                        VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-                            Text("오늘의 순간")
-                                .font(.whisperControl)
-                                .foregroundStyle(Color.whisperTextPrimary)
-
-                            Text(sourcePickerDescription)
-                                .font(.whisperLabel)
-                                .foregroundStyle(Color.whisperTextSecondary)
-                        }
-
-                        Spacer(minLength: WhisperSpacing.xSmall)
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.whisperTextSecondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
-                    .padding(.horizontal, WhisperSpacing.medium)
-                    .background(
-                        Color.whisperSurfaceDefault,
-                        in: RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                            .stroke(Color.whisperBorderSubtle, lineWidth: 1)
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(remainingMoments.isEmpty)
-                .accessibilityIdentifier("journal.sourcePickerButton")
             }
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.top, WhisperSpacing.small)
@@ -163,15 +125,21 @@ struct JournalFlowView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding - 5)
             .padding(.top, WhisperSpacing.medium)
+
+            if !remainingMoments.isEmpty || !sourceRecordIDs.isEmpty {
+                sourceImportBar
+            }
         }
         .navigationTitle("오늘 일기 정리")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("닫기", systemImage: "xmark") {
+                Button("뒤로", systemImage: "chevron.left") {
                     closeEditor()
                 }
+                .accessibilityIdentifier("journal.backButton")
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -195,6 +163,48 @@ struct JournalFlowView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(WhisperRadius.sheet)
+        }
+    }
+
+    private var sourceImportBar: some View {
+        Button {
+            isBodyFocused = false
+            isSourcePickerPresented = true
+        } label: {
+            HStack(spacing: WhisperSpacing.small) {
+                Image(systemName: "tray.and.arrow.down")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.whisperAccentText)
+                    .frame(width: 36, height: 36)
+                    .background(Color.whisperSurfaceHighlight, in: Circle())
+
+                VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+                    Text("오늘의 순간 불러오기")
+                        .font(.whisperControl)
+                        .foregroundStyle(Color.whisperTextPrimary)
+
+                    Text(sourcePickerDescription)
+                        .font(.whisperLabel)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+
+                Spacer(minLength: WhisperSpacing.xSmall)
+
+                Image(systemName: remainingMoments.isEmpty ? "checkmark" : "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.whisperTextSecondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(remainingMoments.isEmpty)
+        .accessibilityIdentifier("journal.sourcePickerButton")
+        .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+        .padding(.vertical, WhisperSpacing.xSmall)
+        .background(Color.whisperSurfaceDefault)
+        .overlay(alignment: .top) {
+            Divider()
         }
     }
 
