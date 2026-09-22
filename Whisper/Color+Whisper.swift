@@ -6,12 +6,12 @@
 import SwiftUI
 
 extension Color {
-    static let whisperAccent = whisperColor(0xC94027)
+    static let whisperAccent = whisperColor(0xFF4F36)
     static let whisperAccentText = whisperColor(0xB63D27)
 
     static let whisperTextPrimary = whisperColor(0x202321)
     static let whisperTextSecondary = whisperColor(0x6B726E)
-    static let whisperTextOnAccent = whisperColor(0xFFFFFF)
+    static let whisperTextOnAccent = whisperColor(0x202321)
 
     static let whisperBackground = whisperColor(0xFFFFFF)
     static let whisperSurfaceDefault = whisperColor(0xFFFFFF)
