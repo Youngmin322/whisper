@@ -16,6 +16,7 @@ enum RecordWritingCopy {
 struct RecordDraft {
     var title = ""
     var content = ""
+    var emotion: String?
 
     var titleForSaving: String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)

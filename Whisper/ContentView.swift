@@ -79,25 +79,42 @@ private struct MainTabView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("기록", systemImage: "flame.fill", value: MainTab.home) {
+            Tab("오늘", systemImage: "house.fill", value: MainTab.home) {
                 NavigationStack(path: $homePath) {
-                    HomeView(recordStore: recordStore)
-                        .navigationDestination(for: NotificationRecordRoute.self) { route in
-                            NotificationRecordDestination(
-                                route: route,
-                                recordStore: recordStore
-                            )
+                    HomeView(recordStore: recordStore) {
+                        selectedTab = .collection
+                    }
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            NavigationLink {
+                                SettingsView(recordStore: recordStore)
+                            } label: {
+                                Image(systemName: "gearshape")
+                                    .accessibilityLabel("설정")
+                            }
                         }
+                    }
+                    .navigationDestination(for: NotificationRecordRoute.self) { route in
+                        NotificationRecordDestination(
+                            route: route,
+                            recordStore: recordStore
+                        )
+                    }
                 }
             }
             Tab("보관함", systemImage: "archivebox.fill", value: MainTab.collection) {
                 NavigationStack {
                     CollectionView(recordStore: recordStore)
-                }
-            }
-            Tab("설정", systemImage: "gearshape", value: MainTab.settings) {
-                NavigationStack {
-                    SettingsView(recordStore: recordStore)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                NavigationLink {
+                                    SettingsView(recordStore: recordStore)
+                                } label: {
+                                    Image(systemName: "gearshape")
+                                        .accessibilityLabel("설정")
+                                }
+                            }
+                        }
                 }
             }
         }
@@ -146,12 +163,12 @@ private struct MainTabView: View {
     private func synchronizeReminderState() async {
         await CommitmentReminderCoordinator.synchronize(with: recordStore)
     }
+
 }
 
 private enum MainTab: Hashable {
     case home
     case collection
-    case settings
 }
 
 private struct NotificationRecordRoute: Hashable {
@@ -245,7 +262,7 @@ private struct WelcomeView: View {
                 } else {
                     onboardingMessage(
                         title: "마음을,\n다시 만나요.",
-                        description: "Whisper가 그 마음을 기억해두고,\n잊을 만한 순간 다시 건넬게요.",
+                        description: "기록 속 결심이 보이면 먼저 물어볼게요.\n간직하기로 한 말만 다시 건넬게요.",
                         trustNote: "기록은 이 기기 안에서만 처리돼요."
                     )
                     .transition(messageTransition)
@@ -341,7 +358,7 @@ private struct WelcomeView: View {
     }
 }
 
-private struct SettingsView: View {
+struct SettingsView: View {
     let recordStore: RecordStore
 
     @AppStorage(CommitmentReminderScheduler.showPreviewStorageKey)
@@ -355,75 +372,65 @@ private struct SettingsView: View {
 #endif
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 고정 헤더
-            Text("설정")
-                .font(.whisperScreenTitle)
-                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-                .padding(.top, 18)
-                .padding(.bottom, 24)
-            
-            // 스크롤되는 영역
-            List {
-                Section("다시 만나는 불꽃") {
-                    LabeledContent("알림", value: notificationStatusDescription)
-                    
-                    Toggle("새 알림에 기록 내용 표시", isOn: $showCommitmentPreview)
-                    
-                    if notificationStatus == .notDetermined {
-                        Button("다시 만나기 알림 허용") {
-                            Task { await requestNotificationAuthorization() }
-                        }
-                    } else if notificationStatus == .denied {
-                        Button("알림 설정 열기", action: openAppSettings)
-                    }
-                }
-                
-                Section("FocusMode") {
-                    Button("iPhone 집중 모드에 연결하기") {
-                        isFocusGuidePresented = true
-                    }
-                }
+        List {
+            Section("다시 만나기") {
+                LabeledContent("알림", value: notificationStatusDescription)
 
-#if DEBUG
-                Section("결심 알림 테스트") {
-                    Button {
-                        Task { await scheduleDebugReminder() }
-                    } label: {
-                        HStack {
-                            Text("10초 뒤 테스트 알림 보내기")
-                            Spacer()
-                            if isSchedulingDebugReminder {
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(isSchedulingDebugReminder)
+                Toggle("알림에 기록 내용 표시", isOn: $showCommitmentPreview)
 
-                    Button("예약된 테스트 알림 취소", role: .destructive) {
-                        Task { await cancelDebugReminders() }
+                if notificationStatus == .notDetermined {
+                    Button("다시 만나기 알림 허용") {
+                        Task { await requestNotificationAuthorization() }
                     }
-                    .disabled(isSchedulingDebugReminder)
-
-                    Text(
-                        debugReminderMessage
-                            ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-#endif
-                
-                Section("앱 정보") {
-                    LabeledContent("기록 저장", value: "이 기기")
+                } else if notificationStatus == .denied {
+                    Button("알림 설정 열기", action: openAppSettings)
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(Color.whisperBackground)
+
+            Section("집중 모드") {
+                Button("iPhone 집중 모드에 연결하기") {
+                    isFocusGuidePresented = true
+                }
+            }
+
+#if DEBUG
+            Section("결심 알림 테스트") {
+                Button {
+                    Task { await scheduleDebugReminder() }
+                } label: {
+                    HStack {
+                        Text("10초 뒤 테스트 알림 보내기")
+                        Spacer()
+                        if isSchedulingDebugReminder {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isSchedulingDebugReminder)
+
+                Button("예약된 테스트 알림 취소", role: .destructive) {
+                    Task { await cancelDebugReminders() }
+                }
+                .disabled(isSchedulingDebugReminder)
+
+                Text(
+                    debugReminderMessage
+                        ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+#endif
+
+            Section("앱 정보") {
+                LabeledContent("기록 저장", value: "이 기기")
+            }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(Color.whisperBackground)
-        .navigationBarHidden(true)
+        .navigationTitle("설정")
+        .navigationBarTitleDisplayMode(.inline)
         .task {
             await refreshNotificationStatus()
         }
@@ -538,8 +545,8 @@ private struct FocusFilterGuideView: View {
                     )
                     guideStep(
                         number: 3,
-                        title: "다시 만날 불꽃 선택",
-                        description: "이 집중 모드가 시작될 때 다시 만날 불꽃을 하나 이상 선택하고 추가해요."
+                        title: "다시 만날 마음 선택",
+                        description: "이 집중 모드가 시작될 때 다시 만날 마음을 하나 이상 선택하고 추가해요."
                     )
                     guideStep(
                         number: 4,

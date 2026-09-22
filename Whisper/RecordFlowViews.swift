@@ -42,6 +42,12 @@ struct DetailedRecordView: View {
     @State private var isEmotionPickerPresented = false
     let onSave: (String?, Data?) -> Bool
     private let contentLimit = 1_000
+
+    init(draft: Binding<RecordDraft>, onSave: @escaping (String?, Data?) -> Bool) {
+        _draft = draft
+        _selectedEmotion = State(initialValue: draft.wrappedValue.emotion)
+        self.onSave = onSave
+    }
     
     var body: some View {
         ScrollView {
@@ -103,6 +109,8 @@ struct DetailedRecordView: View {
             }
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.bottom, 90)
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
         .background(Color.whisperBackground)
@@ -119,6 +127,8 @@ struct DetailedRecordView: View {
             .accessibilityIdentifier("record.saveButton")
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.vertical, 8)
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
             .background(.ultraThinMaterial)
         }
         .navigationTitle("상세 기록")
@@ -180,7 +190,7 @@ private struct SavedRecordSheet: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 10) {
-                Text("오늘의 불꽃을 담았어요")
+                Text("마음을 담았어요")
                     .font(.whisperNavigationTitle)
                     .foregroundStyle(Color.whisperTextPrimary)
                 Text("기록은 보관함에서 언제든 다시 꺼내보고\n결심이 보이면 Whisper가 기억할지 물어볼게요.")
@@ -203,8 +213,16 @@ private struct SavedRecordSheet: View {
     }
 }
 
+private struct RecordMonthSection: Identifiable {
+    let month: Date
+    let records: [WhisperRecord]
+
+    var id: Date { month }
+}
+
 struct CollectionView: View {
     let recordStore: RecordStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchText = ""
     @State private var selectedEmotion: String?
     @State private var selectedCommitmentStatus: CommitmentLifecycleStatus?
@@ -213,19 +231,18 @@ struct CollectionView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: WhisperSpacing.medium) {
                 collectionHeader
-                searchField
                 filterBar
 
                 if recordStore.records.isEmpty {
                     ContentUnavailableView(
-                        "아직 담긴 불꽃이 없어요",
+                        "아직 담긴 마음이 없어요",
                         systemImage: "flame",
                         description: Text("오늘의 마음을 기록하면 이곳에 하나씩 쌓여요.")
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else if filteredRecords.isEmpty {
                     ContentUnavailableView {
-                        Label("조건에 맞는 불꽃이 없어요", systemImage: "magnifyingglass")
+                        Label("조건에 맞는 기록이 없어요", systemImage: "magnifyingglass")
                     } description: {
                         Text("검색어나 필터를 바꿔 다시 찾아보세요.")
                     } actions: {
@@ -234,60 +251,59 @@ struct CollectionView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else {
-                    ForEach(filteredRecords) { record in
-                        NavigationLink {
-                            RecordDetailView(
-                                record: record,
-                                recordStore: recordStore
-                            )
-                        } label: {
-                            journalRecordCard(for: record)
+                    ForEach(monthSections) { section in
+                        Text(monthTitle(section.month))
+                            .font(.whisperSectionTitle)
+                            .foregroundStyle(Color.whisperTextPrimary)
+                            .padding(.top, WhisperSpacing.xSmall)
+
+                        ForEach(section.records) { record in
+                            NavigationLink {
+                                RecordDetailView(
+                                    record: record,
+                                    recordStore: recordStore
+                                )
+                            } label: {
+                                journalRecordCard(for: record)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(recordAccessibilityLabel(record))
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(recordAccessibilityLabel(record))
                     }
                 }
             }
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.top, 12)
             .padding(.bottom, 30)
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
         .background(Color.whisperBackground)
-        .navigationBarHidden(true)
+        .navigationTitle("보관함")
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $searchText, prompt: "제목이나 내용 검색")
     }
 
     private var collectionHeader: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-            Text("불꽃 보관함")
-                .font(.whisperScreenTitle)
-                .foregroundStyle(Color.whisperTextPrimary)
-
-            HStack(spacing: WhisperSpacing.small) {
-                VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-                    Text("Whisper가 간직한 마음")
-                        .font(.whisperMetadata)
-                        .foregroundStyle(Color.whisperAccentText)
-
-                    Text(summaryTitle)
-                        .font(.whisperNavigationTitle)
-                        .foregroundStyle(Color.whisperTextPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(monthlySummary)
-                        .font(.whisperMetadata)
-                        .foregroundStyle(Color.whisperTextSecondary)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                        collectionIntroduction
+                        CollectionFlameJar(storedFlameCount: storedFlameCount, width: 82)
+                            .frame(maxWidth: .infinity)
+                    }
+                } else {
+                    HStack(spacing: WhisperSpacing.small) {
+                        collectionIntroduction
+                        CollectionFlameJar(storedFlameCount: storedFlameCount, width: 82)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                CollectionFlameJar(
-                    storedFlameCount: storedFlameCount,
-                    width: 72
-                )
             }
             .padding(.horizontal, WhisperSpacing.medium)
             .padding(.vertical, 14)
-            .frame(minHeight: 132)
+            .frame(minHeight: 142)
             .whisperCardStyle(
                 fill: .whisperSurfaceHighlight,
                 border: .whisperBorderSubtle,
@@ -296,14 +312,32 @@ struct CollectionView: View {
         }
     }
 
+    private var collectionIntroduction: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+            Text("마음이 머무는 곳")
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperAccentText)
+
+            Text(summaryTitle)
+                .font(.whisperNavigationTitle)
+                .foregroundStyle(Color.whisperTextPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(monthlySummary)
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperTextSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var storedFlameCount: Int {
         recordStore.records.count
     }
 
     private var summaryTitle: String {
         storedFlameCount == 0
-            ? "아직 간직한 불꽃이 없어요"
-            : "\(storedFlameCount)개의 불꽃을\n간직하고 있어요"
+            ? "첫 마음을 기다리고 있어요"
+            : "\(storedFlameCount)개의 마음을\n간직하고 있어요"
     }
 
     private var monthlySummary: String {
@@ -311,39 +345,8 @@ struct CollectionView: View {
             Calendar.current.isDate($0.createdAt, equalTo: .now, toGranularity: .month)
         }.count
         return count == 0
-            ? "이번 달 새로 담은 불꽃이 없어요"
-            : "이번 달 새로 담은 불꽃 \(count)개"
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(Color.whisperTextSecondary)
-
-            TextField("제목이나 내용 검색", text: $searchText)
-                .font(.whisperBody)
-                .textInputAutocapitalization(.never)
-
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Color.whisperTextSecondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("검색어 지우기")
-            }
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 48)
-        .background(
-            Color.whisperSurfaceSubtle,
-            in: RoundedRectangle(
-                cornerRadius: WhisperRadius.medium,
-                style: .continuous
-            )
-        )
+            ? "이번 달 새로 담은 마음이 없어요"
+            : "이번 달 새로 담은 마음 \(count)개"
     }
 
     private func storedCommitment(for record: WhisperRecord) -> WhisperCommitment? {
@@ -356,8 +359,8 @@ struct CollectionView: View {
             return base
         }
         let statusDescription = switch status {
-        case .active: "기억 중인 불꽃"
-        case .paused: "잠시 쉬는 불꽃"
+        case .active: "다시 만나기를 기다리는 결심"
+        case .paused: "다시 만나기를 잠시 멈춘 결심"
         case .released: "놓아준 마음"
         }
         return "\(base), \(statusDescription)"
@@ -394,13 +397,13 @@ struct CollectionView: View {
                 }
 
                 Menu {
-                    Button("모든 불꽃") { selectedCommitmentStatus = nil }
+                    Button("모든 상태") { selectedCommitmentStatus = nil }
                     Button("기억 중") { selectedCommitmentStatus = .active }
                     Button("잠시 쉬는 중") { selectedCommitmentStatus = .paused }
                     Button("놓아준 마음") { selectedCommitmentStatus = .released }
                 } label: {
                     filterChip(
-                        title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "불꽃 상태",
+                        title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "다시 만나기",
                         isActive: selectedCommitmentStatus != nil,
                         showsMenuIndicator: true
                     )
@@ -425,7 +428,7 @@ struct CollectionView: View {
         .font(.whisperControl)
         .foregroundStyle(isActive ? Color.whisperTextOnAccent : Color.whisperTextPrimary)
         .padding(.horizontal, WhisperSpacing.medium)
-        .frame(height: 40)
+        .frame(minHeight: WhisperSize.controlCompact)
         .background(
             Capsule()
                 .fill(isActive ? Color.whisperAccent : Color.whisperSurfaceDefault)
@@ -456,6 +459,26 @@ struct CollectionView: View {
             return matchesSearch && matchesEmotion && matchesCommitmentStatus
         }
         .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private var monthSections: [RecordMonthSection] {
+        let grouped = Dictionary(grouping: filteredRecords) { record in
+            Calendar.current.dateInterval(of: .month, for: record.createdAt)?.start
+                ?? Calendar.current.startOfDay(for: record.createdAt)
+        }
+
+        return grouped.keys.sorted(by: >).map { month in
+            RecordMonthSection(
+                month: month,
+                records: (grouped[month] ?? []).sorted { $0.createdAt > $1.createdAt }
+            )
+        }
+    }
+
+    private func monthTitle(_ month: Date) -> String {
+        month.formatted(
+            .dateTime.year().month(.wide).locale(Locale(identifier: "ko_KR"))
+        )
     }
 
     private func commitmentStatusTitle(_ status: CommitmentLifecycleStatus) -> String {

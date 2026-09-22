@@ -77,11 +77,13 @@ struct RecordDetailView: View {
                             .padding(.bottom, 32)
                     }
                 }
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
         }
         .background(Color.whisperBackground)
-        .navigationTitle("기록")
+        .navigationTitle(reminderEncounterID == nil ? "기록" : "다시 만난 마음")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
@@ -179,6 +181,10 @@ struct RecordDetailView: View {
 
     private var readingContent: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if let encounter = reminderEncounter, encounter.reaction == nil {
+                encounterResponseCard
+            }
+
             recordReadingCard
 
             if let photoData = record.photoData {
@@ -200,7 +206,8 @@ struct RecordDetailView: View {
                     )
             }
 
-            if let commitment = displayedCommitment {
+            if let commitment = displayedCommitment,
+               reminderEncounter == nil || reminderEncounter?.reaction != nil {
                 Spacer(minLength: 40)
 
                 Group {
@@ -365,6 +372,55 @@ struct RecordDetailView: View {
             .foregroundStyle(Color.whisperTextPrimary)
     }
 
+    private var encounterResponseCard: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+            Label("다시 만난 문장", systemImage: "flame.fill")
+                .font(.whisperSectionTitle)
+                .foregroundStyle(Color.whisperAccentText)
+
+            if let commitment = displayedCommitment {
+                Text("“\(commitment.quote)”")
+                    .font(.whisperBodyLarge)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("지금 이 마음을 어떻게 두고 싶나요?")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextSecondary)
+
+            Button("계속 기억하기", action: keepReminder)
+                .buttonStyle(.whisperPrimary(size: .compact))
+                .disabled(isUpdatingReminderPreference)
+
+            Button {
+                pauseUntil = Calendar.current.date(
+                    byAdding: .day,
+                    value: 30,
+                    to: .now
+                ) ?? .now
+                isPauseDatePickerPresented = true
+            } label: {
+                Text("잠시 쉬기")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.whisperSecondary)
+            .disabled(isUpdatingReminderPreference)
+
+            Button("이제 놓아주기") {
+                isReleaseEncounterConfirmationPresented = true
+            }
+            .font(.whisperControl)
+            .foregroundStyle(Color.whisperTextSecondary)
+            .frame(maxWidth: .infinity, minHeight: WhisperSize.controlCompact)
+            .disabled(isUpdatingReminderPreference)
+        }
+        .padding(WhisperSpacing.large)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .whisperCardStyle(fill: .whisperSurfaceHighlight, border: .whisperBorderSubtle)
+        .accessibilityIdentifier("commitment.encounterCard")
+    }
+
     private func commitmentCard(_: WhisperCommitment) -> some View {
         WhisperMessageCard {
             Text("이 마음은 제가 잘 간직하고 있을게요.")
@@ -512,6 +568,13 @@ struct RecordDetailView: View {
         }
 
         scheduleReminderAfterPause(commitmentID: commitmentID)
+    }
+
+    private func keepReminder() {
+        guard let reminderEncounterID else { return }
+        if !recordStore.react(to: reminderEncounterID, with: .keep) {
+            isPersistenceErrorPresented = true
+        }
     }
 
     private func releaseReminder() {

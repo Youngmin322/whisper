@@ -98,6 +98,40 @@ struct QuickRecordView: View {
                 }
             }
 
+            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text("지금의 감정 · 선택")
+                    .font(.whisperFieldLabel)
+                    .foregroundStyle(Color.whisperTextPrimary)
+
+                Menu {
+                    Button("선택 안 함", systemImage: "circle.dashed") {
+                        draft.emotion = nil
+                    }
+                    ForEach(WhisperEmotion.allCases) { emotion in
+                        Button(emotion.rawValue, systemImage: emotion.systemImage) {
+                            draft.emotion = emotion.rawValue
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Label(draft.emotion ?? "감정 고르기", systemImage: "face.smiling")
+                            .font(.whisperBodyEmphasis)
+                            .foregroundStyle(Color.whisperTextPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.whisperTextSecondary)
+                    }
+                    .padding(.horizontal, WhisperSpacing.medium)
+                    .frame(minHeight: WhisperSize.controlRegular)
+                    .background(
+                        Color.whisperSurfaceSubtle,
+                        in: RoundedRectangle(cornerRadius: WhisperRadius.medium)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
             Button {
                 onOpenDetail()
                 dismiss()
