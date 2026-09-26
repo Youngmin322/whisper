@@ -3,14 +3,10 @@ import Foundation
 
 struct FlameHopPose {
     let groundPosition: CGPoint
+    let frameIndex: Int
     let lift: CGFloat
-    let bodyOffsetY: CGFloat
-    let bodyScaleX: CGFloat
-    let bodyScaleY: CGFloat
-    let bodyLean: Double
-    let faceOffsetX: CGFloat
-    let faceOffsetY: CGFloat
-    let faceYaw: Double
+    let lead: CGFloat
+    let faceRotation: Double
     let dustOpacity: Double
     let dustSpread: CGFloat
     let shadowScale: CGFloat
@@ -24,10 +20,11 @@ enum FlameHopMotion {
         size: CGSize,
         reduceMotion: Bool
     ) -> FlameHopPose {
-        let stepDuration = 0.19 + seed * 0.03
-        let stepsPerBurst = 3 + Int(seed * 3)
+        // The reference flame takes about two thirds of a second to complete one step.
+        let stepDuration = 0.66 + seed * 0.08
+        let stepsPerBurst = 3 + Int(seed * 2)
         let activeDuration = stepDuration * Double(stepsPerBurst)
-        let pauseDuration = 0.52 + seed * 0.25
+        let pauseDuration = 0.28 + seed * 0.15
         let burstDuration = activeDuration + pauseDuration
         let clock = time + seed * burstDuration
         let burstIndex = floor(clock / burstDuration)
@@ -36,41 +33,28 @@ enum FlameHopMotion {
         let stepClock = withinBurst / stepDuration
         let completedSteps = floor(stepClock)
         let stepPhase = stepClock - completedSteps
-        let pushProgress = min(1, stepPhase / 0.25)
-        let launchProgress = max(0, (stepPhase - 0.25) / 0.75)
-        let stepTravel = stepPhase < 0.25
-            ? 0.08 * smoothstep(pushProgress)
-            : 0.08 + 0.92 * smoothstep(launchProgress)
+
+        // Keep each step connected, with the rounded front half advancing first.
+        let travel = walking ? smoothstep(stepPhase) : 1
         let walkingElapsed = burstIndex * activeDuration + (
-            walking
-                ? (completedSteps + stepTravel) * stepDuration
-                : activeDuration
+            walking ? (completedSteps + travel) * stepDuration : activeDuration
         )
         let walkingShare = activeDuration / burstDuration
-        let pathDuration = 88 + seed * 10
+        let pathDuration = 44 + seed * 8
         let pathProgress = reduceMotion
             ? seed
             : walkingElapsed / (pathDuration * walkingShare) + seed
         let ground = position(progress: pathProgress, seed: seed, size: size)
         let ahead = position(progress: pathProgress + 0.0001, seed: seed, size: size)
-        let dx = ahead.x - ground.x
-        let dy = ahead.y - ground.y
-        let distance = max(0.0001, sqrt(dx * dx + dy * dy))
-        let directionX = dx / distance
-        let directionY = dy / distance
-        let facing: CGFloat = dx < 0 ? -1 : 1
+        let facing: CGFloat = ahead.x < ground.x ? -1 : 1
 
-        if reduceMotion {
+        if reduceMotion || !walking {
             return FlameHopPose(
                 groundPosition: ground,
+                frameIndex: 0,
                 lift: 0,
-                bodyOffsetY: 0,
-                bodyScaleX: 1,
-                bodyScaleY: 1,
-                bodyLean: 0,
-                faceOffsetX: 0,
-                faceOffsetY: 0,
-                faceYaw: 0,
+                lead: 0,
+                faceRotation: 0,
                 dustOpacity: 0,
                 dustSpread: 0,
                 shadowScale: 1,
@@ -78,32 +62,29 @@ enum FlameHopMotion {
             )
         }
 
-        let kickBack = walking && stepPhase < 0.45
-            ? sin(.pi * stepPhase / 0.45)
-            : 0
-        let followThrough = walking && stepPhase >= 0.45
-            ? sin(.pi * (stepPhase - 0.45) / 0.55)
-            : 0
-        let lift = walking && stepPhase >= 0.25
-            ? 1.8 * sin(.pi * (stepPhase - 0.25) / 0.75)
-            : 0
-        let dustLife = min(1, max(0, (stepPhase - 0.16) / 0.30))
+        let frameIndex = min(15, Int(stepPhase * 16))
+        let lift = 5.4 * sin(.pi * stepPhase)
+        let lead = 3.5 * sin(.pi * stepPhase)
+        let dustLife = min(1, max(0, (stepPhase - 0.27) / 0.48))
+        let faceRotation: Double
+        switch frameIndex {
+        case 3...7: faceRotation = -12
+        case 8...10: faceRotation = -28
+        case 11...12: faceRotation = -18
+        default: faceRotation = 0
+        }
 
         return FlameHopPose(
             groundPosition: ground,
+            frameIndex: frameIndex,
             lift: CGFloat(lift),
-            bodyOffsetY: 0,
-            bodyScaleX: CGFloat(1 - 0.018 * kickBack + 0.012 * followThrough),
-            bodyScaleY: CGFloat(1 + 0.025 * kickBack - 0.012 * followThrough),
-            bodyLean: Double(directionX) * (6 * kickBack - 2.5 * followThrough),
-            faceOffsetX: directionX * CGFloat(-1.8 * kickBack + 0.7 * followThrough),
-            faceOffsetY: -directionY * CGFloat(0.8 * kickBack),
-            faceYaw: Double(directionX) * 14,
-            dustOpacity: walking && stepPhase >= 0.16 && stepPhase < 0.46
-                ? 0.22 * (1 - dustLife)
+            lead: CGFloat(lead),
+            faceRotation: faceRotation,
+            dustOpacity: stepPhase >= 0.27 && stepPhase < 0.75
+                ? 0.24 * (1 - dustLife)
                 : 0,
             dustSpread: CGFloat(dustLife),
-            shadowScale: CGFloat(1 - lift / 25),
+            shadowScale: CGFloat(1 - lift / 28),
             facing: facing
         )
     }
