@@ -2,44 +2,42 @@ import CoreGraphics
 import Testing
 @testable import Whisper
 
-@Suite("불꽃의 느린 도약")
+@Suite("불꽃의 연속 걸음")
 struct FlameHopMotionTests {
     private let field = CGSize(width: 393, height: 590)
 
-    @Test("웅크림과 도약, 착지가 서로 다른 몸 모양을 만든다")
+    @Test("작은 점프가 쉼 없이 이어지고 착지할 때만 몸이 눌린다")
     func bodyChangesAcrossHop() {
-        let crouch = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.12, size: field, reduceMotion: false)
-        let airborne = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.36, size: field, reduceMotion: false)
-        let landing = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.60, size: field, reduceMotion: false)
-        let resting = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.85, size: field, reduceMotion: false)
+        let cycle = 0.62
+        let landing = FlameHopMotion.sample(seed: 0, time: cycle * 0.04, size: field, reduceMotion: false)
+        let airborne = FlameHopMotion.sample(seed: 0, time: cycle * 0.62, size: field, reduceMotion: false)
+        let falling = FlameHopMotion.sample(seed: 0, time: cycle * 0.90, size: field, reduceMotion: false)
 
-        #expect(crouch.bodyScaleY < 1)
-        #expect(airborne.bodyScaleY > 1)
-        #expect(airborne.lift > 20)
         #expect(landing.bodyScaleY < 1)
+        #expect(airborne.bodyScaleY > 1)
+        #expect(airborne.lift > 10)
         #expect(landing.dustOpacity > 0)
-        #expect(resting.lift == 0)
-        #expect(resting.dustOpacity == 0)
+        #expect(falling.lift > 0)
+        #expect(falling.dustOpacity == 0)
     }
 
-    @Test("정점 이후 빠르게 떨어지며 착지한다")
+    @Test("올라갈 때보다 빠르게 떨어져 바로 다음 걸음으로 이어진다")
     func descentIsQuickerThanAscent() {
-        let apex = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.36, size: field, reduceMotion: false)
-        let nearLanding = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.51, size: field, reduceMotion: false)
-        let landed = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.54, size: field, reduceMotion: false)
+        let cycle = 0.62
+        let apex = FlameHopMotion.sample(seed: 0, time: cycle * 0.62, size: field, reduceMotion: false)
+        let nearLanding = FlameHopMotion.sample(seed: 0, time: cycle * 0.94, size: field, reduceMotion: false)
+        let nextHop = FlameHopMotion.sample(seed: 0, time: cycle * 1.12, size: field, reduceMotion: false)
 
-        #expect(apex.lift > 24)
-        #expect(nearLanding.lift < 8)
-        #expect(landed.lift == 0)
-        #expect(landed.dustOpacity > 0)
+        #expect(apex.lift > 10)
+        #expect(nearLanding.lift < 3)
+        #expect(nextHop.lift > 2)
     }
 
-    @Test("한 번에 짧게 이동하고 화면 가장자리를 벗어나지 않는다")
+    @Test("짧은 걸음으로 계속 이동하고 화면 가장자리를 벗어나지 않는다")
     func hopsStayWithinField() {
         for seed in [0.0, 0.27, 0.61, 0.94] {
-            for step in 0..<FlameHopMotion.waypointCount {
-                let cycle = 2.7 + seed * 0.6
-                let time = (Double(step) - seed * 31 + 0.99) * cycle
+            for step in 0...100 {
+                let time = Double(step) / 100 * (88 + seed * 10)
                 let pose = FlameHopMotion.sample(seed: seed, time: time, size: field, reduceMotion: false)
                 #expect(pose.groundPosition.x >= 44 && pose.groundPosition.x <= field.width - 44)
                 #expect(pose.groundPosition.y >= 52 && pose.groundPosition.y <= field.height - 52)
@@ -47,12 +45,12 @@ struct FlameHopMotionTests {
         }
 
         let start = FlameHopMotion.sample(seed: 0, time: 0, size: field, reduceMotion: false)
-        let afterOneHop = FlameHopMotion.sample(seed: 0, time: 2.7, size: field, reduceMotion: false)
+        let afterOneHop = FlameHopMotion.sample(seed: 0, time: 0.62, size: field, reduceMotion: false)
         let distance = hypot(
             afterOneHop.groundPosition.x - start.groundPosition.x,
             afterOneHop.groundPosition.y - start.groundPosition.y
         )
-        #expect(distance < 65)
+        #expect(distance > 2 && distance < 20)
     }
 
     @Test("움직임 줄이기에서는 몸과 위치가 정지한다")

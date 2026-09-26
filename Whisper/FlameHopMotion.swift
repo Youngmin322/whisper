@@ -18,31 +18,26 @@ struct FlameHopPose {
 }
 
 enum FlameHopMotion {
-    static let waypointCount = 32
-
     static func sample(
         seed: Double,
         time: TimeInterval,
         size: CGSize,
         reduceMotion: Bool
     ) -> FlameHopPose {
-        let cycle = 2.7 + seed * 0.6
-        let timeline = time / cycle + seed * 31
-        let step = reduceMotion ? floor(seed * Double(waypointCount)) : floor(timeline)
-        let index = Int(step.truncatingRemainder(dividingBy: Double(waypointCount)))
-        let phase = timeline - step
-        let from = waypoint(index: index, seed: seed, size: size)
-        let to = waypoint(index: (index + 1) % waypointCount, seed: seed, size: size)
-        let dx = to.x - from.x
-        let dy = to.y - from.y
-        let distance = max(1, sqrt(dx * dx + dy * dy))
+        let pathDuration = 88 + seed * 10
+        let pathProgress = reduceMotion ? seed : time / pathDuration + seed
+        let ground = position(progress: pathProgress, seed: seed, size: size)
+        let ahead = position(progress: pathProgress + 0.0001, seed: seed, size: size)
+        let dx = ahead.x - ground.x
+        let dy = ahead.y - ground.y
+        let distance = max(0.0001, sqrt(dx * dx + dy * dy))
         let directionX = dx / distance
         let directionY = dy / distance
         let facing: CGFloat = dx < 0 ? -1 : 1
 
         if reduceMotion {
             return FlameHopPose(
-                groundPosition: from,
+                groundPosition: ground,
                 lift: 0,
                 bodyOffsetY: 0,
                 bodyScaleX: 1,
@@ -58,77 +53,32 @@ enum FlameHopMotion {
             )
         }
 
-        let crouchEnd = 0.14
-        let apex = 0.36
-        let landingStart = 0.53
-        let recoveryEnd = 0.69
-        let travel: Double
-        let lift: Double
-        let bodyScaleX: Double
-        let bodyScaleY: Double
-        let bodyOffsetY: Double
-        let lean: Double
-
-        if phase < crouchEnd {
-            let compression = smoothstep(phase / crouchEnd)
-            travel = 0
-            lift = 0
-            bodyScaleX = 1 + 0.11 * compression
-            bodyScaleY = 1 - 0.18 * compression
-            bodyOffsetY = 3 * compression
-            lean = -3 * Double(directionX) * compression
-        } else if phase < landingStart {
-            let arc: Double
-            if phase < apex {
-                let rising = (phase - crouchEnd) / (apex - crouchEnd)
-                arc = sin(.pi / 2 * rising)
-            } else {
-                let falling = (phase - apex) / (landingStart - apex)
-                arc = cos(.pi / 2 * falling)
-            }
-            travel = smoothstep((phase - crouchEnd) / (landingStart - crouchEnd))
-            lift = 25 * arc
-            bodyScaleX = 1 - 0.06 * arc
-            bodyScaleY = 1 + 0.13 * arc
-            bodyOffsetY = 0
-            lean = 9 * Double(directionX) * arc
-        } else if phase < recoveryEnd {
-            let recovery = smoothstep((phase - landingStart) / (recoveryEnd - landingStart))
-            travel = 1
-            lift = 0
-            bodyScaleX = 1 + 0.13 * (1 - recovery)
-            bodyScaleY = 1 - 0.20 * (1 - recovery)
-            bodyOffsetY = 3.5 * (1 - recovery)
-            lean = -4 * Double(directionX) * (1 - recovery)
+        let cycle = 0.62 + seed * 0.12
+        let timeline = time / cycle + seed * 13
+        let phase = timeline - floor(timeline)
+        let apex = 0.62
+        let arc: Double
+        if phase < apex {
+            arc = sin(.pi / 2 * phase / apex)
         } else {
-            travel = 1
-            lift = 0
-            bodyScaleX = 1
-            bodyScaleY = 1 + 0.012 * sin(.pi * (phase - recoveryEnd) / (1 - recoveryEnd))
-            bodyOffsetY = 0
-            lean = 1.3 * Double(directionX) * sin(.pi * (phase - recoveryEnd) / (1 - recoveryEnd))
+            arc = cos(.pi / 2 * (phase - apex) / (1 - apex))
         }
-
-        let ground = CGPoint(
-            x: from.x + dx * CGFloat(travel),
-            y: from.y + dy * CGFloat(travel)
-        )
-        let dustLife = max(0, min(1, (phase - landingStart) / 0.20))
-        let dustOpacity = phase >= landingStart && phase < landingStart + 0.20
-            ? 0.55 * (1 - dustLife)
-            : 0
+        let impact = phase < 0.10 ? 1 - smoothstep(phase / 0.10) : 0
+        let dustLife = min(1, phase / 0.16)
+        let lift: Double
+        lift = 11 * arc
 
         return FlameHopPose(
             groundPosition: ground,
             lift: CGFloat(lift),
-            bodyOffsetY: CGFloat(bodyOffsetY),
-            bodyScaleX: CGFloat(bodyScaleX),
-            bodyScaleY: CGFloat(bodyScaleY),
-            bodyLean: lean,
+            bodyOffsetY: CGFloat(1.5 * impact),
+            bodyScaleX: CGFloat(1 + 0.055 * impact - 0.025 * arc),
+            bodyScaleY: CGFloat(1 - 0.09 * impact + 0.055 * arc),
+            bodyLean: 3.5 * Double(directionX) * arc,
             faceOffsetX: directionX * 3.6,
             faceOffsetY: directionY * 1.8,
             faceYaw: Double(directionX) * 18,
-            dustOpacity: dustOpacity,
+            dustOpacity: phase < 0.16 ? 0.35 * (1 - dustLife) : 0,
             dustSpread: CGFloat(dustLife),
             shadowScale: CGFloat(1 - lift / 90),
             facing: facing
@@ -142,8 +92,8 @@ enum FlameHopMotion {
         return Double(hash % 10_000) / 10_000
     }
 
-    private static func waypoint(index: Int, seed: Double, size: CGSize) -> CGPoint {
-        let angle = 2 * Double.pi * (Double(index) / Double(waypointCount) + seed * 0.5)
+    private static func position(progress: Double, seed: Double, size: CGSize) -> CGPoint {
+        let angle = 2 * Double.pi * (progress + seed * 0.5)
         let xWave = 0.86 * sin(angle) + 0.08 * sin(3 * angle + seed * 4)
         let yWave = 0.86 * cos(angle) + 0.08 * sin(2 * angle + seed * 5)
         let xRadius = max(0, (size.width - 96) / 2)
