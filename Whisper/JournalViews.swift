@@ -10,54 +10,51 @@ struct JournalEditorView: View {
     @State private var title: String
     @State private var bodyText: String
     @State private var sourceRecordIDs: [UUID]
+    @State private var representativeEmotion: String?
     @State private var isSaveErrorPresented = false
 
     init(date: Date, recordStore: RecordStore) {
         self.date = date
         self.recordStore = recordStore
-        let journal = recordStore.journal(on: date)
-        _title = State(initialValue: journal?.title ?? "")
-        _bodyText = State(initialValue: journal?.body ?? "")
-        _sourceRecordIDs = State(initialValue: journal?.sourceRecordIDs ?? [])
+        let draft = JournalDraftComposer.compose(
+            on: date,
+            records: recordStore.records,
+            existing: recordStore.journal(on: date)
+        )
+        _title = State(initialValue: draft.title)
+        _bodyText = State(initialValue: draft.body)
+        _sourceRecordIDs = State(initialValue: draft.sourceRecordIDs)
+        _representativeEmotion = State(initialValue: draft.representativeEmotion)
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
+            VStack(alignment: .leading, spacing: 22) {
                 Text(date.whisperFullDayDescription)
-                    .font(.whisperMetadata)
+                    .font(.whisperControl)
                     .foregroundStyle(Color.whisperTextSecondary)
 
                 if !moments.isEmpty {
-                    momentSourcesSection
+                    HStack(spacing: 4) {
+                        Spacer()
+                        ForEach(moments.suffix(5)) { record in
+                            FlameCharacter(emotion: record.emotion, size: 32)
+                        }
+                    }
+                    .accessibilityHidden(true)
                 }
 
                 writingSection
-
-                if !sourceRecordIDs.isEmpty {
-                    VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-                        Text("가져온 순간 · \(sourceRecordIDs.count)개")
-                            .font(.whisperSectionTitle)
-                            .foregroundStyle(Color.whisperTextPrimary)
-                        ForEach(sourceRecordIDs, id: \.self) { id in
-                            sourceConnectionRow(id)
-                        }
-                        Text("연결을 해제해도 본문에 가져온 문장은 그대로 남아요.")
-                            .font(.whisperMetadata)
-                            .foregroundStyle(Color.whisperTextSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
             }
-            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-            .padding(.top, WhisperSpacing.small)
+            .padding(.horizontal, 30)
+            .padding(.top, 18)
             .padding(.bottom, 110)
             .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color.whisperBackground)
-        .navigationTitle(recordStore.journal(on: date) == nil ? "하루 정리" : "일기 수정")
+        .navigationTitle("나의 하루")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
             Button("일기 저장", action: save)
@@ -68,7 +65,7 @@ struct JournalEditorView: View {
                 .padding(.vertical, WhisperSpacing.small)
                 .frame(maxWidth: 700)
                 .frame(maxWidth: .infinity)
-                .background(.ultraThinMaterial)
+                .background(Color.whisperBackground)
         }
         .alert("일기를 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("확인", role: .cancel) {}
@@ -125,43 +122,46 @@ struct JournalEditorView: View {
     }
 
     private var writingSection: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            Text("내 말로 하루 정리")
-                .font(.whisperSectionTitle)
-                .foregroundStyle(Color.whisperTextPrimary)
-            Text(moments.isEmpty
-                 ? "순간 없이 바로 써도 괜찮아요. 한 문장만 남겨도 돼요."
-                 : "가져온 문장을 고치거나, 새로운 문장으로 하루를 정리해요.")
-                .font(.whisperBody)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
+        VStack(alignment: .leading, spacing: 18) {
             TextEditor(text: $bodyText)
-                .font(.whisperBodyLarge)
+                .font(.custom("NotoSansKR-Thin", size: 17, relativeTo: .body))
+                .foregroundStyle(Color.whisperTextPrimary)
+                .lineSpacing(18)
                 .scrollContentBackground(.hidden)
-                .frame(height: dynamicTypeSize.isAccessibilitySize ? 280 : 170)
-                .padding(WhisperSpacing.small)
-                .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
-                .overlay {
-                    RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                        .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+                .frame(height: dynamicTypeSize.isAccessibilitySize ? 480 : 410)
+                .background(alignment: .topLeading) {
+                    Canvas { context, size in
+                        var lines = Path()
+                        for y in stride(from: CGFloat(44), through: size.height, by: 47) {
+                            lines.move(to: CGPoint(x: 0, y: y))
+                            lines.addLine(to: CGPoint(x: size.width, y: y))
+                        }
+                        context.stroke(lines, with: .color(Color.whisperBorderSubtle.opacity(0.7)), lineWidth: 1)
+                    }
                 }
                 .overlay(alignment: .topLeading) {
                     if bodyText.isEmpty {
-                        Text("오늘을 어떻게 기억하고 싶나요?")
+                        Text("오늘을 돌아보며 적어보세요.")
                             .font(.whisperBodyLarge)
                             .foregroundStyle(Color.whisperTextSecondary)
-                            .padding(.leading, 16)
-                            .padding(.top, 18)
+                            .padding(.leading, 5)
+                            .padding(.top, 8)
                             .allowsHitTesting(false)
                     }
                 }
                 .accessibilityLabel("일기 본문")
                 .accessibilityIdentifier("journal.bodyField")
 
+            Text("오늘을 돌아보며 더 적어보세요.")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextSecondary.opacity(0.7))
+
+            Text("남긴 순간은 원문 그대로 담았어요")
+                .font(.whisperHandwriting(19))
+                .foregroundStyle(Color.whisperTextSecondary)
+
             Text("제목 · 선택 사항")
-                .font(.whisperFieldLabel)
-                .foregroundStyle(Color.whisperTextPrimary)
+                .font(.whisperControl)
             TextField("이 하루를 알아볼 짧은 이름", text: $title)
                 .font(.whisperBodyLarge)
                 .padding(WhisperSpacing.medium)
@@ -172,10 +172,17 @@ struct JournalEditorView: View {
                 }
                 .accessibilityIdentifier("journal.titleField")
 
-            Text("일기에 문장을 가져와도 순간 원본은 따로 남아요.")
-                .font(.whisperMetadata)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if !moments.isEmpty {
+                Menu {
+                    ForEach(WhisperEmotion.allCases) { emotion in
+                        Button(emotion.rawValue) { representativeEmotion = emotion.rawValue }
+                    }
+                } label: {
+                    Text("대표 감정 · \(representativeEmotion ?? "선택 안 함")")
+                        .font(.whisperControl)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+            }
         }
     }
 
@@ -217,7 +224,8 @@ struct JournalEditorView: View {
             on: date,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             body: bodyText,
-            sourceRecordIDs: sourceRecordIDs
+            sourceRecordIDs: sourceRecordIDs,
+            emotion: representativeEmotion
         ) != nil else {
             isSaveErrorPresented = true
             return

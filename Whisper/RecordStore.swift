@@ -134,6 +134,7 @@ final class RecordStore {
         title: String,
         body: String,
         sourceRecordIDs: [UUID],
+        emotion: String? = nil,
         calendar: Calendar = .current
     ) -> DailyJournal? {
         guard let modelContext else {
@@ -147,6 +148,7 @@ final class RecordStore {
         let existing = journals.first { $0.dayKey == key }
         if let existing {
             existing.update(title: title, body: body, sourceRecordIDs: ids)
+            if let emotion { existing.emotion = emotion }
         } else {
             modelContext.insert(DailyJournal(
                 dayKey: key,
@@ -154,6 +156,7 @@ final class RecordStore {
                 title: title,
                 body: body,
                 reflection: "",
+                emotion: emotion,
                 sourceRecordIDs: ids
             ))
         }
