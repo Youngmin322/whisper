@@ -3,6 +3,7 @@ import SwiftUI
 struct FlameHomeScreen: View {
     let records: [WhisperRecord]
     let recordStore: RecordStore
+    let isRecording: Bool
     let onAddMoment: () -> Void
     let onOpenCollection: () -> Void
 
@@ -109,6 +110,9 @@ struct FlameHomeScreen: View {
             }
         }
         .onChange(of: records.count) { _, _ in proposeCollectionIfNeeded() }
+        .onChange(of: isRecording) { _, recording in
+            if !recording { proposeCollectionIfNeeded() }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { proposeCollectionIfNeeded() }
         }
@@ -148,7 +152,8 @@ struct FlameHomeScreen: View {
     }
 
     private func proposeCollectionIfNeeded() {
-        guard Calendar.current.component(.hour, from: .now) >= 22,
+        guard !isRecording,
+              Calendar.current.component(.hour, from: .now) >= 22,
               !records.isEmpty,
               recordStore.journal(on: .now) == nil
         else { return }

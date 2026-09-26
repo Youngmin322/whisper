@@ -74,53 +74,6 @@ struct JournalEditorView: View {
         }
     }
 
-    private var momentSourcesSection: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            Text("이 날 남긴 순간 · \(moments.count)개")
-                .font(.whisperSectionTitle)
-                .foregroundStyle(Color.whisperTextPrimary)
-            Text("필요한 순간을 누르면 원문이 일기 본문에 복사돼요.")
-                .font(.whisperBody)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            ForEach(moments) { record in
-                if sourceRecordIDs.contains(record.id) {
-                    momentSourceCard(record, isIncluded: true)
-                        .accessibilityLabel("\(record.title), \(record.content), 일기에 가져옴")
-                } else {
-                    Button {
-                        append(record)
-                    } label: {
-                        momentSourceCard(record, isIncluded: false)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(record.title), \(record.content), 일기에 문장 가져오기")
-                }
-            }
-        }
-    }
-
-    private func momentSourceCard(_ record: WhisperRecord, isIncluded: Bool) -> some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-            Text(record.title)
-                .font(.whisperControl)
-                .foregroundStyle(Color.whisperTextPrimary)
-            Text(record.content)
-                .font(.whisperBody)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-            Label(isIncluded ? "일기에 가져옴" : "일기에 문장 가져오기",
-                  systemImage: isIncluded ? "checkmark.circle.fill" : "plus.circle")
-                .font(.whisperMetadata)
-                .foregroundStyle(Color.whisperAccentText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(WhisperSpacing.medium)
-        .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle)
-    }
-
     private var writingSection: some View {
         VStack(alignment: .leading, spacing: 18) {
             TextEditor(text: $bodyText)
@@ -191,34 +144,6 @@ struct JournalEditorView: View {
             .sorted { $0.createdAt < $1.createdAt }
     }
 
-    @ViewBuilder
-    private func sourceConnectionRow(_ id: UUID) -> some View {
-        if dynamicTypeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 8) { sourceConnectionContent(id) }
-        } else {
-            HStack(spacing: 12) { sourceConnectionContent(id) }
-        }
-    }
-
-    @ViewBuilder
-    private func sourceConnectionContent(_ id: UUID) -> some View {
-        Text(recordStore.record(withID: id)?.title ?? "삭제된 순간")
-            .frame(maxWidth: .infinity, alignment: .leading)
-        Button("연결 해제") {
-            sourceRecordIDs.removeAll { $0 == id }
-        }
-        .buttonStyle(.borderless)
-    }
-
-    private func append(_ record: WhisperRecord) {
-        guard !sourceRecordIDs.contains(record.id) else { return }
-        if !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            bodyText += "\n\n"
-        }
-        bodyText += record.content
-        sourceRecordIDs.append(record.id)
-    }
-
     private func save() {
         guard recordStore.saveJournal(
             on: date,
@@ -244,39 +169,67 @@ struct JournalDetailView: View {
     var body: some View {
         Group {
             if let journal {
-                List {
-                    Section {
-                        Text("완성 일기 · \(journal.date.whisperFullDayDescription)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(journal.title.isEmpty ? journal.date.whisperDateDescription : journal.title)
-                            .font(.title2.weight(.semibold))
-                        Text(journal.body)
-                            .textSelection(.enabled)
-                    }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        Text(journal.date.whisperFullDayDescription)
+                            .font(.whisperControl)
+                            .foregroundStyle(Color.whisperTextSecondary)
 
-                    if let emotion = journal.emotion, !emotion.isEmpty {
-                        Section("그날의 감정") { Text(emotion) }
-                    }
-                    if !journal.reflection.isEmpty {
-                        Section("회고") { Text(journal.reflection).textSelection(.enabled) }
-                    }
-
-                    Section {
-                        ForEach(journal.sourceRecordIDs, id: \.self) { id in
-                            sourceRow(id)
+                        HStack {
+                            if !journal.title.isEmpty {
+                                Text(journal.title)
+                                    .font(.whisperHandwriting(26, bold: true))
+                            }
+                            Spacer()
+                            FlameCharacter(emotion: journal.emotion, size: 38)
                         }
-                    } header: {
-                        Text("가져온 순간 · \(availableSourceCount(in: journal))/\(journal.sourceRecordIDs.count)개 열람 가능")
-                    } footer: {
-                        Text("순간 원본과 일기 본문은 별도로 보관돼요.")
+
+                        Text(journal.body)
+                            .font(.whisperBodyLarge)
+                            .lineSpacing(20)
+                            .foregroundStyle(Color.whisperTextPrimary)
+                            .frame(maxWidth: .infinity, minHeight: 320, alignment: .topLeading)
+                            .background(alignment: .topLeading) {
+                                Canvas { context, size in
+                                    var lines = Path()
+                                    for y in stride(from: CGFloat(45), through: size.height, by: 47) {
+                                        lines.move(to: CGPoint(x: 0, y: y))
+                                        lines.addLine(to: CGPoint(x: size.width, y: y))
+                                    }
+                                    context.stroke(lines, with: .color(Color.whisperBorderSubtle.opacity(0.7)), lineWidth: 1)
+                                }
+                            }
+                            .textSelection(.enabled)
+
+                        if !journal.reflection.isEmpty {
+                            Text(journal.reflection)
+                                .font(.whisperBody)
+                                .textSelection(.enabled)
+                        }
+
+                        Text("남긴 순간은 원문 그대로 담았어요")
+                            .font(.whisperHandwriting(19))
+                            .foregroundStyle(Color.whisperTextSecondary)
+
+                        DisclosureGroup("담긴 순간 · \(availableSourceCount(in: journal))/\(journal.sourceRecordIDs.count)개 열람 가능") {
+                            ForEach(journal.sourceRecordIDs, id: \.self) { id in
+                                sourceRow(id)
+                                    .padding(.vertical, 6)
+                            }
+                        }
+                        .font(.whisperControl)
+                        .foregroundStyle(Color.whisperTextSecondary)
                     }
+                    .padding(.horizontal, 30)
+                    .padding(.top, 18)
+                    .padding(.bottom, 50)
                 }
             } else {
                 ContentUnavailableView("일기를 찾을 수 없어요", systemImage: "book.closed")
             }
         }
-        .navigationTitle("일기")
+        .background(Color.whisperBackground)
+        .navigationTitle("나의 하루")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let journal {
