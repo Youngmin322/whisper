@@ -4,7 +4,7 @@ struct FlameCharacter: View {
     let emotion: String?
     var size: CGFloat = 52
 
-    private var assetName: String {
+    static func assetName(for emotion: String?) -> String {
         switch emotion ?? "" {
         case WhisperEmotion.calm.rawValue: "FlameCalm"
         case WhisperEmotion.tired.rawValue: "FlameTired"
@@ -16,11 +16,48 @@ struct FlameCharacter: View {
     }
 
     var body: some View {
-        Image(assetName)
+        Image(Self.assetName(for: emotion))
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: size, height: size * 1.1)
             .accessibilityHidden(true)
+    }
+}
+
+struct AnimatedFlameCharacter: View {
+    let emotion: String?
+    let pose: FlameHopPose
+    var size: CGFloat = 48
+
+    private var assetName: String { FlameCharacter.assetName(for: emotion) }
+
+    var body: some View {
+        ZStack {
+            Ellipse()
+                .fill(Color.whisperTextSecondary.opacity(0.10))
+                .frame(width: size * 0.48 * pose.shadowScale, height: 5)
+                .offset(y: size * 0.49)
+
+            Image("\(assetName)Body")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size * 1.1)
+                .scaleEffect(x: pose.bodyScaleX, y: pose.bodyScaleY, anchor: .bottom)
+                .rotationEffect(.degrees(pose.bodyLean), anchor: .bottom)
+                .offset(y: pose.bodyOffsetY - pose.lift)
+
+            Image("\(assetName)Face")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size * 1.1)
+                .rotation3DEffect(.degrees(pose.faceYaw), axis: (x: 0, y: 1, z: 0))
+                .offset(
+                    x: pose.faceOffsetX,
+                    y: pose.faceOffsetY + pose.bodyOffsetY - pose.lift
+                )
+        }
+        .frame(width: size, height: size * 1.1)
+        .accessibilityHidden(true)
     }
 }
 
