@@ -6,15 +6,19 @@ import Testing
 struct FlameHopMotionTests {
     private let field = CGSize(width: 393, height: 590)
 
-    @Test("몸은 거의 뜨지 않고 아랫부분이 이동 방향으로 앞선다")
-    func smallStrideWithTrailingTop() {
-        let stride = FlameHopMotion.sample(seed: 0, time: 0.095, size: field, reduceMotion: false)
+    @Test("아랫부분으로 뒤를 박찬 다음 몸이 앞으로 나간다")
+    func lowerBodyPushesBeforeLaunch() {
+        let start = FlameHopMotion.sample(seed: 0, time: 0, size: field, reduceMotion: false)
+        let kick = FlameHopMotion.sample(seed: 0, time: 0.19 * 0.22, size: field, reduceMotion: false)
+        let launch = FlameHopMotion.sample(seed: 0, time: 0.19 * 0.70, size: field, reduceMotion: false)
 
-        #expect(stride.lift > 0 && stride.lift < 2)
-        #expect(stride.bodyScaleY < 1.03)
-        #expect(stride.facing == 1)
-        #expect(stride.bodyLean < 0)
-        #expect(stride.faceOffsetX < 0)
+        #expect(kick.facing == 1)
+        #expect(kick.bodyLean > 0)
+        #expect(kick.faceOffsetX < 0)
+        #expect(kick.lift == 0)
+        #expect(launch.bodyLean < 0)
+        #expect(launch.lift > 0 && launch.lift < 2)
+        #expect(distance(kick.groundPosition, launch.groundPosition) > distance(start.groundPosition, kick.groundPosition))
     }
 
     @Test("짧은 걸음을 세 번 잇고 잠깐 멈춘 뒤 다시 이동한다")
@@ -44,9 +48,9 @@ struct FlameHopMotionTests {
 
         let start = FlameHopMotion.sample(seed: 0, time: 0, size: field, reduceMotion: false)
         let afterOneStep = FlameHopMotion.sample(seed: 0, time: 0.19, size: field, reduceMotion: false)
-        let dust = FlameHopMotion.sample(seed: 0, time: 0.20, size: field, reduceMotion: false)
+        let dust = FlameHopMotion.sample(seed: 0, time: 0.19 * 1.30, size: field, reduceMotion: false)
         #expect(distance(start.groundPosition, afterOneStep.groundPosition) < 10)
-        #expect(dust.dustOpacity > 0 && dust.dustOpacity < 0.2)
+        #expect(dust.dustOpacity > 0 && dust.dustOpacity < 0.22)
     }
 
     @Test("움직임 줄이기에서는 몸과 위치가 정지한다")

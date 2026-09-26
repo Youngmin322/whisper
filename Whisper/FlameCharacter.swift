@@ -42,8 +42,8 @@ struct AnimatedFlameCharacter: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: size, height: size * 1.1)
-                .scaleEffect(x: pose.bodyScaleX, y: pose.bodyScaleY, anchor: .bottom)
-                .rotationEffect(.degrees(pose.bodyLean), anchor: .bottom)
+                .scaleEffect(x: pose.bodyScaleX, y: pose.bodyScaleY, anchor: .top)
+                .rotationEffect(.degrees(pose.bodyLean), anchor: .top)
                 .offset(y: pose.bodyOffsetY - pose.lift)
 
             Image("\(assetName)Face")
