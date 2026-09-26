@@ -730,6 +730,70 @@ enum WhisperSchemaV4: VersionedSchema {
     }
 }
 
+enum WhisperSchemaV5: VersionedSchema {
+    static let versionIdentifier = Schema.Version(5, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            WhisperSchemaV4.WhisperRecord.self,
+            WhisperSchemaV4.WhisperCommitment.self,
+            WhisperSchemaV4.ReminderEncounter.self,
+            WhisperSchemaV4.NotificationDaySlot.self,
+            DailyJournal.self
+        ]
+    }
+
+    @Model
+    final class DailyJournal {
+        @Attribute(.unique) var id: UUID
+        @Attribute(.unique) var dayKey: String
+        var date: Date
+        var title: String
+        var body: String
+        var reflection: String
+        var emotion: String?
+        var sourceRecordIDsStorage: String
+        var createdAt: Date
+        var updatedAt: Date
+
+        init(
+            id: UUID = UUID(),
+            dayKey: String,
+            date: Date,
+            title: String,
+            body: String,
+            reflection: String,
+            emotion: String? = nil,
+            sourceRecordIDs: [UUID],
+            createdAt: Date = .now,
+            updatedAt: Date? = nil
+        ) {
+            self.id = id
+            self.dayKey = dayKey
+            self.date = date
+            self.title = title
+            self.body = body
+            self.reflection = reflection
+            self.emotion = emotion
+            sourceRecordIDsStorage = sourceRecordIDs.map(\.uuidString).joined(separator: "\u{001F}")
+            self.createdAt = createdAt
+            self.updatedAt = updatedAt ?? createdAt
+        }
+
+        var sourceRecordIDs: [UUID] {
+            sourceRecordIDsStorage.split(separator: "\u{001F}")
+                .compactMap { UUID(uuidString: String($0)) }
+        }
+
+        func update(title: String, body: String, sourceRecordIDs: [UUID], at date: Date = .now) {
+            self.title = title
+            self.body = body
+            sourceRecordIDsStorage = sourceRecordIDs.map(\.uuidString).joined(separator: "\u{001F}")
+            updatedAt = date
+        }
+    }
+}
+
 enum WhisperMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
@@ -738,7 +802,8 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             WhisperSchemaV1.self,
             WhisperSchemaV2.self,
             WhisperSchemaV3.self,
-            WhisperSchemaV4.self
+            WhisperSchemaV4.self,
+            WhisperSchemaV5.self
         ]
     }
 
@@ -807,6 +872,10 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: WhisperSchemaV3.self,
                 toVersion: WhisperSchemaV4.self
+            ),
+            .lightweight(
+                fromVersion: WhisperSchemaV4.self,
+                toVersion: WhisperSchemaV5.self
             )
         ]
     }
@@ -816,3 +885,4 @@ typealias WhisperRecord = WhisperSchemaV4.WhisperRecord
 typealias WhisperCommitment = WhisperSchemaV4.WhisperCommitment
 typealias ReminderEncounter = WhisperSchemaV4.ReminderEncounter
 typealias NotificationDaySlot = WhisperSchemaV4.NotificationDaySlot
+typealias DailyJournal = WhisperSchemaV5.DailyJournal

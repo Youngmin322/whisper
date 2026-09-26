@@ -12,8 +12,6 @@ struct HomeView: View {
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isQuickRecordPresented = false
-    @State private var isDetailRecordPresented = false
-    @State private var shouldOpenDetailAfterSheetDismisses = false
     @State private var recordDraft = RecordDraft()
     @State private var pendingCommitmentCandidates: [CommitmentCandidate] = []
     @State private var presentedCommitmentCandidate: CommitmentCandidate?
@@ -31,17 +29,16 @@ struct HomeView: View {
                     candidateCard(candidate)
                 }
 
-                if dueCommitment != nil {
+                todayPage
+
+                if dueCommitment != nil || !recordStore.commitments.isEmpty {
                     memorySection
                 }
 
-                jarCard
-
-                if dueCommitment == nil {
-                    memorySection
-                }
-
-                recentSection
+                Button("지난 기록 모두 보기", action: onOpenCollection)
+                    .font(.whisperControl)
+                    .foregroundStyle(Color.whisperAccentText)
+                    .frame(maxWidth: .infinity, minHeight: WhisperSize.controlCompact)
             }
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.top, WhisperSpacing.small)
@@ -53,27 +50,13 @@ struct HomeView: View {
         .background(Color.whisperBackground)
         .navigationTitle("오늘")
         .navigationBarTitleDisplayMode(.large)
-        .sheet(
-            isPresented: $isQuickRecordPresented,
-            onDismiss: openDetailAfterSheetDismissesIfNeeded
-        ) {
+        .sheet(isPresented: $isQuickRecordPresented, onDismiss: presentPendingCommitmentCandidateIfPossible) {
             QuickRecordView(
                 draft: $recordDraft,
-                onSave: { saveDraft() },
-                onOpenDetail: { shouldOpenDetailAfterSheetDismisses = true }
+                onSave: { saveDraft() }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(WhisperRadius.sheet)
-        }
-        .navigationDestination(isPresented: $isDetailRecordPresented) {
-            DetailedRecordView(draft: $recordDraft) { emotion, photoData in
-                saveDraft(emotion: emotion, photoData: photoData)
-            }
-        }
-        .onChange(of: isDetailRecordPresented) { _, isPresented in
-            guard !isPresented else { return }
-            presentPendingCommitmentCandidateIfPossible()
+            .presentationDetents([.large])
+            .interactiveDismissDisabled(recordDraft.hasChanges)
         }
         .alert("알림을 켜야 다시 건넬 수 있어요", isPresented: $isReminderUnavailablePresented) {
             Button("확인", role: .cancel) {}
@@ -82,27 +65,44 @@ struct HomeView: View {
         }
     }
 
-    private var jarCard: some View {
-        VStack(spacing: WhisperSpacing.medium) {
+    private var todayPage: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.large) {
             if dynamicTypeSize.isAccessibilitySize {
-                jarIntroduction
-                CollectionFlameJar(storedFlameCount: recordStore.records.count, width: 92)
+                todayPageIntroduction
+                CollectionFlameJar(storedFlameCount: recordStore.records.count, width: 64)
                     .frame(maxWidth: .infinity)
+                    .accessibilityHidden(true)
             } else {
                 HStack(alignment: .center, spacing: WhisperSpacing.small) {
-                    jarIntroduction
+                    todayPageIntroduction
                     Spacer(minLength: 0)
-                    CollectionFlameJar(storedFlameCount: recordStore.records.count, width: 92)
+                    CollectionFlameJar(storedFlameCount: recordStore.records.count, width: 64)
+                        .accessibilityHidden(true)
                 }
             }
 
-            Button {
-                isQuickRecordPresented = true
-            } label: {
-                Label("마음 담기", systemImage: "plus")
+            if todayMoments.isEmpty {
+                Text("아직 오늘 남긴 순간이 없어요. 떠오른 장면 하나부터 시작해 보세요.")
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(todayMoments) { record in
+                    todayMomentRow(record)
+                }
             }
-            .buttonStyle(.whisperPrimary)
-            .accessibilityIdentifier("home.recordButton")
+
+            momentAction
+
+            Divider()
+
+            if let journal = recordStore.journal(on: .now) {
+                savedJournal(journal)
+            } else if todayMoments.isEmpty {
+                directJournalLink
+            } else {
+                journalAction
+            }
         }
         .padding(WhisperSpacing.large)
         .frame(maxWidth: .infinity)
@@ -113,24 +113,170 @@ struct HomeView: View {
         )
     }
 
-    private var jarIntroduction: some View {
+    private var todayPageIntroduction: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-            Text("나의 유리병")
-                .font(.whisperControl)
-                .foregroundStyle(Color.whisperAccentText)
-
-            Text(recordStore.records.isEmpty ? "첫 마음을 담아볼까요?" : "마음이 이곳에 쌓이고 있어요")
-                .font(.whisperNavigationTitle)
+            Text("오늘의 순간 · \(todayMoments.count)개")
+                .font(.whisperSectionTitle)
                 .foregroundStyle(Color.whisperTextPrimary)
-                .fixedSize(horizontal: false, vertical: true)
 
-            Text(recordStore.records.isEmpty
-                 ? "한 문장만 남겨도 괜찮아요."
-                 : "\(recordStore.records.count)개의 기록을 간직하고 있어요.")
+            Text("떠오를 때 남겨 두고, 하루를 정리할 때 골라 쓸 수 있어요.")
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    @ViewBuilder
+    private var momentAction: some View {
+        if todayMoments.isEmpty {
+            Button {
+                isQuickRecordPresented = true
+            } label: {
+                Label("순간 남기기", systemImage: "plus")
+            }
+            .buttonStyle(.whisperPrimary)
+            .accessibilityIdentifier("home.recordButton")
+        } else {
+            Button {
+                isQuickRecordPresented = true
+            } label: {
+                Label("순간 더 남기기", systemImage: "plus")
+            }
+            .buttonStyle(.whisperSecondary)
+            .accessibilityIdentifier("home.recordButton")
+        }
+    }
+
+    private func todayMomentRow(_ record: WhisperRecord) -> some View {
+        NavigationLink {
+            RecordDetailView(record: record, recordStore: recordStore)
+        } label: {
+            HStack(alignment: .top, spacing: WhisperSpacing.small) {
+                Image(systemName: "circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(Color.whisperAccentText)
+                    .padding(.top, 6)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                    Text(record.id == recentlySavedRecordID
+                         ? "방금 남긴 순간"
+                         : record.createdAt.formatted(date: .omitted, time: .shortened))
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperAccentText)
+                    Text(record.content)
+                        .font(.whisperBody)
+                        .foregroundStyle(Color.whisperTextPrimary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                    if record.emotion != nil || record.photoData != nil {
+                        HStack(spacing: WhisperSpacing.small) {
+                            if let emotion = record.emotion {
+                                Text(emotion)
+                            }
+                            if record.photoData != nil {
+                                Label("사진", systemImage: "photo")
+                            }
+                        }
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, WhisperSpacing.small)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("순간, \(record.createdAt.whisperFullDayDescription), \(record.content), 원본 열기")
+        .accessibilityIdentifier("home.momentRow")
+    }
+
+    private var directJournalLink: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+            Text("한 번에 하루를 쓰고 싶다면")
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperTextSecondary)
+            NavigationLink {
+                JournalEditorView(date: .now, recordStore: recordStore)
+            } label: {
+                Label("순간 없이 일기 쓰기", systemImage: "book.pages")
+                    .font(.whisperControl)
+                    .foregroundStyle(Color.whisperAccentText)
+                    .frame(maxWidth: .infinity, minHeight: WhisperSize.controlCompact, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("home.journalButton")
+        }
+    }
+
+    private var journalAction: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+            Text("하루를 정리할 때")
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperAccentText)
+            Text("남긴 순간 중 필요한 것을 골라, 내 말로 오늘 일기를 써요.")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            NavigationLink {
+                JournalEditorView(date: .now, recordStore: recordStore)
+            } label: {
+                Label("오늘 일기 정리하기", systemImage: "book.pages")
+            }
+            .buttonStyle(.whisperPrimary)
+            .accessibilityIdentifier("home.journalButton")
+        }
+    }
+
+    private func savedJournal(_ journal: DailyJournal) -> some View {
+        NavigationLink {
+            JournalDetailView(journalID: journal.id, recordStore: recordStore)
+        } label: {
+            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text("저장한 오늘 일기")
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperAccentText)
+                Text(journal.title.isEmpty ? "오늘의 일기" : journal.title)
+                    .font(.whisperSectionTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                Text(journal.body)
+                    .font(.whisperBody)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .lineLimit(2)
+                if unlinkedMomentCount(in: journal) > 0 {
+                    Text("가져오지 않은 순간 \(unlinkedMomentCount(in: journal))개 · 원하면 일기 수정에서 더할 수 있어요.")
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+                Label("일기 다시 열기", systemImage: "arrow.up.right")
+                    .font(.whisperControl)
+                    .foregroundStyle(Color.whisperAccentText)
+                    .padding(.top, WhisperSpacing.xSmall)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, WhisperSpacing.small)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("저장한 오늘 일기, \(journal.title.isEmpty ? "오늘의 일기" : journal.title), 열기")
+        .accessibilityIdentifier("home.journalButton")
+    }
+
+    private func unlinkedMomentCount(in journal: DailyJournal) -> Int {
+        todayMoments.filter { !journal.sourceRecordIDs.contains($0.id) }.count
+    }
+
+    private var todayMoments: [WhisperRecord] {
+        recordStore.records
+            .filter { Calendar.current.isDateInToday($0.createdAt) }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     private func candidateCard(_ candidate: CommitmentCandidate) -> some View {
@@ -217,9 +363,7 @@ struct HomeView: View {
                         .frame(width: 42, height: 42)
                         .background(Color.whisperSurfaceHighlight, in: Circle())
 
-                    Text(recordStore.commitments.contains(where: { $0.isActive })
-                         ? "간직한 문장은 때가 되면 이곳에서 다시 만나요."
-                         : "기록 속 결심이 보이면 다시 만날지 먼저 물어볼게요.")
+                    Text("간직한 결심과 알림 상태는 설정에서 확인하고 조절할 수 있어요.")
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -229,58 +373,6 @@ struct HomeView: View {
                 .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle)
             }
         }
-    }
-
-    @ViewBuilder
-    private var recentSection: some View {
-        if !recentRecords.isEmpty {
-            VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-                HStack {
-                    Text("최근 담은 마음")
-                        .font(.whisperSectionTitle)
-                        .foregroundStyle(Color.whisperTextPrimary)
-                    Spacer()
-                    Button("모두 보기", action: onOpenCollection)
-                        .font(.whisperControl)
-                        .foregroundStyle(Color.whisperAccentText)
-                        .frame(minHeight: WhisperSize.controlCompact)
-                }
-
-                ForEach(recentRecords) { record in
-                    NavigationLink {
-                        RecordDetailView(record: record, recordStore: recordStore)
-                    } label: {
-                        HStack(alignment: .top, spacing: WhisperSpacing.small) {
-                            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                                Text(record.id == recentlySavedRecordID
-                                     ? "방금 담은 마음" : record.createdAt.whisperRecordHeaderDescription)
-                                    .font(.whisperMetadata)
-                                    .foregroundStyle(Color.whisperAccentText)
-                                Text(record.content)
-                                    .font(.whisperBody)
-                                    .foregroundStyle(Color.whisperTextPrimary)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(Color.whisperTextSecondary)
-                        }
-                        .padding(WhisperSpacing.medium)
-                        .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
-                        .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(record.createdAt.whisperFullDayDescription) 기록, \(record.content)")
-                }
-            }
-        }
-    }
-
-    private var recentRecords: [WhisperRecord] {
-        Array(recordStore.records.sorted { $0.createdAt > $1.createdAt }.prefix(2))
     }
 
     private var dueCommitment: WhisperCommitment? {
@@ -298,7 +390,7 @@ struct HomeView: View {
         }
     }
 
-    private func saveDraft(emotion: String? = nil, photoData: Data? = nil) -> Bool {
+    private func saveDraft() -> Bool {
         let title = recordDraft.titleForSaving
         let content = recordDraft.contentForSaving
         let existingCommitments = recordStore.activeCommitmentSnapshots
@@ -306,8 +398,8 @@ struct HomeView: View {
         guard let savedRecord = recordStore.addAndReturn(
             title: title,
             content: content,
-            emotion: emotion ?? recordDraft.emotion,
-            photoData: photoData
+            emotion: recordDraft.emotion,
+            photoData: recordDraft.photoData
         ) else {
             return false
         }
@@ -321,15 +413,6 @@ struct HomeView: View {
             existingCommitments: existingCommitments
         )
         return true
-    }
-
-    private func openDetailAfterSheetDismissesIfNeeded() {
-        if shouldOpenDetailAfterSheetDismisses {
-            shouldOpenDetailAfterSheetDismisses = false
-            isDetailRecordPresented = true
-        } else {
-            presentPendingCommitmentCandidateIfPossible()
-        }
     }
 
     private func analyzeSavedRecord(
@@ -368,7 +451,6 @@ struct HomeView: View {
 
     private func presentPendingCommitmentCandidateIfPossible() {
         guard !isQuickRecordPresented,
-              !isDetailRecordPresented,
               presentedCommitmentCandidate == nil,
               !pendingCommitmentCandidates.isEmpty
         else {

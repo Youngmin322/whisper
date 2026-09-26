@@ -20,7 +20,8 @@ enum WhisperNotificationRoute {
         _ recordID: UUID,
         commitmentID: UUID?,
         encounterID: UUID?,
-        requestIdentifier: String?
+        requestIdentifier: String?,
+        notifyObservers: Bool = true
     ) {
         UserDefaults.standard.set(recordID.uuidString, forKey: pendingRecordIDKey)
         if let commitmentID {
@@ -38,7 +39,9 @@ enum WhisperNotificationRoute {
         } else {
             UserDefaults.standard.removeObject(forKey: pendingRequestIdentifierKey)
         }
-        NotificationCenter.default.post(name: didSelectRecord, object: nil)
+        if notifyObservers {
+            NotificationCenter.default.post(name: didSelectRecord, object: nil)
+        }
     }
 
     @MainActor

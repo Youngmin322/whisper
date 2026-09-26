@@ -32,187 +32,6 @@ struct WhisperJar: View {
     }
 }
 
-struct DetailedRecordView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var draft: RecordDraft
-    @State private var selectedEmotion: String?
-    @State private var photoData: Data?
-    @State private var isSaved = false
-    @State private var isSaveErrorPresented = false
-    @State private var isEmotionPickerPresented = false
-    let onSave: (String?, Data?) -> Bool
-    private let contentLimit = 1_000
-
-    init(draft: Binding<RecordDraft>, onSave: @escaping (String?, Data?) -> Bool) {
-        _draft = draft
-        _selectedEmotion = State(initialValue: draft.wrappedValue.emotion)
-        self.onSave = onSave
-    }
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(Date.now.whisperFullDayDescription)
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .padding(.top, 12)
-                fieldLabel(RecordWritingCopy.titleLabel)
-                TextField(RecordWritingCopy.titleExample, text: $draft.title)
-                    .font(.whisperBodyLarge)
-                    .padding(.horizontal, 16)
-                    .frame(height: 52)
-                    .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-                    .accessibilityIdentifier("record.titleField")
-
-                Text(RecordWritingCopy.titleHelp)
-                    .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                
-                fieldLabel(RecordWritingCopy.contentLabel)
-                ZStack(alignment: .bottomTrailing) {
-                    TextField(RecordWritingCopy.contentExample, text: $draft.content, axis: .vertical)
-                        .font(.whisperBodyLarge)
-                        .lineSpacing(5)
-                        .lineLimit(6 ... 8)
-                        .padding(18)
-                        .frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
-                        .onChange(of: draft.content) { _, newValue in
-                            guard newValue.count > contentLimit else { return }
-                            draft.content = String(newValue.prefix(contentLimit))
-                        }
-                        .accessibilityIdentifier("record.contentField")
-                    Text("\(draft.content.count) / \(contentLimit.formatted())")
-                        .font(.whisperCaption)
-                        .foregroundStyle(Color.whisperTextSecondary)
-                        .padding(16)
-                }
-                .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-                
-                fieldLabel("기록에 더하기")
-                HStack(spacing: 10) {
-                    recordChip(
-                        icon: "face.smiling",
-                        title: selectedEmotion ?? "감정"
-                    ) {
-                        isEmotionPickerPresented = true
-                    }
-                }
-
-                PhotoAttachmentEditor(photoData: $photoData)
-                
-                Label("결심이 담겨 있다면 저장한 뒤 Whisper가 기억할지 물어봐요.", systemImage: "bell")
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .padding(.horizontal, 16)
-                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                    .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-            }
-            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-            .padding(.bottom, 90)
-            .frame(maxWidth: 700)
-            .frame(maxWidth: .infinity)
-        }
-        .scrollIndicators(.hidden)
-        .background(Color.whisperBackground)
-        .safeAreaInset(edge: .bottom) {
-            Button("기록 저장") {
-                if onSave(selectedEmotion, photoData) {
-                    isSaved = true
-                } else {
-                    isSaveErrorPresented = true
-                }
-            }
-            .buttonStyle(.whisperPrimary)
-            .disabled(!draft.canSave)
-            .accessibilityIdentifier("record.saveButton")
-            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-            .padding(.vertical, 8)
-            .frame(maxWidth: 700)
-            .frame(maxWidth: .infinity)
-            .background(.ultraThinMaterial)
-        }
-        .navigationTitle("상세 기록")
-        .navigationBarTitleDisplayMode(.inline)
-        .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
-            Button("다시 시도") {
-                if onSave(selectedEmotion, photoData) {
-                    isSaved = true
-                }
-            }
-            Button("계속 작성", role: .cancel) {}
-        } message: {
-            Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
-        }
-        .sheet(
-            isPresented: $isSaved,
-            onDismiss: { dismiss() }
-        ) {
-            SavedRecordSheet {
-                isSaved = false
-            }
-            .presentationDetents([.height(312), .large])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
-        }
-        .sheet(isPresented: $isEmotionPickerPresented) {
-            EmotionPickerView(selectedEmotion: $selectedEmotion)
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
-            .presentationBackground(.clear)
-        }
-    }
-    
-    private func fieldLabel(_ title: String) -> some View {
-        Text(title).font(.whisperFieldLabel).foregroundStyle(Color.whisperTextPrimary)
-    }
-    
-    private func recordChip(
-        icon: String,
-        title: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.whisperControl)
-                .foregroundStyle(Color.whisperTextPrimary)
-                .padding(.horizontal, 14)
-                .frame(height: 48)
-                .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct SavedRecordSheet: View {
-    let onHome: () -> Void
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                Text("마음을 담았어요")
-                    .font(.whisperNavigationTitle)
-                    .foregroundStyle(Color.whisperTextPrimary)
-                Text("기록은 보관함에서 언제든 다시 꺼내보고\n결심이 보이면 Whisper가 기억할지 물어볼게요.")
-                    .font(.whisperBody)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-                WhisperJar(size: .hero).padding(.vertical, 4)
-                Button("홈으로 돌아가기", action: onHome)
-                    .buttonStyle(.whisperPrimary(size: .compact))
-                    .padding(.top, 2)
-            }
-            .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-            .padding(.top, 10)
-            .padding(.bottom, 16)
-        }
-        .scrollIndicators(.hidden)
-        .scrollBounceBehavior(.basedOnSize)
-        .accessibilityIdentifier("record.savedSheet")
-    }
-}
-
 private struct RecordMonthSection: Identifiable {
     let month: Date
     let records: [WhisperRecord]
@@ -233,14 +52,14 @@ struct CollectionView: View {
                 collectionHeader
                 filterBar
 
-                if recordStore.records.isEmpty {
+                if recordStore.records.isEmpty && recordStore.journals.isEmpty {
                     ContentUnavailableView(
                         "아직 담긴 마음이 없어요",
                         systemImage: "flame",
                         description: Text("오늘의 마음을 기록하면 이곳에 하나씩 쌓여요.")
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
-                } else if filteredRecords.isEmpty {
+                } else if filteredRecords.isEmpty && filteredJournals.isEmpty {
                     ContentUnavailableView {
                         Label("조건에 맞는 기록이 없어요", systemImage: "magnifyingglass")
                     } description: {
@@ -251,6 +70,39 @@ struct CollectionView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else {
+                    if !filteredJournals.isEmpty {
+                        Text("완성 일기")
+                            .font(.whisperSectionTitle)
+                            .foregroundStyle(Color.whisperTextPrimary)
+                        ForEach(filteredJournals) { journal in
+                            NavigationLink {
+                                JournalDetailView(journalID: journal.id, recordStore: recordStore)
+                            } label: {
+                                VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                                    Text("완성 일기 · \(journal.date.whisperDateDescription)")
+                                        .font(.whisperMetadata)
+                                        .foregroundStyle(Color.whisperAccentText)
+                                    Text(journal.title.isEmpty ? journal.date.whisperDateDescription : journal.title)
+                                        .font(.whisperSectionTitle)
+                                        .foregroundStyle(Color.whisperTextPrimary)
+                                    Text(journal.body)
+                                        .font(.whisperBody)
+                                        .foregroundStyle(Color.whisperTextSecondary)
+                                        .lineLimit(2)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(WhisperSpacing.large)
+                                .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("완성 일기, \(journal.date.whisperFullDayDescription), \(journal.title)")
+                        }
+                    }
+                    if !filteredRecords.isEmpty {
+                        Text("모든 순간")
+                            .font(.whisperSectionTitle)
+                            .foregroundStyle(Color.whisperTextPrimary)
+                    }
                     ForEach(monthSections) { section in
                         Text(monthTitle(section.month))
                             .font(.whisperSectionTitle)
@@ -282,7 +134,7 @@ struct CollectionView: View {
         .background(Color.whisperBackground)
         .navigationTitle("보관함")
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $searchText, prompt: "제목이나 내용 검색")
+        .searchable(text: $searchText, prompt: "일기와 순간 검색")
     }
 
     private var collectionHeader: some View {
@@ -334,10 +186,24 @@ struct CollectionView: View {
         recordStore.records.count
     }
 
+    private var filteredJournals: [DailyJournal] {
+        guard selectedCommitmentStatus == nil else { return [] }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return recordStore.journals.filter { journal in
+            (query.isEmpty
+                || journal.title.localizedCaseInsensitiveContains(query)
+                || journal.body.localizedCaseInsensitiveContains(query)
+                || journal.reflection.localizedCaseInsensitiveContains(query)
+                || (journal.emotion?.localizedCaseInsensitiveContains(query) ?? false))
+                && (selectedEmotion == nil || journal.emotion == selectedEmotion)
+        }
+    }
+
     private var summaryTitle: String {
-        storedFlameCount == 0
-            ? "첫 마음을 기다리고 있어요"
-            : "\(storedFlameCount)개의 마음을\n간직하고 있어요"
+        if storedFlameCount == 0 && recordStore.journals.isEmpty {
+            return "첫 기록을 기다리고 있어요"
+        }
+        return "일기 \(recordStore.journals.count)개 · 순간 \(storedFlameCount)개를\n간직하고 있어요"
     }
 
     private var monthlySummary: String {
@@ -354,7 +220,7 @@ struct CollectionView: View {
     }
 
     private func recordAccessibilityLabel(_ record: WhisperRecord) -> String {
-        let base = "\(record.title), \(record.createdAt.whisperFullDayDescription)"
+        let base = "순간 기록, \(record.title), \(record.createdAt.whisperFullDayDescription)"
         guard let status = storedCommitment(for: record)?.lifecycleStatus() else {
             return base
         }
@@ -498,6 +364,9 @@ struct CollectionView: View {
     private func journalRecordCard(for record: WhisperRecord) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
             VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                Text("순간 기록")
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperAccentText)
                 Text(record.title)
                     .font(.whisperSectionTitle)
                     .foregroundStyle(Color.whisperTextPrimary)
@@ -580,21 +449,6 @@ struct CollectionView: View {
         return formatter.string(from: date)
     }
 }
-
-private struct DetailedRecordPreview: View {
-    @State private var draft = RecordDraft()
-
-    var body: some View {
-        NavigationStack {
-            DetailedRecordView(
-                draft: $draft,
-                onSave: { _, _ in true }
-            )
-        }
-    }
-}
-
-#Preview { DetailedRecordPreview() }
 
 #Preview {
     CollectionView(recordStore: RecordStore(isStoredInMemoryOnly: true))

@@ -16,6 +16,17 @@ enum WhisperEmotion: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var emoji: String {
+        switch self {
+        case .calm: "😌"
+        case .joy: "😄"
+        case .proud: "😎"
+        case .excitement: "🥰"
+        case .tired: "😴"
+        case .anxiety: "😟"
+        }
+    }
+
     var systemImage: String {
         switch self {
         case .calm: "leaf.fill"
@@ -55,7 +66,6 @@ struct EmotionPickerView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
             .navigationTitle("지금의 감정")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

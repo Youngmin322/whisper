@@ -192,11 +192,15 @@ private struct NotificationRecordDestination: View {
                 reminderRequestIdentifier: route.requestIdentifier
             )
         } else {
-            ContentUnavailableView(
-                "기록을 찾을 수 없어요",
-                systemImage: "flame",
-                description: Text("삭제되었거나 더 이상 존재하지 않는 기록이에요.")
-            )
+            ContentUnavailableView {
+                Label("기록을 찾을 수 없어요", systemImage: "flame")
+            } description: {
+                Text("삭제되었거나 더 이상 존재하지 않는 기록이에요.")
+            } actions: {
+                NavigationLink("결심 알림 관리") {
+                    SettingsView(recordStore: recordStore)
+                }
+            }
             .navigationTitle("기록")
             .navigationBarTitleDisplayMode(.inline)
             .background(Color.whisperBackground)
@@ -254,15 +258,15 @@ private struct WelcomeView: View {
             ZStack {
                 if stage == 0 {
                     onboardingMessage(
-                        title: "마음을\n담아두세요",
-                        description: "짧게 남겨도, 오래 적어도 괜찮아요.",
+                        title: "오늘의 순간을\n남겨보세요",
+                        description: "한 문장만 남겨도 괜찮아요.\n있었던 일과 마음을 내 말로 적어보세요.",
                         trustNote: nil
                     )
                     .transition(messageTransition)
                 } else {
                     onboardingMessage(
-                        title: "마음을,\n다시 만나요.",
-                        description: "기록 속 결심이 보이면 먼저 물어볼게요.\n간직하기로 한 말만 다시 건넬게요.",
+                        title: "언제든\n다시 읽어요",
+                        description: "직접 하루를 일기로 정리하고,\n보관함에서 일기와 지난 순간을 다시 읽어요.",
                         trustNote: "기록은 이 기기 안에서만 처리돼요."
                     )
                     .transition(messageTransition)
@@ -366,6 +370,7 @@ struct SettingsView: View {
     @State private var notificationStatus = UNAuthorizationStatus.notDetermined
     @State private var isFocusGuidePresented = false
     @State private var notificationErrorMessage: String?
+    @State private var orphanCommitmentToStop: UUID?
 #if DEBUG
     @State private var isSchedulingDebugReminder = false
     @State private var debugReminderMessage: String?
@@ -384,6 +389,32 @@ struct SettingsView: View {
                     }
                 } else if notificationStatus == .denied {
                     Button("알림 설정 열기", action: openAppSettings)
+                }
+            }
+
+            if !recordStore.commitments.isEmpty {
+                Section("간직한 결심") {
+                    ForEach(recordStore.commitments, id: \.id) { commitment in
+                        if let record = recordStore.record(withID: commitment.sourceRecordID) {
+                            NavigationLink {
+                                RecordDetailView(record: record, recordStore: recordStore)
+                            } label: {
+                                LabeledContent(commitment.name, value: commitmentStatus(commitment))
+                            }
+                            .accessibilityLabel("\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리")
+                        } else {
+                            LabeledContent(commitment.name, value: "원본 기록 없음")
+                            if commitment.lifecycleStatus() != .released {
+                                Button("이 결심 알림 중단", role: .destructive) {
+                                    orphanCommitmentToStop = commitment.id
+                                }
+                                .accessibilityLabel("\(commitment.name) 결심 알림 중단")
+                            }
+                        }
+                    }
+                    Text("결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -438,8 +469,6 @@ struct SettingsView: View {
             FocusFilterGuideView()
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
-            .presentationBackground(.clear)
         }
         .alert(
             "알림을 설정할 수 없어요",
@@ -452,6 +481,20 @@ struct SettingsView: View {
         } message: {
             Text(notificationErrorMessage ?? "잠시 후 다시 시도해 주세요.")
         }
+        .alert(
+            "원본이 없는 결심 알림을 중단할까요?",
+            isPresented: Binding(
+                get: { orphanCommitmentToStop != nil },
+                set: { if !$0 { orphanCommitmentToStop = nil } }
+            )
+        ) {
+            Button("취소", role: .cancel) { orphanCommitmentToStop = nil }
+            Button("알림 중단", role: .destructive) {
+                stopOrphanCommitment()
+            }
+        } message: {
+            Text("결심 상태와 예약을 중단해요. 남아 있는 다른 기록은 삭제하지 않아요.")
+        }
     }
     
     private var notificationStatusDescription: String {
@@ -462,6 +505,33 @@ struct SettingsView: View {
         case .notDetermined: "설정 필요"
         case .ephemeral: "일시 허용"
         @unknown default: "확인 필요"
+        }
+    }
+
+    private func commitmentStatus(_ commitment: WhisperCommitment) -> String {
+        switch commitment.lifecycleStatus() {
+        case .active: "알림 중"
+        case .paused: "쉬는 중"
+        case .released: "중단됨"
+        }
+    }
+
+    private func stopOrphanCommitment() {
+        guard let id = orphanCommitmentToStop,
+              let commitment = recordStore.commitments.first(where: { $0.id == id }),
+              recordStore.record(withID: commitment.sourceRecordID) == nil else {
+            orphanCommitmentToStop = nil
+            return
+        }
+        orphanCommitmentToStop = nil
+        guard recordStore.forgetCommitment(commitment) else {
+            notificationErrorMessage = "결심 상태를 저장하지 못했어요. 다시 시도해 주세요."
+            return
+        }
+        Task {
+            if !(await CommitmentReminderCoordinator.cancel(commitmentIDs: [id], in: recordStore)) {
+                notificationErrorMessage = "예약된 알림을 정리하지 못했어요. 다시 시도해 주세요."
+            }
         }
     }
     

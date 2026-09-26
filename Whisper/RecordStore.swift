@@ -81,6 +81,7 @@ final class RecordStore {
     private(set) var commitments: [WhisperCommitment] = []
     private(set) var encounters: [ReminderEncounter] = []
     private(set) var notificationSlots: [NotificationDaySlot] = []
+    private(set) var journals: [DailyJournal] = []
     private(set) var persistenceError: String?
     private(set) var persistenceSupportCode: String?
     private(set) var persistenceDiagnosticSummary: String?
@@ -96,7 +97,7 @@ final class RecordStore {
         )
 
         do {
-            let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+            let schema = Schema(versionedSchema: WhisperSchemaV5.self)
             let container = try ModelContainer(
                 for: schema,
                 migrationPlan: WhisperMigrationPlan.self,
@@ -121,6 +122,54 @@ final class RecordStore {
 
     var latestRecord: WhisperRecord? {
         records.first
+    }
+
+    func journal(on date: Date, calendar: Calendar = .current) -> DailyJournal? {
+        journals.first { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    @discardableResult
+    func saveJournal(
+        on date: Date,
+        title: String,
+        body: String,
+        sourceRecordIDs: [UUID],
+        calendar: Calendar = .current
+    ) -> DailyJournal? {
+        guard let modelContext else {
+            setUnavailablePersistenceError()
+            return nil
+        }
+        let day = calendar.startOfDay(for: date)
+        let key = JournalDayKey.make(for: date, calendar: calendar)
+        var seenIDs = Set<UUID>()
+        let ids = sourceRecordIDs.filter { seenIDs.insert($0).inserted }
+        let existing = journals.first { $0.dayKey == key }
+        if let existing {
+            existing.update(title: title, body: body, sourceRecordIDs: ids)
+        } else {
+            modelContext.insert(DailyJournal(
+                dayKey: key,
+                date: day,
+                title: title,
+                body: body,
+                reflection: "",
+                sourceRecordIDs: ids
+            ))
+        }
+        guard saveChanges(reloadAfterSave: true) else { return nil }
+        return journals.first { $0.dayKey == key }
+    }
+
+    @discardableResult
+    func deleteJournal(_ journal: DailyJournal) -> Bool {
+        guard let modelContext,
+              let stored = journals.first(where: { $0.id == journal.id }) else {
+            if modelContext == nil { setUnavailablePersistenceError() }
+            return false
+        }
+        modelContext.delete(stored)
+        return saveChanges(reloadAfterSave: true)
     }
 
     @discardableResult
@@ -1095,23 +1144,24 @@ final class RecordStore {
 
     @discardableResult
     func forgetCommitment(_ commitment: WhisperCommitment) -> Bool {
+        guard commitment.lifecycleStatus() != .released else { return false }
         commitment.isActive = false
         commitment.nextReminderAt = nil
         commitment.pausedUntil = nil
         commitment.releasedAt = .now
-        let commitmentID = commitment.id
-        let didSave = saveChanges()
+        return saveChanges()
+    }
 
-        if didSave {
-            Task {
-                await CommitmentReminderCoordinator.cancel(
-                    commitmentIDs: [commitmentID],
-                    in: self
-                )
-            }
-        }
+    @discardableResult
+    func pauseCommitment(_ commitmentID: UUID, until date: Date) -> Bool {
+        guard date > .now,
+              let commitment = commitments.first(where: { $0.id == commitmentID }),
+              commitment.lifecycleStatus() == .active
+        else { return false }
 
-        return didSave
+        commitment.pausedUntil = date
+        commitment.nextReminderAt = nil
+        return saveChanges()
     }
 
     func encounters(for commitmentID: UUID) -> [ReminderEncounter] {
@@ -1383,7 +1433,8 @@ final class RecordStore {
         at date: Date = .now
     ) -> Bool {
         guard let encounter = encounters.first(where: { $0.id == encounterID }),
-              let commitment = commitments.first(where: { $0.id == encounter.commitmentID })
+              let commitment = commitments.first(where: { $0.id == encounter.commitmentID }),
+              commitment.lifecycleStatus(at: date) == .active
         else {
             return false
         }
@@ -1544,6 +1595,7 @@ final class RecordStore {
             commitments = []
             encounters = []
             notificationSlots = []
+            journals = []
             setUnavailablePersistenceError()
             return
         }
@@ -1568,6 +1620,11 @@ final class RecordStore {
                     sortBy: [SortDescriptor(\.scheduledAt)]
                 )
             )
+            journals = try modelContext.fetch(
+                FetchDescriptor<DailyJournal>(
+                    sortBy: [SortDescriptor(\.date, order: .reverse)]
+                )
+            )
             persistenceError = nil
             persistenceSupportCode = nil
             persistenceDiagnosticSummary = nil
@@ -1577,6 +1634,7 @@ final class RecordStore {
             commitments = []
             encounters = []
             notificationSlots = []
+            journals = []
             isPersistenceAvailable = false
             recordPersistenceError(error, operation: "model-context-fetch")
         }

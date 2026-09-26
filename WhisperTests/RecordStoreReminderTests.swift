@@ -10,6 +10,46 @@ import Testing
 @MainActor
 @Suite("리마인드 저장과 상태 전환", .serialized)
 struct RecordStoreReminderTests {
+    @Test("알림을 열지 않고 결심을 쉬거나 중단해도 원본과 상태가 남는다")
+    func managesCommitmentWithoutEncounter() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date.now
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let originalID = plan.sourceRecordID
+        let pauseUntil = now.addingTimeInterval(14 * 24 * 60 * 60)
+
+        #expect(store.pauseCommitment(plan.id, until: pauseUntil))
+        #expect(store.commitments.first?.lifecycleStatus(at: now) == .paused)
+        #expect(store.pausedReminderPlan(for: plan.id)?.reminderDates == [pauseUntil])
+        #expect(store.record(withID: originalID) != nil)
+        #expect(!store.pauseCommitment(plan.id, until: pauseUntil))
+
+        let commitment = try #require(store.commitments.first)
+        #expect(store.forgetCommitment(commitment))
+        #expect(commitment.lifecycleStatus() == .released)
+        #expect(commitment.nextReminderAt == nil)
+        #expect(store.record(withID: originalID) != nil)
+        #expect(!store.forgetCommitment(commitment))
+    }
+
+    @Test("예전 알림을 열어도 쉬거나 중단한 결심이 재활성화되지 않는다")
+    func oldEncounterCannotReactivateCommitment() throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let now = Date.now
+        let plan = try #require(makeCommitment(in: store, now: now))
+        let encounter = try #require(store.addEncounter(commitmentID: plan.id, scheduledAt: now))
+
+        #expect(store.pauseCommitment(plan.id, until: now.addingTimeInterval(86_400)))
+        #expect(store.markEncounterOpened(encounter.id, at: now))
+        #expect(!store.react(to: encounter.id, with: .keep, at: now))
+        #expect(store.commitments.first?.lifecycleStatus(at: now) == .paused)
+
+        let commitment = try #require(store.commitments.first)
+        #expect(store.forgetCommitment(commitment))
+        #expect(!store.react(to: encounter.id, with: .keep, at: now))
+        #expect(commitment.lifecycleStatus(at: now) == .released)
+    }
+
     @Test("의미 프로필을 저장하고 다음 알림 한 건만 만든다")
     func storesSemanticProfileAndCreatesOneReminder() throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
