@@ -24,8 +24,21 @@ enum FlameHopMotion {
         size: CGSize,
         reduceMotion: Bool
     ) -> FlameHopPose {
+        let stepDuration = 0.19 + seed * 0.03
+        let stepsPerBurst = 3 + Int(seed * 3)
+        let activeDuration = stepDuration * Double(stepsPerBurst)
+        let pauseDuration = 0.52 + seed * 0.25
+        let burstDuration = activeDuration + pauseDuration
+        let clock = time + seed * burstDuration
+        let burstIndex = floor(clock / burstDuration)
+        let withinBurst = clock - burstIndex * burstDuration
+        let walking = withinBurst < activeDuration
+        let walkingElapsed = burstIndex * activeDuration + min(withinBurst, activeDuration)
+        let walkingShare = activeDuration / burstDuration
         let pathDuration = 88 + seed * 10
-        let pathProgress = reduceMotion ? seed : time / pathDuration + seed
+        let pathProgress = reduceMotion
+            ? seed
+            : walkingElapsed / (pathDuration * walkingShare) + seed
         let ground = position(progress: pathProgress, seed: seed, size: size)
         let ahead = position(progress: pathProgress + 0.0001, seed: seed, size: size)
         let dx = ahead.x - ground.x
@@ -53,34 +66,25 @@ enum FlameHopMotion {
             )
         }
 
-        let cycle = 0.62 + seed * 0.12
-        let timeline = time / cycle + seed * 13
-        let phase = timeline - floor(timeline)
-        let apex = 0.62
-        let arc: Double
-        if phase < apex {
-            arc = sin(.pi / 2 * phase / apex)
-        } else {
-            arc = cos(.pi / 2 * (phase - apex) / (1 - apex))
-        }
-        let impact = phase < 0.10 ? 1 - smoothstep(phase / 0.10) : 0
-        let dustLife = min(1, phase / 0.16)
-        let lift: Double
-        lift = 11 * arc
+        let stepClock = withinBurst / stepDuration
+        let stepPhase = stepClock - floor(stepClock)
+        let stride = walking ? sin(.pi * stepPhase) : 0
+        let lift = 1.8 * stride
+        let dustLife = min(1, stepPhase / 0.26)
 
         return FlameHopPose(
             groundPosition: ground,
             lift: CGFloat(lift),
-            bodyOffsetY: CGFloat(1.5 * impact),
-            bodyScaleX: CGFloat(1 + 0.055 * impact - 0.025 * arc),
-            bodyScaleY: CGFloat(1 - 0.09 * impact + 0.055 * arc),
-            bodyLean: 3.5 * Double(directionX) * arc,
-            faceOffsetX: directionX * 3.6,
-            faceOffsetY: directionY * 1.8,
-            faceYaw: Double(directionX) * 18,
-            dustOpacity: phase < 0.16 ? 0.35 * (1 - dustLife) : 0,
+            bodyOffsetY: 0,
+            bodyScaleX: CGFloat(1 - 0.015 * stride),
+            bodyScaleY: CGFloat(1 + 0.02 * stride),
+            bodyLean: -5 * Double(directionX) * stride,
+            faceOffsetX: -directionX * CGFloat(2 * stride),
+            faceOffsetY: -directionY * CGFloat(1.8 * stride),
+            faceYaw: Double(directionX) * 14,
+            dustOpacity: walking && stepPhase < 0.26 ? 0.18 * (1 - dustLife) : 0,
             dustSpread: CGFloat(dustLife),
-            shadowScale: CGFloat(1 - lift / 90),
+            shadowScale: CGFloat(1 - lift / 25),
             facing: facing
         )
     }
@@ -93,7 +97,7 @@ enum FlameHopMotion {
     }
 
     private static func position(progress: Double, seed: Double, size: CGSize) -> CGPoint {
-        let angle = 2 * Double.pi * (progress + seed * 0.5)
+        let angle = 2 * Double.pi * (progress - floor(progress) + seed * 0.5)
         let xWave = 0.86 * sin(angle) + 0.08 * sin(3 * angle + seed * 4)
         let yWave = 0.86 * cos(angle) + 0.08 * sin(2 * angle + seed * 5)
         let xRadius = max(0, (size.width - 96) / 2)
@@ -104,8 +108,4 @@ enum FlameHopMotion {
         )
     }
 
-    private static func smoothstep(_ value: Double) -> Double {
-        let x = min(1, max(0, value))
-        return x * x * (3 - 2 * x)
-    }
 }

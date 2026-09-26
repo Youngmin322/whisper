@@ -8,7 +8,7 @@ struct TodayFlameField: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduceMotion)) { timeline in
             GeometryReader { geometry in
                 let now = timeline.date.timeIntervalSinceReferenceDate
                 let motionTime = collectionStartedAt?.timeIntervalSinceReferenceDate ?? now
