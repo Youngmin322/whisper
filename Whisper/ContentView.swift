@@ -74,48 +74,21 @@ private struct PersistenceUnavailableView: View {
 private struct MainTabView: View {
     let recordStore: RecordStore
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedTab = MainTab.home
     @State private var homePath = NavigationPath()
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            Tab("오늘", systemImage: "house.fill", value: MainTab.home) {
-                NavigationStack(path: $homePath) {
-                    HomeView(recordStore: recordStore) {
-                        selectedTab = .collection
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            NavigationLink {
-                                SettingsView(recordStore: recordStore)
-                            } label: {
-                                Image(systemName: "gearshape")
-                                    .accessibilityLabel("설정")
-                            }
-                        }
-                    }
-                    .navigationDestination(for: NotificationRecordRoute.self) { route in
-                        NotificationRecordDestination(
-                            route: route,
-                            recordStore: recordStore
-                        )
-                    }
+        NavigationStack(path: $homePath) {
+            HomeView(recordStore: recordStore) {
+                homePath.append(MainRoute.collection)
+            }
+            .navigationDestination(for: MainRoute.self) { route in
+                switch route {
+                case .collection:
+                    CollectionView(recordStore: recordStore)
                 }
             }
-            Tab("보관함", systemImage: "archivebox.fill", value: MainTab.collection) {
-                NavigationStack {
-                    CollectionView(recordStore: recordStore)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                NavigationLink {
-                                    SettingsView(recordStore: recordStore)
-                                } label: {
-                                    Image(systemName: "gearshape")
-                                        .accessibilityLabel("설정")
-                                }
-                            }
-                        }
-                }
+            .navigationDestination(for: NotificationRecordRoute.self) { route in
+                NotificationRecordDestination(route: route, recordStore: recordStore)
             }
         }
         .task {
@@ -145,7 +118,6 @@ private struct MainTabView: View {
         let requestIdentifier = WhisperNotificationRoute.consumePendingRequestIdentifier()
 
         if let recordID {
-            selectedTab = .home
             homePath = NavigationPath()
             homePath.append(
                 NotificationRecordRoute(
@@ -166,8 +138,7 @@ private struct MainTabView: View {
 
 }
 
-private enum MainTab: Hashable {
-    case home
+private enum MainRoute: Hashable {
     case collection
 }
 

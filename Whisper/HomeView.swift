@@ -17,39 +17,15 @@ struct HomeView: View {
     @State private var presentedCommitmentCandidate: CommitmentCandidate?
     @State private var recentlySavedRecordID: UUID?
     @State private var isReminderUnavailablePresented = false
+    @State private var isCandidatePresented = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
-                Text(Date.now.whisperDayDescription)
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
-
-                if let candidate = presentedCommitmentCandidate {
-                    candidateCard(candidate)
-                }
-
-                todayPage
-
-                if dueCommitment != nil || !recordStore.commitments.isEmpty {
-                    memorySection
-                }
-
-                Button("지난 기록 모두 보기", action: onOpenCollection)
-                    .font(.whisperControl)
-                    .foregroundStyle(Color.whisperAccentText)
-                    .frame(maxWidth: .infinity, minHeight: WhisperSize.controlCompact)
-            }
-            .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-            .padding(.top, WhisperSpacing.small)
-            .padding(.bottom, WhisperSpacing.xxLarge)
-            .frame(maxWidth: 640)
-            .frame(maxWidth: .infinity)
-        }
-        .scrollIndicators(.hidden)
-        .background(Color.whisperBackground)
-        .navigationTitle("오늘")
-        .navigationBarTitleDisplayMode(.large)
+        FlameHomeScreen(
+            records: todayMoments,
+            recordStore: recordStore,
+            onAddMoment: { isQuickRecordPresented = true },
+            onOpenCollection: onOpenCollection
+        )
         .sheet(isPresented: $isQuickRecordPresented, onDismiss: presentPendingCommitmentCandidateIfPossible) {
             QuickRecordView(
                 draft: $recordDraft,
@@ -57,6 +33,13 @@ struct HomeView: View {
             )
             .presentationDetents([.large])
             .interactiveDismissDisabled(recordDraft.hasChanges)
+        }
+        .sheet(isPresented: $isCandidatePresented, onDismiss: dismissCandidate) {
+            if let candidate = presentedCommitmentCandidate {
+                candidateCard(candidate)
+                    .padding(24)
+                    .presentationDetents([.medium])
+            }
         }
         .alert("알림을 켜야 다시 건넬 수 있어요", isPresented: $isReminderUnavailablePresented) {
             Button("확인", role: .cancel) {}
@@ -458,9 +441,11 @@ struct HomeView: View {
         }
 
         presentedCommitmentCandidate = pendingCommitmentCandidates.removeFirst()
+        isCandidatePresented = true
     }
 
     private func dismissCandidate() {
+        isCandidatePresented = false
         presentedCommitmentCandidate = nil
         presentPendingCommitmentCandidateIfPossible()
     }
