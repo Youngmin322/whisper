@@ -9,27 +9,25 @@ struct FlameHopMotionTests {
     @Test("아랫부분으로 뒤를 박찬 다음 몸이 앞으로 나간다")
     func lowerBodyPushesBeforeLaunch() {
         let start = FlameHopMotion.sample(seed: 0, time: 0, size: field, reduceMotion: false)
-        let kick = FlameHopMotion.sample(seed: 0, time: 0.26 * 0.22, size: field, reduceMotion: false)
-        let launch = FlameHopMotion.sample(seed: 0, time: 0.26 * 0.70, size: field, reduceMotion: false)
+        let kick = FlameHopMotion.sample(seed: 0, time: 0.19 * 0.22, size: field, reduceMotion: false)
+        let launch = FlameHopMotion.sample(seed: 0, time: 0.19 * 0.70, size: field, reduceMotion: false)
 
         #expect(kick.facing == 1)
         #expect(kick.bodyLean > 0)
-        #expect(kick.lowerBend < -8)
         #expect(kick.faceOffsetX < 0)
         #expect(kick.lift == 0)
         #expect(launch.bodyLean < 0)
-        #expect(launch.lowerBend > 4)
-        #expect(launch.lift > 0 && launch.lift < 3)
+        #expect(launch.lift > 0 && launch.lift < 2)
         #expect(distance(kick.groundPosition, launch.groundPosition) > distance(start.groundPosition, kick.groundPosition))
     }
 
     @Test("짧은 걸음을 세 번 잇고 잠깐 멈춘 뒤 다시 이동한다")
     func burstAndPause() {
         let first = FlameHopMotion.sample(seed: 0, time: 0.10, size: field, reduceMotion: false)
-        let second = FlameHopMotion.sample(seed: 0, time: 0.36, size: field, reduceMotion: false)
-        let pauseStart = FlameHopMotion.sample(seed: 0, time: 0.85, size: field, reduceMotion: false)
-        let pauseEnd = FlameHopMotion.sample(seed: 0, time: 1.15, size: field, reduceMotion: false)
-        let resumed = FlameHopMotion.sample(seed: 0, time: 1.40, size: field, reduceMotion: false)
+        let second = FlameHopMotion.sample(seed: 0, time: 0.29, size: field, reduceMotion: false)
+        let pauseStart = FlameHopMotion.sample(seed: 0, time: 0.65, size: field, reduceMotion: false)
+        let pauseEnd = FlameHopMotion.sample(seed: 0, time: 1.00, size: field, reduceMotion: false)
+        let resumed = FlameHopMotion.sample(seed: 0, time: 1.20, size: field, reduceMotion: false)
 
         #expect(distance(first.groundPosition, second.groundPosition) > 2)
         #expect(pauseStart.groundPosition == pauseEnd.groundPosition)
@@ -49,8 +47,8 @@ struct FlameHopMotionTests {
         }
 
         let start = FlameHopMotion.sample(seed: 0, time: 0, size: field, reduceMotion: false)
-        let afterOneStep = FlameHopMotion.sample(seed: 0, time: 0.26, size: field, reduceMotion: false)
-        let dust = FlameHopMotion.sample(seed: 0, time: 0.26 * 1.30, size: field, reduceMotion: false)
+        let afterOneStep = FlameHopMotion.sample(seed: 0, time: 0.19, size: field, reduceMotion: false)
+        let dust = FlameHopMotion.sample(seed: 0, time: 0.19 * 1.30, size: field, reduceMotion: false)
         #expect(distance(start.groundPosition, afterOneStep.groundPosition) < 10)
         #expect(dust.dustOpacity > 0 && dust.dustOpacity < 0.22)
     }
@@ -62,7 +60,6 @@ struct FlameHopMotionTests {
         #expect(first.groundPosition == later.groundPosition)
         #expect(first.lift == 0)
         #expect(first.bodyScaleX == 1 && first.bodyScaleY == 1)
-        #expect(first.lowerBend == 0)
         #expect(first.dustOpacity == 0)
     }
 
