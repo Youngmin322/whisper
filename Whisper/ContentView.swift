@@ -84,7 +84,7 @@ private struct MainTabView: View {
             .navigationDestination(for: MainRoute.self) { route in
                 switch route {
                 case .collection:
-                    CollectionView(recordStore: recordStore)
+                    JournalShelfView(recordStore: recordStore)
                 }
             }
             .navigationDestination(for: NotificationRecordRoute.self) { route in
