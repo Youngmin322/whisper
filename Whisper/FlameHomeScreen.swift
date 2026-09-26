@@ -7,11 +7,14 @@ struct FlameHomeScreen: View {
     let onOpenCollection: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("lastJournalCollectionProposalDay") private var lastProposalDay = ""
     @State private var selectedRecordID: UUID?
     @State private var isRecordPresented = false
     @State private var isJournalPresented = false
     @State private var isSettingsPresented = false
     @State private var collectionStartedAt: Date?
+    @State private var isTimeProposalPresented = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -94,6 +97,65 @@ struct FlameHomeScreen: View {
         .navigationDestination(isPresented: $isSettingsPresented) {
             SettingsView(recordStore: recordStore)
         }
+        .sheet(isPresented: $isTimeProposalPresented) {
+            timeProposal
+                .presentationDetents([.height(378)])
+                .presentationDragIndicator(.visible)
+        }
+        .task {
+            while !Task.isCancelled {
+                proposeCollectionIfNeeded()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+        .onChange(of: records.count) { _, _ in proposeCollectionIfNeeded() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { proposeCollectionIfNeeded() }
+        }
+    }
+
+    private var timeProposal: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("오후 10:00 · 오늘을 돌아볼 시간")
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperAccentText)
+                .padding(.top, 44)
+            Text("오늘의 순간을\n일기로 모아볼까요?")
+                .font(.custom("NotoSansKR-Thin", size: 22, relativeTo: .title2))
+                .foregroundStyle(Color.whisperTextPrimary)
+                .lineSpacing(5)
+                .padding(.top, 18)
+            Text("나중에 해도 기록은 그대로 남아요.")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .padding(.top, 24)
+            Spacer()
+            Button("병에 담고 일기 쓰기") {
+                isTimeProposalPresented = false
+                collect()
+            }
+            .font(.whisperAction)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .background(Color.whisperAccent, in: RoundedRectangle(cornerRadius: 18))
+            Button("나중에") { isTimeProposalPresented = false }
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperAccentText)
+                .frame(maxWidth: .infinity, minHeight: 52)
+        }
+        .padding(.horizontal, 30)
+        .background(Color.whisperBackground.ignoresSafeArea())
+    }
+
+    private func proposeCollectionIfNeeded() {
+        guard Calendar.current.component(.hour, from: .now) >= 22,
+              !records.isEmpty,
+              recordStore.journal(on: .now) == nil
+        else { return }
+        let today = JournalDayKey.make(for: .now)
+        guard lastProposalDay != today else { return }
+        lastProposalDay = today
+        isTimeProposalPresented = true
     }
 
     private func openRecord(_ id: UUID) {
