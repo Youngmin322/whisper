@@ -6,22 +6,22 @@
 import SwiftUI
 
 extension Color {
-    static let whisperAccent = whisperColor(0xFF4F36)
-    static let whisperAccentText = whisperColor(0xB63D27)
+    static let whisperAccent = whisperColor(0xF4523B)
+    static let whisperAccentText = whisperColor(0xB64F35)
 
-    static let whisperTextPrimary = whisperColor(0x202321)
-    static let whisperTextSecondary = whisperColor(0x6B726E)
-    static let whisperTextOnAccent = whisperColor(0x202321)
+    static let whisperTextPrimary = whisperColor(0x3E3530)
+    static let whisperTextSecondary = whisperColor(0x6E6156)
+    static let whisperTextOnAccent = whisperColor(0xFFFFFF)
 
-    static let whisperBackground = whisperColor(0xFFFFFF)
-    static let whisperSurfaceDefault = whisperColor(0xFFFFFF)
+    static let whisperBackground = whisperColor(0xFDFBF6)
+    static let whisperSurfaceDefault = whisperColor(0xFFFEFB)
     static let whisperSurfaceElevated = whisperColor(0xFFFFFF)
-    static let whisperSurfaceFocus = whisperColor(0xEEF3F1)
-    static let whisperSurfaceHighlight = whisperColor(0xFFF1ED)
-    static let whisperSurfaceSubtle = whisperColor(0xF3F5F4)
+    static let whisperSurfaceFocus = whisperColor(0xFBF3E9)
+    static let whisperSurfaceHighlight = whisperColor(0xF4DCC9)
+    static let whisperSurfaceSubtle = whisperColor(0xFBF3E9)
 
-    static let whisperBorderSubtle = whisperColor(0xDCE2DE)
-    static let whisperDivider = whisperColor(0xDCE2DE)
+    static let whisperBorderSubtle = whisperColor(0xE5D8CB)
+    static let whisperDivider = whisperColor(0xE5D8CB)
     static let whisperScrim = whisperColor(0x2E1F17, alpha: 0.18)
 
     static let whisperFlameOuter = whisperColor(0xFF7442)

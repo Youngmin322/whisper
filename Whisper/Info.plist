@@ -6,5 +6,11 @@
 	<string>기록에 선택한 사진을 첨부하기 위해 사진 보관함을 사용합니다.</string>
 	<key>UIUserInterfaceStyle</key>
 	<string>Light</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Gaegu-Regular.ttf</string>
+		<string>Gaegu-Bold.ttf</string>
+		<string>NotoSansKR-wght.ttf</string>
+	</array>
 </dict>
 </plist>
