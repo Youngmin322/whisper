@@ -59,8 +59,9 @@ enum FlameHopMotion {
         }
 
         let crouchEnd = 0.14
-        let landingStart = 0.58
-        let recoveryEnd = 0.74
+        let apex = 0.36
+        let landingStart = 0.53
+        let recoveryEnd = 0.69
         let travel: Double
         let lift: Double
         let bodyScaleX: Double
@@ -77,9 +78,15 @@ enum FlameHopMotion {
             bodyOffsetY = 3 * compression
             lean = -3 * Double(directionX) * compression
         } else if phase < landingStart {
-            let airborne = (phase - crouchEnd) / (landingStart - crouchEnd)
-            let arc = sin(.pi * airborne)
-            travel = smoothstep(airborne)
+            let arc: Double
+            if phase < apex {
+                let rising = (phase - crouchEnd) / (apex - crouchEnd)
+                arc = sin(.pi / 2 * rising)
+            } else {
+                let falling = (phase - apex) / (landingStart - apex)
+                arc = cos(.pi / 2 * falling)
+            }
+            travel = smoothstep((phase - crouchEnd) / (landingStart - crouchEnd))
             lift = 25 * arc
             bodyScaleX = 1 - 0.06 * arc
             bodyScaleY = 1 + 0.13 * arc

@@ -22,6 +22,18 @@ struct FlameHopMotionTests {
         #expect(resting.dustOpacity == 0)
     }
 
+    @Test("정점 이후 빠르게 떨어지며 착지한다")
+    func descentIsQuickerThanAscent() {
+        let apex = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.36, size: field, reduceMotion: false)
+        let nearLanding = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.51, size: field, reduceMotion: false)
+        let landed = FlameHopMotion.sample(seed: 0, time: 2.7 * 0.54, size: field, reduceMotion: false)
+
+        #expect(apex.lift > 24)
+        #expect(nearLanding.lift < 8)
+        #expect(landed.lift == 0)
+        #expect(landed.dustOpacity > 0)
+    }
+
     @Test("한 번에 짧게 이동하고 화면 가장자리를 벗어나지 않는다")
     func hopsStayWithinField() {
         for seed in [0.0, 0.27, 0.61, 0.94] {
