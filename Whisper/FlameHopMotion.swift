@@ -8,6 +8,7 @@ struct FlameHopPose {
     let bodyScaleX: CGFloat
     let bodyScaleY: CGFloat
     let bodyLean: Double
+    let lowerBend: CGFloat
     let faceOffsetX: CGFloat
     let faceOffsetY: CGFloat
     let faceYaw: Double
@@ -24,10 +25,10 @@ enum FlameHopMotion {
         size: CGSize,
         reduceMotion: Bool
     ) -> FlameHopPose {
-        let stepDuration = 0.19 + seed * 0.03
+        let stepDuration = 0.26 + seed * 0.04
         let stepsPerBurst = 3 + Int(seed * 3)
         let activeDuration = stepDuration * Double(stepsPerBurst)
-        let pauseDuration = 0.52 + seed * 0.25
+        let pauseDuration = 0.42 + seed * 0.15
         let burstDuration = activeDuration + pauseDuration
         let clock = time + seed * burstDuration
         let burstIndex = floor(clock / burstDuration)
@@ -68,6 +69,7 @@ enum FlameHopMotion {
                 bodyScaleX: 1,
                 bodyScaleY: 1,
                 bodyLean: 0,
+                lowerBend: 0,
                 faceOffsetX: 0,
                 faceOffsetY: 0,
                 faceYaw: 0,
@@ -85,7 +87,7 @@ enum FlameHopMotion {
             ? sin(.pi * (stepPhase - 0.45) / 0.55)
             : 0
         let lift = walking && stepPhase >= 0.25
-            ? 1.8 * sin(.pi * (stepPhase - 0.25) / 0.75)
+            ? 2.6 * sin(.pi * (stepPhase - 0.25) / 0.75)
             : 0
         let dustLife = min(1, max(0, (stepPhase - 0.16) / 0.30))
 
@@ -93,14 +95,15 @@ enum FlameHopMotion {
             groundPosition: ground,
             lift: CGFloat(lift),
             bodyOffsetY: 0,
-            bodyScaleX: CGFloat(1 - 0.018 * kickBack + 0.012 * followThrough),
-            bodyScaleY: CGFloat(1 + 0.025 * kickBack - 0.012 * followThrough),
-            bodyLean: Double(directionX) * (6 * kickBack - 2.5 * followThrough),
-            faceOffsetX: directionX * CGFloat(-1.8 * kickBack + 0.7 * followThrough),
-            faceOffsetY: -directionY * CGFloat(0.8 * kickBack),
+            bodyScaleX: CGFloat(1 + 0.05 * kickBack - 0.025 * followThrough),
+            bodyScaleY: CGFloat(1 - 0.055 * kickBack + 0.06 * followThrough),
+            bodyLean: Double(facing) * (2 * kickBack - 1.5 * followThrough),
+            lowerBend: facing * CGFloat(-10 * kickBack + 5 * followThrough),
+            faceOffsetX: facing * CGFloat(-3 * kickBack + 1.5 * followThrough),
+            faceOffsetY: -directionY * CGFloat(1.2 * kickBack),
             faceYaw: Double(directionX) * 14,
             dustOpacity: walking && stepPhase >= 0.16 && stepPhase < 0.46
-                ? 0.22 * (1 - dustLife)
+                ? 0.28 * (1 - dustLife)
                 : 0,
             dustSpread: CGFloat(dustLife),
             shadowScale: CGFloat(1 - lift / 25),

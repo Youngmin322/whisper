@@ -42,6 +42,13 @@ struct AnimatedFlameCharacter: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: size, height: size * 1.1)
+                .distortionEffect(
+                    ShaderLibrary.flameFlex(
+                        .float2(Float(size), Float(size * 1.1)),
+                        .float(Float(pose.lowerBend))
+                    ),
+                    maxSampleOffset: CGSize(width: 20, height: 0)
+                )
                 .scaleEffect(x: pose.bodyScaleX, y: pose.bodyScaleY, anchor: .top)
                 .rotationEffect(.degrees(pose.bodyLean), anchor: .top)
                 .offset(y: pose.bodyOffsetY - pose.lift)
