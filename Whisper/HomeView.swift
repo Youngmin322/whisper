@@ -86,6 +86,7 @@ struct HomeView: View {
     }
 
     private func saveDraft() -> Bool {
+        guard recordDraft.canSaveNewMoment else { return false }
         let title = recordDraft.titleForSaving
         let content = recordDraft.contentForSaving
         let existingCommitments = recordStore.activeCommitmentSnapshots

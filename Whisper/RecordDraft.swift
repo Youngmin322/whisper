@@ -10,7 +10,7 @@ enum RecordWritingCopy {
     static let titleExample = "예: 집에 돌아오던 길"
     static let titleHelp = "나중에 이 순간을 알아볼 수 있는 짧은 이름이면 충분해요."
     static let contentLabel = "남기고 싶은 순간"
-    static let contentExample = "남기고 싶은 장면이나 생각을 적어보세요."
+    static let contentExample = "기억하고 싶은 일을 적어보세요."
 }
 
 struct RecordDraft {
@@ -32,6 +32,10 @@ struct RecordDraft {
 
     var canSave: Bool {
         !contentForSaving.isEmpty && content.count <= Self.contentLimit
+    }
+
+    var canSaveNewMoment: Bool {
+        emotion != nil && canSave
     }
 
     var hasChanges: Bool {
