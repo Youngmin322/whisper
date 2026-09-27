@@ -223,17 +223,22 @@ struct QuickRecordView: View {
                 .font(.whisperControl)
                 .foregroundStyle(Color.whisperTextSecondary)
 
-            TextField(
-                RecordWritingCopy.contentExample,
-                text: $draft.content,
-                axis: .vertical
-            )
+            TextField("", text: $draft.content, axis: .vertical)
             .focused($isContentFocused)
             .font(.whisperBodyLarge)
             .lineSpacing(4)
             .lineLimit(5 ... 9)
             .padding(WhisperSpacing.medium)
             .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
+            .overlay(alignment: .topLeading) {
+                if draft.content.isEmpty {
+                    Text(RecordWritingCopy.contentExample)
+                        .font(.whisperBodyLarge)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .padding(WhisperSpacing.medium)
+                        .allowsHitTesting(false)
+                }
+            }
             .background {
                 RoundedRectangle(cornerRadius: WhisperRadius.medium)
                     .fill(Color.whisperSurfaceDefault)
@@ -253,6 +258,7 @@ struct QuickRecordView: View {
             }
             .accessibilityLabel("기록 내용")
             .accessibilityIdentifier("record.contentField")
+            .padding(.top, WhisperSpacing.medium)
 
             if draft.content.count >= RecordDraft.contentLimit - 100 {
                 Text("\(draft.content.count) / \(RecordDraft.contentLimit.formatted())")
@@ -272,41 +278,41 @@ struct QuickRecordView: View {
     }
 
     private var detailsDisclosure: some View {
-        DisclosureGroup(isExpanded: $isOptionalDetailsExpanded) {
-            optionalDetails
-                .padding(.top, WhisperSpacing.medium)
-        } label: {
-            HStack(spacing: WhisperSpacing.small) {
-                if let photoData = draft.photoData, let image = UIImage(data: photoData) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 42, height: 42)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .accessibilityHidden(true)
-                } else {
-                    Image(systemName: "plus.circle")
-                        .font(.title3)
-                        .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+            Button {
+                isContentFocused = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isOptionalDetailsExpanded.toggle()
                 }
-
-                detailActionCopy
-                Spacer()
+            } label: {
+                HStack(spacing: WhisperSpacing.xSmall) {
+                    if let photoData = draft.photoData, let image = UIImage(data: photoData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 28, height: 28)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .accessibilityHidden(true)
+                    } else {
+                        Image(systemName: "plus")
+                            .accessibilityHidden(true)
+                    }
+                    detailActionCopy
+                    Spacer()
+                }
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
-            .foregroundStyle(Color.whisperTextPrimary)
-            .frame(minHeight: WhisperSize.controlCompact)
+            .buttonStyle(.plain)
+            .accessibilityHint(isOptionalDetailsExpanded ? "사진과 제목 입력을 접어요." : "사진과 제목 입력을 열어요.")
+            .accessibilityIdentifier("record.openDetailButton")
+
+            if isOptionalDetailsExpanded {
+                optionalDetails
+            }
         }
-        .tint(Color.whisperTextSecondary)
-        .padding(WhisperSpacing.medium)
-        .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
-        .overlay {
-            RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                .stroke(Color.whisperBorderSubtle, lineWidth: 1)
-        }
-        .onChange(of: isOptionalDetailsExpanded) { _, isExpanded in
-            if isExpanded { isContentFocused = false }
-        }
-        .accessibilityIdentifier("record.openDetailButton")
     }
 
     private var optionalDetails: some View {

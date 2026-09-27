@@ -70,17 +70,25 @@ struct FlameHomeScreen: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: 4) {
                 Button("+ 순간 남기기", action: onAddMoment)
-                    .foregroundStyle(Color.whisperAccentText)
+                    .buttonStyle(HomeMomentButtonStyle())
                     .accessibilityIdentifier("home.recordButton")
-                Button("병에 담기", action: collect)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .disabled(records.isEmpty || collectionStartedAt != nil)
-                    .accessibilityIdentifier("home.journalButton")
+
+                Button(action: collect) {
+                    HStack(spacing: 4) {
+                        Image("BottleLineIcon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 19, height: 23)
+                            .accessibilityHidden(true)
+                        Text("병에 담기")
+                    }
+                }
+                .buttonStyle(HomeCollectButtonStyle())
+                .disabled(records.isEmpty || collectionStartedAt != nil)
+                .accessibilityIdentifier("home.journalButton")
             }
-            .font(.whisperControl)
-            .buttonStyle(HomePillButtonStyle())
             .padding(.bottom, 26)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -181,13 +189,27 @@ struct FlameHomeScreen: View {
     }
 }
 
-private struct HomePillButtonStyle: ButtonStyle {
+private struct HomeMomentButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .frame(minWidth: 114, minHeight: 44)
-            .padding(.horizontal, 5)
-            .background(Color.whisperSurfaceDefault.opacity(0.96), in: Capsule())
-            .overlay(Capsule().stroke(Color.whisperBorderSubtle, lineWidth: 1))
-            .opacity(configuration.isPressed ? 0.6 : 1)
+            .font(.whisperControl)
+            .foregroundStyle(Color.whisperTextOnAccent)
+            .frame(width: 151, height: 44)
+            .background(Color.whisperAccent, in: Capsule())
+            .contentShape(Capsule())
+            .opacity(configuration.isPressed ? 0.82 : 1)
+    }
+}
+
+private struct HomeCollectButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.whisperControl)
+            .foregroundStyle(Color.whisperTextSecondary)
+            .frame(minWidth: 116, minHeight: 44)
+            .contentShape(Rectangle())
+            .opacity(!isEnabled ? 0.45 : configuration.isPressed ? 0.6 : 1)
     }
 }
