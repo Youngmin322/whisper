@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="206" height="273" viewBox="-10 -10 206 273" role="img" aria-label="평온 불꽃">
+  <path d="M93 31 C84 51 73 67 57 84 C31 110 10 136 3 169 C-4 201 14 231 44 245 C71 258 119 256 147 242 C176 228 190 199 183 169 C176 140 154 113 131 91 C110 72 101 54 93 31 Z" fill="#88B9A9"/>
+  <path d="M93 91 C84 108 66 123 52 145 C38 166 37 190 50 210 C64 229 91 234 115 225 C138 216 148 193 141 172 C135 151 113 126 101 107 C98 101 95 96 93 91 Z" fill="#D9ECCD"/>
+  <g fill="#29252A" stroke="#29252A"><path d="M59 170 Q70 180 80 170 M105 170 Q116 180 127 170" fill="none" stroke-width="5" stroke-linecap="round"/><path d="M72 202 Q92 213 113 202" fill="none" stroke-width="5.5" stroke-linecap="round"/></g>
+</svg>

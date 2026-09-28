@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="206" height="273" viewBox="-10 -10 206 273" role="img" aria-label="분노 불꽃">
+  <path d="M92 7 C86 31 84 49 69 70 C54 91 34 105 22 129 C6 157 1 193 18 222 C35 249 69 255 98 253 C132 252 164 237 178 207 C190 181 178 157 165 138 C169 151 162 158 151 155 C145 132 137 109 118 83 C105 63 94 39 92 7 Z" fill="#EB765E"/>
+  <path d="M91 86 C80 106 64 120 51 142 C38 165 40 192 54 210 C68 228 96 231 116 220 C135 211 146 192 141 170 C136 145 113 123 99 102 C95 96 93 91 91 86 Z" fill="#FFCBA5"/>
+  <g fill="#29252A" stroke="#29252A"><path d="M61 157 L78 164 M119 157 L103 164" fill="none" stroke-width="6" stroke-linecap="round"/><ellipse cx="70" cy="174" rx="5.5" ry="6.5"/><ellipse cx="110" cy="174" rx="5.5" ry="6.5"/><path d="M76 204 Q91 197 106 203" fill="none" stroke-width="6" stroke-linecap="round"/></g>
+</svg>

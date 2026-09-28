@@ -6,12 +6,14 @@ struct FlameCharacter: View {
 
     static func assetName(for emotion: String?) -> String {
         switch emotion ?? "" {
-        case WhisperEmotion.calm.rawValue: "FlameCalm"
+        case WhisperEmotion.calm.rawValue: "EmotionFlameCalm"
         case WhisperEmotion.tired.rawValue: "FlameTired"
         case WhisperEmotion.excitement.rawValue: "FlameExcited"
-        case WhisperEmotion.anxiety.rawValue: "FlameAnxious"
-        case "속상": "FlameUpset"
-        default: "FlameJoy"
+        case WhisperEmotion.anxiety.rawValue: "EmotionFlameAnxiety"
+        case "우울": "EmotionFlameDepression"
+        case "분노": "EmotionFlameAnger"
+        case "슬픔", "속상": "EmotionFlameSadness"
+        default: "EmotionFlameJoy"
         }
     }
 
@@ -30,6 +32,9 @@ struct AnimatedFlameCharacter: View {
     var size: CGFloat = 48
 
     private var assetName: String { FlameCharacter.assetName(for: emotion) }
+    private var usesLegacyAnimation: Bool {
+        emotion == WhisperEmotion.tired.rawValue || emotion == WhisperEmotion.excitement.rawValue
+    }
     private var canvasSize: CGFloat { size * 5 / 3 }
     private var stepFrame: String { String(format: "%02d", pose.frameIndex) }
     private var faceScale: CGFloat {
@@ -65,21 +70,28 @@ struct AnimatedFlameCharacter: View {
                 .offset(y: size * 0.50)
 
             ZStack {
-                Image("FlameStepOuter\(stepFrame)")
-                    .resizable()
-                    .renderingMode(.template)
-                    .foregroundStyle(palette.outer)
-                Image("FlameStepInner\(stepFrame)")
-                    .resizable()
-                    .renderingMode(.template)
-                    .foregroundStyle(palette.inner)
-                Image("\(assetName)Face")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: size, height: size * 1.1)
-                    .scaleEffect(faceScale, anchor: UnitPoint(x: 0.5, y: 0.68))
-                    .rotationEffect(.degrees(pose.faceRotation), anchor: UnitPoint(x: 0.5, y: 0.68))
-                    .offset(y: -1.5)
+                if usesLegacyAnimation {
+                    Image("FlameStepOuter\(stepFrame)")
+                        .resizable()
+                        .renderingMode(.template)
+                        .foregroundStyle(palette.outer)
+                    Image("FlameStepInner\(stepFrame)")
+                        .resizable()
+                        .renderingMode(.template)
+                        .foregroundStyle(palette.inner)
+                    Image("\(assetName)Face")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: size, height: size * 1.1)
+                        .scaleEffect(faceScale, anchor: UnitPoint(x: 0.5, y: 0.68))
+                        .rotationEffect(.degrees(pose.faceRotation), anchor: UnitPoint(x: 0.5, y: 0.68))
+                        .offset(y: -1.5)
+                } else {
+                    FlameCharacter(emotion: emotion, size: size)
+                        .scaleEffect(faceScale, anchor: .bottom)
+                        .rotationEffect(.degrees(pose.faceRotation), anchor: .bottom)
+                        .offset(y: -1.5)
+                }
             }
             .frame(width: canvasSize, height: canvasSize)
             .scaleEffect(x: pose.facing, y: 1)
