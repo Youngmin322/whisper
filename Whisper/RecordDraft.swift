@@ -6,16 +6,20 @@
 import Foundation
 
 enum RecordWritingCopy {
-    static let titleLabel = "이 마음에 이름을 붙인다면? (선택)"
-    static let titleExample = "예: 조급해하지 않기로 한 저녁"
-    static let titleHelp = "나중에 다시 봤을 때 이 순간이 떠오르는 짧은 문장이 좋아요."
-    static let contentLabel = "지금 마음에 남은 장면은 무엇인가요?"
-    static let contentExample = "예: 발표를 마치고 나니 다음에도 해볼 수 있겠다는 마음이 들었다."
+    static let titleLabel = "제목 · 선택 사항"
+    static let titleExample = "예: 집에 돌아오던 길"
+    static let titleHelp = "나중에 이 순간을 알아볼 수 있는 짧은 이름이면 충분해요."
+    static let contentLabel = "남기고 싶은 순간"
+    static let contentExample = "남기고 싶은 장면이나 생각을 적어보세요."
 }
 
 struct RecordDraft {
+    static let contentLimit = 1_000
+
     var title = ""
     var content = ""
+    var emotion: String?
+    var photoData: Data?
 
     var titleForSaving: String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -27,6 +31,10 @@ struct RecordDraft {
     }
 
     var canSave: Bool {
-        !contentForSaving.isEmpty
+        !contentForSaving.isEmpty && content.count <= Self.contentLimit
+    }
+
+    var hasChanges: Bool {
+        !title.isEmpty || !content.isEmpty || emotion != nil || photoData != nil
     }
 }

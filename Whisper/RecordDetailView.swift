@@ -77,11 +77,13 @@ struct RecordDetailView: View {
                             .padding(.bottom, 32)
                     }
                 }
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
         }
         .background(Color.whisperBackground)
-        .navigationTitle("기록")
+        .navigationTitle(reminderEncounterID == nil ? "기록" : "다시 만난 마음")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
@@ -93,23 +95,18 @@ struct RecordDetailView: View {
                     Menu {
                         Button("수정", systemImage: "pencil", action: startEditing)
 
-                        if let encounter = reminderEncounter {
-                            Section("이 마음을 다시 만나는 방식") {
-                                if let reaction = encounter.reaction {
-                                    switch reaction {
-                                    case .keep:
-                                        Label("계속 기억할게요", systemImage: "sparkles")
-                                        Text("잊힐 만한 순간에 다시 건넬게요.")
-                                        reminderPreferenceMenuActions
-                                    case .pause:
-                                        Label("잠시 쉬어갈게요", systemImage: "moon.zzz.fill")
-                                        Text("한동안 조용히 간직하고 있을게요.")
-                                    case .release:
-                                        Label("잘 놓아둘게요", systemImage: "checkmark.circle.fill")
-                                        Text("다시 건네는 일은 멈추고 기록만 소중히 보관할게요.")
-                                    }
-                                } else {
+                        if let commitment = displayedCommitment {
+                            Section("결심 알림") {
+                                switch commitment.lifecycleStatus() {
+                                case .active:
                                     reminderPreferenceMenuActions
+                                case .paused:
+                                    Label("쉬는 중", systemImage: "moon.zzz.fill")
+                                    Button("이제 놓아줘", systemImage: "bell.slash", role: .destructive) {
+                                        isReleaseEncounterConfirmationPresented = true
+                                    }
+                                case .released:
+                                    Label("중단됨", systemImage: "bell.slash")
                                 }
                             }
                         }
@@ -136,7 +133,7 @@ struct RecordDetailView: View {
             Button("취소", role: .cancel) {}
             Button("삭제", role: .destructive, action: deleteRecord)
         } message: {
-            Text("삭제한 기록은 다시 복구할 수 없어요.")
+            Text("이 순간의 원문과 사진, 연결된 결심 알림이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요.")
         }
         .alert("변경사항을 저장할 수 없어요", isPresented: $isPersistenceErrorPresented) {
             Button("확인", role: .cancel) {}
@@ -161,16 +158,12 @@ struct RecordDetailView: View {
         }
         .sheet(isPresented: $isEmotionPickerPresented) {
             EmotionPickerView(selectedEmotion: $selectedEmotion)
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
-            .presentationBackground(.clear)
         }
         .sheet(isPresented: $isPauseDatePickerPresented) {
             pauseDatePicker
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
+                .presentationDetents([.large])
         }
         .task(id: reminderEncounterID) {
             processReminderEncounterIfNeeded()
@@ -179,6 +172,12 @@ struct RecordDetailView: View {
 
     private var readingContent: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if let encounter = reminderEncounter,
+               encounter.reaction == nil,
+               displayedCommitment?.lifecycleStatus() == .active {
+                encounterResponseCard
+            }
+
             recordReadingCard
 
             if let photoData = record.photoData {
@@ -200,7 +199,8 @@ struct RecordDetailView: View {
                     )
             }
 
-            if let commitment = displayedCommitment {
+            if let commitment = displayedCommitment,
+               reminderEncounter == nil || reminderEncounter?.reaction != nil {
                 Spacer(minLength: 40)
 
                 Group {
@@ -281,7 +281,8 @@ struct RecordDetailView: View {
             TextField(RecordWritingCopy.titleExample, text: $draft.title)
                 .font(.whisperBodyLarge)
                 .padding(.horizontal, 16)
-                .frame(height: 52)
+                .padding(.vertical, 12)
+                .frame(minHeight: 52)
                 .background(
                     Color.whisperSurfaceSubtle,
                     in: RoundedRectangle(
@@ -343,7 +344,8 @@ struct RecordDetailView: View {
                         .foregroundStyle(Color.whisperTextSecondary)
                 }
                 .padding(.horizontal, 16)
-                .frame(height: 52)
+                .padding(.vertical, 10)
+                .frame(minHeight: 52)
                 .background(
                     Color.whisperSurfaceSubtle,
                     in: RoundedRectangle(
@@ -363,6 +365,55 @@ struct RecordDetailView: View {
         Text(title)
             .font(.whisperFieldLabel)
             .foregroundStyle(Color.whisperTextPrimary)
+    }
+
+    private var encounterResponseCard: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+            Label("다시 만난 문장", systemImage: "flame.fill")
+                .font(.whisperSectionTitle)
+                .foregroundStyle(Color.whisperAccentText)
+
+            if let commitment = displayedCommitment {
+                Text("“\(commitment.quote)”")
+                    .font(.whisperBodyLarge)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("지금 이 마음을 어떻게 두고 싶나요?")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextSecondary)
+
+            Button("계속 기억하기", action: keepReminder)
+                .buttonStyle(.whisperPrimary(size: .compact))
+                .disabled(isUpdatingReminderPreference)
+
+            Button {
+                pauseUntil = Calendar.current.date(
+                    byAdding: .day,
+                    value: 30,
+                    to: .now
+                ) ?? .now
+                isPauseDatePickerPresented = true
+            } label: {
+                Text("잠시 쉬기")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.whisperSecondary)
+            .disabled(isUpdatingReminderPreference)
+
+            Button("이제 놓아주기") {
+                isReleaseEncounterConfirmationPresented = true
+            }
+            .font(.whisperControl)
+            .foregroundStyle(Color.whisperTextSecondary)
+            .frame(maxWidth: .infinity, minHeight: WhisperSize.controlCompact)
+            .disabled(isUpdatingReminderPreference)
+        }
+        .padding(WhisperSpacing.large)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .whisperCardStyle(fill: .whisperSurfaceHighlight, border: .whisperBorderSubtle)
+        .accessibilityIdentifier("commitment.encounterCard")
     }
 
     private func commitmentCard(_: WhisperCommitment) -> some View {
@@ -402,26 +453,21 @@ struct RecordDetailView: View {
 
     private var pauseDatePicker: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("언제 다시 만날까요?")
-                    .font(.whisperSectionTitle)
-                    .foregroundStyle(Color.whisperTextPrimary)
-
-                Text("정한 시각이 알림 가능 시간을 벗어나면 가까운 시간으로 맞춰드려요.")
-                    .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperTextSecondary)
-
-                DatePicker(
-                    "다시 만날 시각",
-                    selection: $pauseUntil,
-                    in: Date.now.addingTimeInterval(5 * 60)...,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .datePickerStyle(.graphical)
-
-                Spacer()
+            Form {
+                Section {
+                    DatePicker(
+                        "다시 만날 시각",
+                        selection: $pauseUntil,
+                        in: Date.now.addingTimeInterval(5 * 60)...,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .datePickerStyle(.graphical)
+                } footer: {
+                    Text("정한 시각이 알림 가능 시간을 벗어나면 가까운 시간으로 맞춰드려요.")
+                }
             }
-            .padding(WhisperLayout.screenHorizontalPadding)
+            .navigationTitle("알림 쉬기")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("취소") {
@@ -429,7 +475,7 @@ struct RecordDetailView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("이때 다시 만나기") {
+                    Button("이때까지 쉬기") {
                         isPauseDatePickerPresented = false
                         pauseReminder(until: pauseUntil)
                     }
@@ -496,35 +542,42 @@ struct RecordDetailView: View {
     }
 
     private func pauseReminder(until pausedUntil: Date) {
-        guard let reminderEncounterID,
-              let commitmentID = reminderEncounter?.commitmentID
-        else {
-            return
+        guard let commitment = displayedCommitment,
+              commitment.lifecycleStatus() == .active else { return }
+        let commitmentID = commitment.id
+        let didSave: Bool
+        if let encounter = reminderEncounter, encounter.reaction == nil {
+            didSave = recordStore.react(to: encounter.id, with: .pause, pausedUntil: pausedUntil)
+        } else {
+            didSave = recordStore.pauseCommitment(commitmentID, until: pausedUntil)
         }
-
-        guard recordStore.react(
-            to: reminderEncounterID,
-            with: .pause,
-            pausedUntil: pausedUntil
-        ) else {
+        guard didSave else {
             isPersistenceErrorPresented = true
             return
         }
-
         scheduleReminderAfterPause(commitmentID: commitmentID)
     }
 
-    private func releaseReminder() {
+    private func keepReminder() {
         guard let reminderEncounterID,
-              let commitmentID = reminderEncounter?.commitmentID
-        else {
-            return
+              displayedCommitment?.lifecycleStatus() == .active else { return }
+        if !recordStore.react(to: reminderEncounterID, with: .keep) {
+            isPersistenceErrorPresented = true
         }
+    }
 
-        guard recordStore.react(
-            to: reminderEncounterID,
-            with: .release
-        ) else {
+    private func releaseReminder() {
+        guard let commitment = displayedCommitment,
+              commitment.lifecycleStatus() != .released else { return }
+        let commitmentID = commitment.id
+        let didSave: Bool
+        if let encounter = reminderEncounter, encounter.reaction == nil,
+           commitment.lifecycleStatus() == .active {
+            didSave = recordStore.react(to: encounter.id, with: .release)
+        } else {
+            didSave = recordStore.forgetCommitment(commitment)
+        }
+        guard didSave else {
             isPersistenceErrorPresented = true
             return
         }
@@ -547,13 +600,17 @@ struct RecordDetailView: View {
             isPersistenceErrorPresented = true
             return
         }
-
-        schedule(plan)
-    }
-
-    private func schedule(_ plan: CommitmentReminderPlan) {
         isUpdatingReminderPreference = true
         Task {
+            let didCancel = await CommitmentReminderCoordinator.cancel(
+                commitmentIDs: [commitmentID],
+                in: recordStore
+            )
+            guard didCancel else {
+                isUpdatingReminderPreference = false
+                isReminderErrorPresented = true
+                return
+            }
             let result = await CommitmentReminderCoordinator.schedule(plan, in: recordStore)
             isUpdatingReminderPreference = false
             if result != .scheduled {
@@ -571,23 +628,24 @@ struct RecordDetailView: View {
         didProcessReminderEncounter = true
 
         if reminderEncounter == nil,
-           let commitmentID = reminderCommitment?.id {
-            _ = recordStore.addEncounter(
+           let commitment = reminderCommitment,
+           commitment.lifecycleStatus() == .active {
+            guard recordStore.addEncounter(
                 id: reminderEncounterID,
-                commitmentID: commitmentID,
+                commitmentID: commitment.id,
                 scheduledAt: .now,
                 notificationIdentifier: reminderRequestIdentifier
                     ?? CommitmentReminderScheduler.requestIdentifier(
-                        commitmentID: commitmentID,
+                        commitmentID: commitment.id,
                         encounterID: reminderEncounterID
                     )
-            )
+            ) != nil else {
+                isPersistenceErrorPresented = true
+                return
+            }
         }
 
-        guard reminderEncounter != nil else {
-            isPersistenceErrorPresented = true
-            return
-        }
+        guard reminderEncounter != nil else { return }
 
         if !recordStore.markEncounterOpened(reminderEncounterID) {
             isPersistenceErrorPresented = true

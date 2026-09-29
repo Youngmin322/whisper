@@ -74,31 +74,21 @@ private struct PersistenceUnavailableView: View {
 private struct MainTabView: View {
     let recordStore: RecordStore
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedTab = MainTab.home
     @State private var homePath = NavigationPath()
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            Tab("기록", systemImage: "flame.fill", value: MainTab.home) {
-                NavigationStack(path: $homePath) {
-                    HomeView(recordStore: recordStore)
-                        .navigationDestination(for: NotificationRecordRoute.self) { route in
-                            NotificationRecordDestination(
-                                route: route,
-                                recordStore: recordStore
-                            )
-                        }
+        NavigationStack(path: $homePath) {
+            HomeView(recordStore: recordStore) {
+                homePath.append(MainRoute.collection)
+            }
+            .navigationDestination(for: MainRoute.self) { route in
+                switch route {
+                case .collection:
+                    JournalShelfView(recordStore: recordStore)
                 }
             }
-            Tab("보관함", systemImage: "archivebox.fill", value: MainTab.collection) {
-                NavigationStack {
-                    CollectionView(recordStore: recordStore)
-                }
-            }
-            Tab("설정", systemImage: "gearshape", value: MainTab.settings) {
-                NavigationStack {
-                    SettingsView(recordStore: recordStore)
-                }
+            .navigationDestination(for: NotificationRecordRoute.self) { route in
+                NotificationRecordDestination(route: route, recordStore: recordStore)
             }
         }
         .task {
@@ -128,7 +118,6 @@ private struct MainTabView: View {
         let requestIdentifier = WhisperNotificationRoute.consumePendingRequestIdentifier()
 
         if let recordID {
-            selectedTab = .home
             homePath = NavigationPath()
             homePath.append(
                 NotificationRecordRoute(
@@ -146,12 +135,11 @@ private struct MainTabView: View {
     private func synchronizeReminderState() async {
         await CommitmentReminderCoordinator.synchronize(with: recordStore)
     }
+
 }
 
-private enum MainTab: Hashable {
-    case home
+private enum MainRoute: Hashable {
     case collection
-    case settings
 }
 
 private struct NotificationRecordRoute: Hashable {
@@ -175,11 +163,15 @@ private struct NotificationRecordDestination: View {
                 reminderRequestIdentifier: route.requestIdentifier
             )
         } else {
-            ContentUnavailableView(
-                "기록을 찾을 수 없어요",
-                systemImage: "flame",
-                description: Text("삭제되었거나 더 이상 존재하지 않는 기록이에요.")
-            )
+            ContentUnavailableView {
+                Label("기록을 찾을 수 없어요", systemImage: "flame")
+            } description: {
+                Text("삭제되었거나 더 이상 존재하지 않는 기록이에요.")
+            } actions: {
+                NavigationLink("결심 알림 관리") {
+                    SettingsView(recordStore: recordStore)
+                }
+            }
             .navigationTitle("기록")
             .navigationBarTitleDisplayMode(.inline)
             .background(Color.whisperBackground)
@@ -237,15 +229,15 @@ private struct WelcomeView: View {
             ZStack {
                 if stage == 0 {
                     onboardingMessage(
-                        title: "마음을\n담아두세요",
-                        description: "짧게 남겨도, 오래 적어도 괜찮아요.",
+                        title: "오늘의 순간을\n남겨보세요",
+                        description: "한 문장만 남겨도 괜찮아요.\n있었던 일과 마음을 내 말로 적어보세요.",
                         trustNote: nil
                     )
                     .transition(messageTransition)
                 } else {
                     onboardingMessage(
-                        title: "마음을,\n다시 만나요.",
-                        description: "Whisper가 그 마음을 기억해두고,\n잊을 만한 순간 다시 건넬게요.",
+                        title: "언제든\n다시 읽어요",
+                        description: "직접 하루를 일기로 정리하고,\n보관함에서 일기와 지난 순간을 다시 읽어요.",
                         trustNote: "기록은 이 기기 안에서만 처리돼요."
                     )
                     .transition(messageTransition)
@@ -341,7 +333,7 @@ private struct WelcomeView: View {
     }
 }
 
-private struct SettingsView: View {
+struct SettingsView: View {
     let recordStore: RecordStore
 
     @AppStorage(CommitmentReminderScheduler.showPreviewStorageKey)
@@ -349,81 +341,98 @@ private struct SettingsView: View {
     @State private var notificationStatus = UNAuthorizationStatus.notDetermined
     @State private var isFocusGuidePresented = false
     @State private var notificationErrorMessage: String?
+    @State private var orphanCommitmentToStop: UUID?
 #if DEBUG
     @State private var isSchedulingDebugReminder = false
     @State private var debugReminderMessage: String?
 #endif
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 고정 헤더
-            Text("설정")
-                .font(.whisperScreenTitle)
-                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-                .padding(.top, 18)
-                .padding(.bottom, 24)
-            
-            // 스크롤되는 영역
-            List {
-                Section("다시 만나는 불꽃") {
-                    LabeledContent("알림", value: notificationStatusDescription)
-                    
-                    Toggle("새 알림에 기록 내용 표시", isOn: $showCommitmentPreview)
-                    
-                    if notificationStatus == .notDetermined {
-                        Button("다시 만나기 알림 허용") {
-                            Task { await requestNotificationAuthorization() }
-                        }
-                    } else if notificationStatus == .denied {
-                        Button("알림 설정 열기", action: openAppSettings)
-                    }
-                }
-                
-                Section("FocusMode") {
-                    Button("iPhone 집중 모드에 연결하기") {
-                        isFocusGuidePresented = true
-                    }
-                }
+        List {
+            Section("다시 만나기") {
+                LabeledContent("알림", value: notificationStatusDescription)
 
-#if DEBUG
-                Section("결심 알림 테스트") {
-                    Button {
-                        Task { await scheduleDebugReminder() }
-                    } label: {
-                        HStack {
-                            Text("10초 뒤 테스트 알림 보내기")
-                            Spacer()
-                            if isSchedulingDebugReminder {
-                                ProgressView()
+                Toggle("알림에 기록 내용 표시", isOn: $showCommitmentPreview)
+
+                if notificationStatus == .notDetermined {
+                    Button("다시 만나기 알림 허용") {
+                        Task { await requestNotificationAuthorization() }
+                    }
+                } else if notificationStatus == .denied {
+                    Button("알림 설정 열기", action: openAppSettings)
+                }
+            }
+
+            if !recordStore.commitments.isEmpty {
+                Section("간직한 결심") {
+                    ForEach(recordStore.commitments, id: \.id) { commitment in
+                        if let record = recordStore.record(withID: commitment.sourceRecordID) {
+                            NavigationLink {
+                                RecordDetailView(record: record, recordStore: recordStore)
+                            } label: {
+                                LabeledContent(commitment.name, value: commitmentStatus(commitment))
+                            }
+                            .accessibilityLabel("\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리")
+                        } else {
+                            LabeledContent(commitment.name, value: "원본 기록 없음")
+                            if commitment.lifecycleStatus() != .released {
+                                Button("이 결심 알림 중단", role: .destructive) {
+                                    orphanCommitmentToStop = commitment.id
+                                }
+                                .accessibilityLabel("\(commitment.name) 결심 알림 중단")
                             }
                         }
                     }
-                    .disabled(isSchedulingDebugReminder)
-
-                    Button("예약된 테스트 알림 취소", role: .destructive) {
-                        Task { await cancelDebugReminders() }
-                    }
-                    .disabled(isSchedulingDebugReminder)
-
-                    Text(
-                        debugReminderMessage
-                            ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-#endif
-                
-                Section("앱 정보") {
-                    LabeledContent("기록 저장", value: "이 기기")
+                    Text("결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(Color.whisperBackground)
+
+            Section("집중 모드") {
+                Button("iPhone 집중 모드에 연결하기") {
+                    isFocusGuidePresented = true
+                }
+            }
+
+#if DEBUG
+            Section("결심 알림 테스트") {
+                Button {
+                    Task { await scheduleDebugReminder() }
+                } label: {
+                    HStack {
+                        Text("10초 뒤 테스트 알림 보내기")
+                        Spacer()
+                        if isSchedulingDebugReminder {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isSchedulingDebugReminder)
+
+                Button("예약된 테스트 알림 취소", role: .destructive) {
+                    Task { await cancelDebugReminders() }
+                }
+                .disabled(isSchedulingDebugReminder)
+
+                Text(
+                    debugReminderMessage
+                        ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+#endif
+
+            Section("앱 정보") {
+                LabeledContent("기록 저장", value: "이 기기")
+            }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(Color.whisperBackground)
-        .navigationBarHidden(true)
+        .navigationTitle("설정")
+        .navigationBarTitleDisplayMode(.inline)
         .task {
             await refreshNotificationStatus()
         }
@@ -431,8 +440,6 @@ private struct SettingsView: View {
             FocusFilterGuideView()
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
-            .presentationBackground(.clear)
         }
         .alert(
             "알림을 설정할 수 없어요",
@@ -445,6 +452,20 @@ private struct SettingsView: View {
         } message: {
             Text(notificationErrorMessage ?? "잠시 후 다시 시도해 주세요.")
         }
+        .alert(
+            "원본이 없는 결심 알림을 중단할까요?",
+            isPresented: Binding(
+                get: { orphanCommitmentToStop != nil },
+                set: { if !$0 { orphanCommitmentToStop = nil } }
+            )
+        ) {
+            Button("취소", role: .cancel) { orphanCommitmentToStop = nil }
+            Button("알림 중단", role: .destructive) {
+                stopOrphanCommitment()
+            }
+        } message: {
+            Text("결심 상태와 예약을 중단해요. 남아 있는 다른 기록은 삭제하지 않아요.")
+        }
     }
     
     private var notificationStatusDescription: String {
@@ -455,6 +476,33 @@ private struct SettingsView: View {
         case .notDetermined: "설정 필요"
         case .ephemeral: "일시 허용"
         @unknown default: "확인 필요"
+        }
+    }
+
+    private func commitmentStatus(_ commitment: WhisperCommitment) -> String {
+        switch commitment.lifecycleStatus() {
+        case .active: "알림 중"
+        case .paused: "쉬는 중"
+        case .released: "중단됨"
+        }
+    }
+
+    private func stopOrphanCommitment() {
+        guard let id = orphanCommitmentToStop,
+              let commitment = recordStore.commitments.first(where: { $0.id == id }),
+              recordStore.record(withID: commitment.sourceRecordID) == nil else {
+            orphanCommitmentToStop = nil
+            return
+        }
+        orphanCommitmentToStop = nil
+        guard recordStore.forgetCommitment(commitment) else {
+            notificationErrorMessage = "결심 상태를 저장하지 못했어요. 다시 시도해 주세요."
+            return
+        }
+        Task {
+            if !(await CommitmentReminderCoordinator.cancel(commitmentIDs: [id], in: recordStore)) {
+                notificationErrorMessage = "예약된 알림을 정리하지 못했어요. 다시 시도해 주세요."
+            }
         }
     }
     
@@ -538,8 +586,8 @@ private struct FocusFilterGuideView: View {
                     )
                     guideStep(
                         number: 3,
-                        title: "다시 만날 불꽃 선택",
-                        description: "이 집중 모드가 시작될 때 다시 만날 불꽃을 하나 이상 선택하고 추가해요."
+                        title: "다시 만날 마음 선택",
+                        description: "이 집중 모드가 시작될 때 다시 만날 마음을 하나 이상 선택하고 추가해요."
                     )
                     guideStep(
                         number: 4,

@@ -12,12 +12,19 @@ import UniformTypeIdentifiers
 import WhisperDesignSystem
 
 struct PhotoAttachmentEditor: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var photoData: Data?
+    let onLoadingChange: (Bool) -> Void
     @State private var selectedItem: PhotosPickerItem?
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var photoLoadTask: Task<Void, Never>?
     @State private var photoLoadGeneration = UUID()
+
+    init(photoData: Binding<Data?>, onLoadingChange: @escaping (Bool) -> Void = { _ in }) {
+        _photoData = photoData
+        self.onLoadingChange = onLoadingChange
+    }
 
     var body: some View {
         Group {
@@ -35,21 +42,10 @@ struct PhotoAttachmentEditor: View {
                             )
                         )
 
-                    HStack(spacing: 10) {
-                        PhotosPicker(selection: $selectedItem, matching: .images) {
-                            Label("사진 바꾸기", systemImage: "photo")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button(role: .destructive) {
-                            self.photoData = nil
-                            selectedItem = nil
-                        } label: {
-                            Label("삭제", systemImage: "trash")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
+                    if dynamicTypeSize.isAccessibilitySize {
+                        VStack(spacing: 10) { photoActions }
+                    } else {
+                        HStack(spacing: 10) { photoActions }
                     }
                 }
             } else {
@@ -66,7 +62,8 @@ struct PhotoAttachmentEditor: View {
                     }
                     .foregroundStyle(Color.whisperTextPrimary)
                     .padding(.horizontal, 16)
-                    .frame(height: 52)
+                    .padding(.vertical, 10)
+                    .frame(minHeight: 52)
                     .background(
                         Color.whisperSurfaceSubtle,
                         in: RoundedRectangle(
@@ -88,9 +85,14 @@ struct PhotoAttachmentEditor: View {
                 await loadPhoto(from: newItem, generation: generation)
             }
         }
+        .onChange(of: isLoading) { _, newValue in
+            onLoadingChange(newValue)
+        }
         .onDisappear {
             photoLoadTask?.cancel()
             photoLoadGeneration = UUID()
+            isLoading = false
+            onLoadingChange(false)
         }
         .alert(
             "사진을 불러올 수 없어요",
@@ -103,6 +105,27 @@ struct PhotoAttachmentEditor: View {
         } message: {
             Text(errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
         }
+    }
+
+    @ViewBuilder
+    private var photoActions: some View {
+        PhotosPicker(selection: $selectedItem, matching: .images) {
+            Label("사진 바꾸기", systemImage: "photo")
+                .frame(maxWidth: .infinity, minHeight: 48)
+        }
+        .buttonStyle(.bordered)
+
+        Button(role: .destructive) {
+            photoLoadTask?.cancel()
+            photoLoadGeneration = UUID()
+            isLoading = false
+            photoData = nil
+            selectedItem = nil
+        } label: {
+            Label("삭제", systemImage: "trash")
+                .frame(maxWidth: .infinity, minHeight: 48)
+        }
+        .buttonStyle(.bordered)
     }
 
     private func loadPhoto(from item: PhotosPickerItem, generation: UUID) async {

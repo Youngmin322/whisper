@@ -66,7 +66,7 @@ struct WhisperMigrationTests {
             photoData: photoData
         )
 
-        let currentSchema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let currentSchema = Schema(versionedSchema: WhisperSchemaV5.self)
         let configuration = ModelConfiguration(
             schema: currentSchema,
             url: storeURL,
@@ -198,10 +198,67 @@ struct WhisperMigrationTests {
         let recordID = UUID()
 
         try makeCurrentStore(at: storeURL, recordID: recordID)
+        let journalID = UUID()
+        do {
+            let container = try makeCurrentContainer(at: storeURL)
+            container.mainContext.insert(DailyJournal(
+                id: journalID,
+                dayKey: "2026-09-23",
+                date: Date(timeIntervalSince1970: 1_800_000_000),
+                title: "기존 일기",
+                body: "남아야 하는 본문",
+                reflection: "기존 회고",
+                emotion: "평온",
+                sourceRecordIDs: [recordID]
+            ))
+            try container.mainContext.save()
+        }
         let reopenedContainer = try makeCurrentContainer(at: storeURL)
         let records = try reopenedContainer.mainContext.fetch(FetchDescriptor<WhisperRecord>())
+        let journals = try reopenedContainer.mainContext.fetch(FetchDescriptor<DailyJournal>())
 
         #expect(records.map(\.id) == [recordID])
+        #expect(journals.map(\.id) == [journalID])
+        #expect(journals.first?.body == "남아야 하는 본문")
+        #expect(journals.first?.reflection == "기존 회고")
+        #expect(journals.first?.emotion == "평온")
+        #expect(journals.first?.sourceRecordIDs == [recordID])
+    }
+
+    @Test("V4 저장소를 V5로 열어도 순간의 UUID 감정 사진과 결심이 보존된다")
+    func migratesV4StoreToV5() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        let recordID = UUID()
+        let commitmentID = UUID()
+        let photo = Data([0x89, 0x50, 0x4E, 0x47])
+
+        do {
+            let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+            let configuration = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
+            let container = try ModelContainer(for: schema, configurations: configuration)
+            container.mainContext.insert(WhisperRecord(
+                id: recordID, title: "기존 순간", content: "원문", emotion: "평온", photoData: photo
+            ))
+            container.mainContext.insert(WhisperCommitment(
+                id: commitmentID, sourceRecordID: recordID, name: "기존 결심",
+                quote: "원문", topics: ["기존"]
+            ))
+            try container.mainContext.save()
+        }
+
+        let migrated = try makeCurrentContainer(at: storeURL)
+        let record = try #require(migrated.mainContext.fetch(FetchDescriptor<WhisperRecord>()).first)
+        let commitment = try #require(migrated.mainContext.fetch(FetchDescriptor<WhisperCommitment>()).first)
+        #expect(record.id == recordID)
+        #expect(record.content == "원문")
+        #expect(record.emotion == "평온")
+        #expect(record.photoData == photo)
+        #expect(commitment.id == commitmentID)
+        #expect(commitment.sourceRecordID == recordID)
+        let journals = try migrated.mainContext.fetch(FetchDescriptor<DailyJournal>())
+        #expect(journals.isEmpty)
     }
 
     private func makeLegacyStore(
@@ -352,7 +409,7 @@ struct WhisperMigrationTests {
     }
 
     private func makeCurrentContainer(at storeURL: URL) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: WhisperSchemaV4.self)
+        let schema = Schema(versionedSchema: WhisperSchemaV5.self)
         let configuration = ModelConfiguration(
             schema: schema,
             url: storeURL,
