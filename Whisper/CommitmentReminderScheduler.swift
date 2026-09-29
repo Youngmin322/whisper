@@ -297,6 +297,24 @@ enum CommitmentReminderScheduler {
         center.removeDeliveredNotifications(withIdentifiers: requestIdentifiers)
     }
 
+    static func cancelAllFeatureNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        async let pending = center.pendingNotificationRequests()
+        async let delivered = center.deliveredNotifications()
+        let (pendingRequests, deliveredNotifications) = await (pending, delivered)
+        var prefixes = [requestPrefix, "whisper.focus."]
+#if DEBUG
+        prefixes.append(debugRequestPrefix)
+#endif
+        let identifiers = Set(
+            pendingRequests.map(\.identifier)
+                + deliveredNotifications.map(\.request.identifier)
+        ).filter { identifier in
+            prefixes.contains { identifier.hasPrefix($0) }
+        }
+        await cancel(requestIdentifiers: Array(identifiers))
+    }
+
     private static func rollbackReplacement(
         previousPendingRequests: [UNNotificationRequest],
         newRequestIdentifiers: [String],
@@ -601,6 +619,8 @@ enum CommitmentReminderCoordinator {
         _ plan: CommitmentReminderPlan,
         in recordStore: RecordStore
     ) async -> CommitmentReminderApplicationResult {
+        guard CommitmentReminderFeature.isEnabled else { return .failed }
+
         let scheduleGate = WhisperNotificationScheduleGate.shared
         await scheduleGate.acquire()
         guard !Task.isCancelled else {
@@ -621,6 +641,8 @@ enum CommitmentReminderCoordinator {
         in recordStore: RecordStore,
         after delay: TimeInterval = 10
     ) async -> CommitmentReminderDebugResult {
+        guard CommitmentReminderFeature.isEnabled else { return .failed }
+
         let scheduleGate = WhisperNotificationScheduleGate.shared
         await scheduleGate.acquire()
         guard !Task.isCancelled,
@@ -837,6 +859,12 @@ enum CommitmentReminderCoordinator {
         let scheduleGate = WhisperNotificationScheduleGate.shared
         await scheduleGate.acquire()
         guard !Task.isCancelled else {
+            await scheduleGate.release()
+            return
+        }
+
+        guard CommitmentReminderFeature.isEnabled else {
+            await CommitmentReminderScheduler.cancelAllFeatureNotifications()
             await scheduleGate.release()
             return
         }

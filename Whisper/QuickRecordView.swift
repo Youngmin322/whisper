@@ -33,11 +33,16 @@ struct QuickRecordView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("취소", action: cancel)
                 }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("저장", action: save)
-                        .disabled(!draft.canSave || isPhotoLoading)
+            }
+            .safeAreaInset(edge: .bottom) {
+                if draft.emotion != nil {
+                    Button("순간 저장", action: save)
+                        .buttonStyle(.whisperPrimary(size: .compact))
+                        .disabled(!draft.canSaveNewMoment || isPhotoLoading)
                         .accessibilityIdentifier("record.saveButton")
+                        .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+                        .padding(.vertical, WhisperSpacing.xSmall)
+                        .background(Color.whisperBackground)
                 }
             }
         }
@@ -68,140 +73,183 @@ struct QuickRecordView: View {
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperTextSecondary)
 
-            moodSection
-            writingSection
-
-            DisclosureGroup(isExpanded: $isOptionalDetailsExpanded) {
-                optionalDetails
-                    .padding(.top, WhisperSpacing.medium)
-            } label: {
-                HStack(spacing: WhisperSpacing.small) {
-                    if let photoData = draft.photoData, let image = UIImage(data: photoData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 42, height: 42)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .accessibilityHidden(true)
-                    } else {
-                        Image(systemName: "plus.circle")
-                            .font(.title3)
-                            .accessibilityHidden(true)
-                    }
-
-                    detailActionCopy
-                    Spacer()
-                }
-                .foregroundStyle(Color.whisperTextPrimary)
-                .frame(minHeight: WhisperSize.controlCompact)
+            if let emotion = selectedEmotion {
+                selectedEmotionSection(emotion)
+                writingSection
+                detailsDisclosure
+            } else {
+                moodSection
             }
-            .tint(Color.whisperTextSecondary)
-            .padding(WhisperSpacing.medium)
-            .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
-            .overlay {
-                RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                    .stroke(Color.whisperBorderSubtle, lineWidth: 1)
-            }
-            .onChange(of: isOptionalDetailsExpanded) { _, isExpanded in
-                if isExpanded { isContentFocused = false }
-            }
-            .accessibilityIdentifier("record.openDetailButton")
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, WhisperSpacing.large)
         .padding(.bottom, WhisperSpacing.xxLarge)
+        .frame(maxWidth: 700)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var selectedEmotion: WhisperEmotion? {
+        WhisperEmotion.allCases.first { $0.rawValue == draft.emotion }
+    }
+
+    private func selectedEmotionSection(_ emotion: WhisperEmotion) -> some View {
+        HStack(spacing: WhisperSpacing.medium) {
+            emotionArtwork(emotion, size: 65)
+
+            VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+                Text("지금 마음")
+                    .font(.whisperMetadata)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                Text(emotion.rawValue)
+                    .font(.whisperSectionTitle)
+                    .foregroundStyle(Color.whisperTextPrimary)
+            }
+
+            Spacer(minLength: 0)
+
+            Button("감정 바꾸기") {
+                isContentFocused = false
+                withAnimation(.easeInOut(duration: 0.24)) {
+                    draft.emotion = nil
+                }
+            }
+            .font(.whisperMetadata)
+            .foregroundStyle(Color.whisperAccentText)
+            .frame(minHeight: 44)
+            .accessibilityIdentifier("record.changeEmotionButton")
+        }
+        .padding(.horizontal, WhisperSpacing.medium)
+        .frame(maxWidth: .infinity, minHeight: 102)
+        .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
+        .overlay {
+            RoundedRectangle(cornerRadius: WhisperRadius.medium)
+                .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
     }
 
     private var moodSection: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                Text("지금 마음은 어때요?")
-                    .font(.whisperSectionTitle)
-                    .foregroundStyle(Color.whisperTextPrimary)
-                Text("감정은 골라도, 건너뛰어도 괜찮아요.")
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            Text("지금 내 마음은 어떤가요?")
+                .font(.whisperHandwriting(31, bold: true))
+                .foregroundStyle(Color.whisperTextPrimary)
 
-            LazyVGrid(columns: moodColumns, spacing: WhisperSpacing.small) {
-                ForEach(WhisperEmotion.allCases) { emotion in
+            Text("가장 가까운 감정 하나를 골라보세요.")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .padding(.top, WhisperSpacing.xSmall)
+
+            LazyVGrid(columns: moodColumns, spacing: WhisperSpacing.medium) {
+                ForEach(WhisperEmotion.selectableCases) { emotion in
                     moodButton(emotion)
                 }
             }
+            .padding(.top, 36)
+
+            Text("정확한 이름이 아니어도 괜찮아요.\n지금 가장 먼저 떠오르는 마음을 골라요.")
+                .font(.whisperHandwriting(17))
+                .foregroundStyle(Color.whisperTextSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 70)
+
+            Rectangle()
+                .fill(Color.whisperDivider)
+                .frame(height: 1)
+                .padding(.top, 61)
+
+            Text("감정을 고르면 글쓰기 영역이 열려요")
+                .font(.whisperMetadata)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, WhisperSpacing.medium)
         }
     }
 
     private var moodColumns: [GridItem] {
         Array(
-            repeating: GridItem(.flexible(), spacing: WhisperSpacing.small),
+            repeating: GridItem(.flexible(), spacing: WhisperSpacing.xSmall),
             count: dynamicTypeSize.isAccessibilitySize ? 2 : 3
         )
     }
 
     private func moodButton(_ emotion: WhisperEmotion) -> some View {
-        let isSelected = draft.emotion == emotion.rawValue
-        return Button {
-            draft.emotion = isSelected ? nil : emotion.rawValue
+        Button {
+            withAnimation(.easeInOut(duration: 0.24)) {
+                draft.emotion = emotion.rawValue
+            }
         } label: {
             VStack(spacing: WhisperSpacing.xSmall) {
-                Text(emotion.emoji)
-                    .font(.system(size: 30))
-                    .frame(height: 36)
-                    .accessibilityHidden(true)
+                emotionArtwork(emotion, size: 53)
+                    .frame(height: 64)
                 Text(emotion.rawValue)
                     .font(.whisperControl)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .foregroundStyle(isSelected ? Color.whisperAccentText : Color.whisperTextPrimary)
-            .frame(maxWidth: .infinity, minHeight: dynamicTypeSize.isAccessibilitySize ? 94 : 76)
-            .padding(.vertical, WhisperSpacing.xSmall)
-            .background(
-                isSelected ? Color.whisperSurfaceHighlight : Color.whisperSurfaceDefault,
-                in: RoundedRectangle(cornerRadius: WhisperRadius.medium)
-            )
+            .foregroundStyle(Color.whisperTextPrimary)
+            .frame(maxWidth: .infinity, minHeight: dynamicTypeSize.isAccessibilitySize ? 154 : 129)
+            .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
             .overlay {
                 RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                    .stroke(isSelected ? Color.whisperAccent : Color.whisperBorderSubtle, lineWidth: isSelected ? 2 : 1)
+                    .stroke(Color.whisperBorderSubtle, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(emotion.rawValue)
-        .accessibilityValue(isSelected ? "선택됨" : "선택 안 됨")
-        .accessibilityHint(isSelected ? "다시 누르면 감정 선택이 해제돼요." : "이 감정을 기록에 더해요.")
+        .accessibilityHint("선택하면 글쓰기 영역이 열려요.")
         .accessibilityIdentifier("record.emotion.\(emotion.id)")
+    }
+
+    private func emotionArtwork(_ emotion: WhisperEmotion, size: CGFloat) -> some View {
+        FlameCharacter(emotion: emotion.rawValue, size: size)
     }
 
     private var writingSection: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-            Text("기억하고 싶은 장면")
-                .font(.whisperSectionTitle)
+            Text("어떤 순간이었나요?")
+                .font(.whisperHandwriting(29, bold: true))
                 .foregroundStyle(Color.whisperTextPrimary)
 
-            TextField(
-                RecordWritingCopy.contentExample,
-                text: $draft.content,
-                axis: .vertical
-            )
+            Text("있는 그대로 한두 문장으로 남겨보세요.")
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperTextSecondary)
+
+            TextField("", text: $draft.content, axis: .vertical)
             .focused($isContentFocused)
             .font(.whisperBodyLarge)
             .lineSpacing(4)
             .lineLimit(5 ... 9)
             .padding(WhisperSpacing.medium)
-            .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
-            .background(
-                Color.whisperSurfaceDefault,
-                in: RoundedRectangle(cornerRadius: WhisperRadius.medium)
-            )
+            .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
+            .overlay(alignment: .topLeading) {
+                if draft.content.isEmpty {
+                    Text(RecordWritingCopy.contentExample)
+                        .font(.whisperBodyLarge)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                        .padding(WhisperSpacing.medium)
+                        .allowsHitTesting(false)
+                }
+            }
+            .background {
+                RoundedRectangle(cornerRadius: WhisperRadius.medium)
+                    .fill(Color.whisperSurfaceDefault)
+                Canvas { context, size in
+                    var lines = Path()
+                    for y in stride(from: CGFloat(73), through: size.height - 16, by: 47) {
+                        lines.move(to: CGPoint(x: 16, y: y))
+                        lines.addLine(to: CGPoint(x: size.width - 16, y: y))
+                    }
+                    context.stroke(lines, with: .color(Color.whisperBorderSubtle), lineWidth: 1)
+                }
+                .allowsHitTesting(false)
+            }
             .overlay {
                 RoundedRectangle(cornerRadius: WhisperRadius.medium)
                     .stroke(Color.whisperBorderSubtle, lineWidth: 1)
             }
             .accessibilityLabel("기록 내용")
             .accessibilityIdentifier("record.contentField")
-
-            Text("한 문장만 남겨도 돼요. 오늘 일기에 가져올 수 있어요.")
-                .font(.whisperMetadata)
-                .foregroundStyle(Color.whisperTextSecondary)
+            .padding(.top, WhisperSpacing.medium)
 
             if draft.content.count >= RecordDraft.contentLimit - 100 {
                 Text("\(draft.content.count) / \(RecordDraft.contentLimit.formatted())")
@@ -216,6 +264,44 @@ struct QuickRecordView: View {
                 Text("최대 1,000자까지 저장할 수 있어요. 내용을 줄여 주세요.")
                     .font(.whisperCaption)
                     .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private var detailsDisclosure: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
+            Button {
+                isContentFocused = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isOptionalDetailsExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: WhisperSpacing.xSmall) {
+                    if let photoData = draft.photoData, let image = UIImage(data: photoData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 28, height: 28)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .accessibilityHidden(true)
+                    } else {
+                        Image(systemName: "plus")
+                            .accessibilityHidden(true)
+                    }
+                    detailActionCopy
+                    Spacer()
+                }
+                .font(.whisperControl)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(isOptionalDetailsExpanded ? "사진과 제목 입력을 접어요." : "사진과 제목 입력을 열어요.")
+            .accessibilityIdentifier("record.openDetailButton")
+
+            if isOptionalDetailsExpanded {
+                optionalDetails
             }
         }
     }
@@ -274,7 +360,7 @@ struct QuickRecordView: View {
     }
 
     private func save() {
-        guard draft.canSave && !isPhotoLoading else { return }
+        guard draft.canSaveNewMoment && !isPhotoLoading else { return }
         if onSave() {
             dismiss()
         } else {

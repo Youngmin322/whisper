@@ -16,6 +16,7 @@ struct CollectionFlameJar: View {
 
     let storedFlameCount: Int
     var width: CGFloat = 72
+    var emotions: [String?] = []
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -105,7 +106,7 @@ struct CollectionFlameJar: View {
 
         case .single:
             movingAsset(
-                "CollectionFlameHero",
+                flameAsset(at: 0),
                 frame: CGRect(x: 43, y: 73, width: 26, height: 36),
                 baseRotation: 0,
                 yAmplitude: 4,
@@ -119,7 +120,7 @@ struct CollectionFlameJar: View {
 
         case .multiple:
             movingAsset(
-                "CollectionFlameHero",
+                flameAsset(at: 0),
                 frame: CGRect(x: 60, y: 73, width: 26, height: 36),
                 baseRotation: -4,
                 yAmplitude: 4,
@@ -131,7 +132,7 @@ struct CollectionFlameJar: View {
                 scaleY: scaleY
             )
             movingAsset(
-                "CollectionEmberLarge",
+                flameAsset(at: 1),
                 frame: CGRect(x: 28, y: 50, width: 22, height: 31),
                 baseRotation: 7,
                 yAmplitude: 6,
@@ -143,7 +144,7 @@ struct CollectionFlameJar: View {
                 scaleY: scaleY
             )
             movingAsset(
-                "CollectionEmberSmall",
+                flameAsset(at: 2),
                 frame: CGRect(x: 33, y: 105, width: 18, height: 25),
                 baseRotation: -8,
                 yAmplitude: 5,
@@ -155,6 +156,11 @@ struct CollectionFlameJar: View {
                 scaleY: scaleY
             )
         }
+    }
+
+    private func flameAsset(at index: Int) -> String {
+        let emotion = emotions.indices.contains(index) ? emotions[index] : nil
+        return FlameCharacter.assetName(for: emotion)
     }
 
     private func fixedAsset(
@@ -194,6 +200,7 @@ struct CollectionFlameJar: View {
 
         return Image(name)
             .resizable()
+            .scaledToFit()
             .frame(
                 width: frame.width * scaleX,
                 height: frame.height * scaleY

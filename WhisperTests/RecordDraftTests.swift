@@ -40,4 +40,18 @@ struct RecordDraftTests {
         #expect(draft.content == content)
         #expect(draft.hasChanges)
     }
+
+    @Test("새 순간은 감정과 본문을 모두 선택해야 저장할 수 있다")
+    func requiresEmotionForNewMoment() {
+        var draft = RecordDraft(content: "오늘 친구와 산책했다.")
+
+        #expect(draft.canSave)
+        #expect(!draft.canSaveNewMoment)
+
+        draft.emotion = "기쁨"
+        #expect(draft.canSaveNewMoment)
+
+        draft.content = "  "
+        #expect(!draft.canSaveNewMoment)
+    }
 }

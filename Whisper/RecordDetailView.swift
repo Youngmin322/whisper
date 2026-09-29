@@ -95,7 +95,8 @@ struct RecordDetailView: View {
                     Menu {
                         Button("수정", systemImage: "pencil", action: startEditing)
 
-                        if let commitment = displayedCommitment {
+                        if CommitmentReminderFeature.isEnabled,
+                           let commitment = displayedCommitment {
                             Section("결심 알림") {
                                 switch commitment.lifecycleStatus() {
                                 case .active:
@@ -133,7 +134,7 @@ struct RecordDetailView: View {
             Button("취소", role: .cancel) {}
             Button("삭제", role: .destructive, action: deleteRecord)
         } message: {
-            Text("이 순간의 원문과 사진, 연결된 결심 알림이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요.")
+            Text(deleteConfirmationMessage)
         }
         .alert("변경사항을 저장할 수 없어요", isPresented: $isPersistenceErrorPresented) {
             Button("확인", role: .cancel) {}
@@ -199,7 +200,8 @@ struct RecordDetailView: View {
                     )
             }
 
-            if let commitment = displayedCommitment,
+            if CommitmentReminderFeature.isEnabled,
+               let commitment = displayedCommitment,
                reminderEncounter == nil || reminderEncounter?.reaction != nil {
                 Spacer(minLength: 40)
 
@@ -252,6 +254,9 @@ struct RecordDetailView: View {
                 }
             }
             .padding(20)
+
+            FlameCharacter(emotion: record.emotion, size: 36)
+                .padding(20)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
@@ -330,12 +335,14 @@ struct RecordDetailView: View {
                 isEmotionPickerPresented = true
             } label: {
                 HStack {
-                    Label(
-                        selectedEmotion ?? "선택 안 함",
-                        systemImage: selectedEmotion.map(emotionSystemImage) ?? "circle.dashed"
-                    )
-                    .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.whisperTextPrimary)
+                    if selectedEmotion != nil {
+                        FlameCharacter(emotion: selectedEmotion, size: 32)
+                    } else {
+                        Image(systemName: "circle.dashed")
+                    }
+                    Text(selectedEmotion ?? "선택 안 함")
+                        .font(.whisperBodyEmphasis)
+                        .foregroundStyle(Color.whisperTextPrimary)
 
                     Spacer()
 
@@ -417,7 +424,7 @@ struct RecordDetailView: View {
     }
 
     private func commitmentCard(_: WhisperCommitment) -> some View {
-        WhisperMessageCard {
+        WhisperMessageCard(emotion: record.emotion) {
             Text("이 마음은 제가 잘 간직하고 있을게요.")
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
@@ -495,7 +502,7 @@ struct RecordDetailView: View {
             ("이제 다시 건네지는 않을게요.", "기록은 여기 소중히 남겨둘게요.")
         }
 
-        return WhisperMessageCard(fill: .whisperSurfaceSubtle) {
+        return WhisperMessageCard(fill: .whisperSurfaceSubtle, emotion: record.emotion) {
             Text(message.title)
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
@@ -507,7 +514,8 @@ struct RecordDetailView: View {
     }
 
     private var reminderEncounter: ReminderEncounter? {
-        guard let reminderEncounterID,
+        guard CommitmentReminderFeature.isEnabled,
+              let reminderEncounterID,
               let encounter = recordStore.encounters.first(where: {
                   $0.id == reminderEncounterID
               }),
@@ -538,7 +546,15 @@ struct RecordDetailView: View {
     }
 
     private var displayedCommitment: WhisperCommitment? {
-        reminderCommitment ?? storedCommitment
+        guard CommitmentReminderFeature.isEnabled else { return nil }
+        return reminderCommitment ?? storedCommitment
+    }
+
+    private var deleteConfirmationMessage: String {
+        if CommitmentReminderFeature.isEnabled {
+            return "이 순간의 원문과 사진, 연결된 결심 알림이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요."
+        }
+        return "이 순간의 원문과 사진이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요."
     }
 
     private func pauseReminder(until pausedUntil: Date) {
@@ -620,7 +636,8 @@ struct RecordDetailView: View {
     }
 
     private func processReminderEncounterIfNeeded() {
-        guard !didProcessReminderEncounter,
+        guard CommitmentReminderFeature.isEnabled,
+              !didProcessReminderEncounter,
               let reminderEncounterID
         else {
             return
@@ -688,20 +705,20 @@ struct RecordDetailView: View {
         }
     }
 
-    private func emotionSystemImage(for emotion: String) -> String {
-        WhisperEmotion(rawValue: emotion)?.systemImage ?? "face.smiling"
-    }
 }
 
 private struct WhisperMessageCard<Content: View>: View {
     private let fill: Color
+    private let emotion: String?
     private let content: Content
 
     init(
         fill: Color = .whisperSurfaceHighlight,
+        emotion: String? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.fill = fill
+        self.emotion = emotion
         self.content = content()
     }
 
@@ -735,7 +752,7 @@ private struct WhisperMessageCard<Content: View>: View {
             .frame(maxWidth: 305)
             .frame(maxWidth: .infinity, alignment: .center)
 
-            WhisperJar(size: .recordDetail)
+            WhisperJar(size: .recordDetail, emotion: emotion)
                 .accessibilityHidden(true)
                 .frame(width: 60, height: 73)
         }

@@ -21,7 +21,8 @@ struct TodayFlameField: View {
                             seed: FlameHopMotion.seed(for: record.id),
                             time: motionTime,
                             size: geometry.size,
-                            reduceMotion: reduceMotion
+                            reduceMotion: reduceMotion,
+                            emotion: record.emotion
                         )
                         let point = CGPoint(
                             x: pose.groundPosition.x + (jarPoint.x - pose.groundPosition.x) * progress,

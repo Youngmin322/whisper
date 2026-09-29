@@ -22,11 +22,11 @@ enum WhisperJarSize {
 
 struct WhisperJar: View {
     let size: WhisperJarSize
+    var emotion: String? = nil
     
     var body: some View {
-        Image.whisper
-            .resizable()
-            .scaledToFit()
+        let width = min(size.dimensions.width, size.dimensions.height * 82 / 119)
+        FlameBottle(emotion: emotion, width: width)
             .frame(width: size.dimensions.width, height: size.dimensions.height)
             .accessibilityLabel("불꽃이 담긴 유리병")
     }
@@ -143,13 +143,13 @@ struct CollectionView: View {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: WhisperSpacing.small) {
                         collectionIntroduction
-                        CollectionFlameJar(storedFlameCount: storedFlameCount, width: 82)
+                        CollectionFlameJar(storedFlameCount: storedFlameCount, width: 82, emotions: storedFlameEmotions)
                             .frame(maxWidth: .infinity)
                     }
                 } else {
                     HStack(spacing: WhisperSpacing.small) {
                         collectionIntroduction
-                        CollectionFlameJar(storedFlameCount: storedFlameCount, width: 82)
+                        CollectionFlameJar(storedFlameCount: storedFlameCount, width: 82, emotions: storedFlameEmotions)
                     }
                 }
             }
@@ -186,6 +186,13 @@ struct CollectionView: View {
         recordStore.records.count
     }
 
+    private var storedFlameEmotions: [String?] {
+        recordStore.records
+            .sorted { $0.createdAt > $1.createdAt }
+            .prefix(3)
+            .map(\.emotion)
+    }
+
     private var filteredJournals: [DailyJournal] {
         guard selectedCommitmentStatus == nil else { return [] }
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -216,7 +223,8 @@ struct CollectionView: View {
     }
 
     private func storedCommitment(for record: WhisperRecord) -> WhisperCommitment? {
-        recordStore.commitments.first { $0.sourceRecordID == record.id }
+        guard CommitmentReminderFeature.isEnabled else { return nil }
+        return recordStore.commitments.first { $0.sourceRecordID == record.id }
     }
 
     private func recordAccessibilityLabel(_ record: WhisperRecord) -> String {
@@ -262,17 +270,19 @@ struct CollectionView: View {
                     )
                 }
 
-                Menu {
-                    Button("모든 상태") { selectedCommitmentStatus = nil }
-                    Button("기억 중") { selectedCommitmentStatus = .active }
-                    Button("잠시 쉬는 중") { selectedCommitmentStatus = .paused }
-                    Button("놓아준 마음") { selectedCommitmentStatus = .released }
-                } label: {
-                    filterChip(
-                        title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "다시 만나기",
-                        isActive: selectedCommitmentStatus != nil,
-                        showsMenuIndicator: true
-                    )
+                if CommitmentReminderFeature.isEnabled {
+                    Menu {
+                        Button("모든 상태") { selectedCommitmentStatus = nil }
+                        Button("기억 중") { selectedCommitmentStatus = .active }
+                        Button("잠시 쉬는 중") { selectedCommitmentStatus = .paused }
+                        Button("놓아준 마음") { selectedCommitmentStatus = .released }
+                    } label: {
+                        filterChip(
+                            title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "다시 만나기",
+                            isActive: selectedCommitmentStatus != nil,
+                            showsMenuIndicator: true
+                        )
+                    }
                 }
             }
         }
@@ -363,18 +373,22 @@ struct CollectionView: View {
     
     private func journalRecordCard(for record: WhisperRecord) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                Text("순간 기록")
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperAccentText)
-                Text(record.title)
-                    .font(.whisperSectionTitle)
-                    .foregroundStyle(Color.whisperTextPrimary)
-                    .lineLimit(2)
+            HStack(spacing: WhisperSpacing.small) {
+                VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+                    Text("순간 기록")
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperAccentText)
+                    Text(record.title)
+                        .font(.whisperSectionTitle)
+                        .foregroundStyle(Color.whisperTextPrimary)
+                        .lineLimit(2)
 
-                Text(recordDateLabel(record.createdAt))
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
+                    Text(recordDateLabel(record.createdAt))
+                        .font(.whisperMetadata)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                }
+                Spacer(minLength: 0)
+                FlameCharacter(emotion: record.emotion, size: 42)
             }
 
             Text(record.content)

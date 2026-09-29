@@ -127,7 +127,7 @@ struct JournalEditorView: View {
 
             if !moments.isEmpty {
                 Menu {
-                    ForEach(WhisperEmotion.allCases) { emotion in
+                    ForEach(WhisperEmotion.selectableCases) { emotion in
                         Button(emotion.rawValue) { representativeEmotion = emotion.rawValue }
                     }
                 } label: {

@@ -104,7 +104,13 @@ final class WhisperAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificat
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         WhisperFont.register()
-        UNUserNotificationCenter.current().delegate = self
+        if CommitmentReminderFeature.isEnabled {
+            UNUserNotificationCenter.current().delegate = self
+        } else {
+            Task {
+                await CommitmentReminderScheduler.cancelAllFeatureNotifications()
+            }
+        }
         return true
     }
 
@@ -112,6 +118,8 @@ final class WhisperAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificat
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        guard CommitmentReminderFeature.isEnabled else { return [] }
+
         let encounterID = (notification.request.content.userInfo["encounterID"] as? String)
             .flatMap(UUID.init(uuidString:))
         if let encounterID {
@@ -126,6 +134,8 @@ final class WhisperAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificat
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
+        guard CommitmentReminderFeature.isEnabled else { return }
+
         guard let value = response.notification.request.content.userInfo["recordID"] as? String,
               let recordID = UUID(uuidString: value)
         else {

@@ -145,7 +145,7 @@ struct CommitmentAnalyzer {
                 \(existingCommitments)
                 """,
                 generating: GeneratedCommitmentAnalysis.self,
-                options: GenerationOptions(sampling: .greedy)
+                options: GenerationOptions(samplingMode: .greedy)
             )
 
             let generated = response.content

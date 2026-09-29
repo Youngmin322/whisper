@@ -7,66 +7,6 @@ import Foundation
 import Observation
 import SwiftData
 
-struct CommitmentSnapshot: Sendable {
-    let id: UUID
-    let name: String
-    let quote: String
-    let topics: [String]
-    let createdAt: Date
-    let lastContinuedAt: Date?
-    let continuationCount: Int
-}
-
-struct ReminderRecordSnapshot: Sendable {
-    let title: String
-    let content: String
-    let createdAt: Date
-}
-
-struct CommitmentReminderPlanningContext: Sendable {
-    let commitment: CommitmentSnapshot
-    let recentRecords: [ReminderRecordSnapshot]
-}
-
-struct CommitmentReminderPlan: Sendable {
-    let id: UUID
-    let sourceRecordID: UUID
-    let name: String
-    let quote: String
-    let reminderDates: [Date]
-}
-
-struct NotificationDaySlotDraft: Sendable {
-    let dayKey: String
-    let scheduledAt: Date
-    let requestIdentifier: String
-    let sourceStorage: String
-    let commitmentID: UUID?
-    let recordID: UUID?
-    let consumedAt: Date?
-    let createdAt: Date
-
-    init(
-        dayKey: String,
-        scheduledAt: Date,
-        requestIdentifier: String,
-        sourceStorage: String,
-        commitmentID: UUID? = nil,
-        recordID: UUID? = nil,
-        consumedAt: Date? = nil,
-        createdAt: Date = .now
-    ) {
-        self.dayKey = dayKey
-        self.scheduledAt = scheduledAt
-        self.requestIdentifier = requestIdentifier
-        self.sourceStorage = sourceStorage
-        self.commitmentID = commitmentID
-        self.recordID = recordID
-        self.consumedAt = consumedAt
-        self.createdAt = createdAt
-    }
-}
-
 private struct LegacyWhisperRecord: Codable {
     let id: UUID
     let title: String
@@ -271,17 +211,7 @@ final class RecordStore {
         commitments
             .filter { $0.lifecycleStatus() == .active }
             .prefix(8)
-            .map {
-                CommitmentSnapshot(
-                    id: $0.id,
-                    name: $0.name,
-                    quote: $0.quote,
-                    topics: $0.topics,
-                    createdAt: $0.createdAt,
-                    lastContinuedAt: $0.lastContinuedAt,
-                    continuationCount: $0.continuationCount
-                )
-            }
+            .map { makeSnapshot(from: $0) }
     }
 
     func commitment(sourceRecordID: UUID) -> WhisperCommitment? {
@@ -425,9 +355,7 @@ final class RecordStore {
         reminderTiming: CommitmentReminderTiming,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
-        guard let commitment = commitments.first(where: {
-            $0.id == id && $0.lifecycleStatus(at: now) == .active
-        }) else {
+        guard let commitment = activeCommitment(withID: id, at: now) else {
             return nil
         }
 
@@ -453,9 +381,7 @@ final class RecordStore {
         reminderProfile: CommitmentReminderProfile,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
-        guard let commitment = commitments.first(where: {
-            $0.id == id && $0.lifecycleStatus(at: now) == .active
-        }) else {
+        guard let commitment = activeCommitment(withID: id, at: now) else {
             return nil
         }
 
@@ -471,9 +397,7 @@ final class RecordStore {
         commitmentID: UUID,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
-        guard let commitment = commitments.first(where: {
-            $0.id == commitmentID && $0.lifecycleStatus(at: now) == .active
-        }) else {
+        guard let commitment = activeCommitment(withID: commitmentID, at: now) else {
             return nil
         }
         let plan = policyReminderPlan(for: commitment, event: .kept, now: now)
@@ -486,9 +410,7 @@ final class RecordStore {
         reminderTiming: CommitmentReminderTiming,
         now: Date = .now
     ) -> CommitmentReminderPlan? {
-        guard let commitment = commitments.first(where: {
-            $0.id == id && $0.lifecycleStatus(at: now) == .active
-        }) else {
+        guard let commitment = activeCommitment(withID: id, at: now) else {
             return nil
         }
 
@@ -509,9 +431,7 @@ final class RecordStore {
         now: Date = .now
     ) -> CommitmentReminderPlan? {
         guard firstReminderDate > now,
-              let commitment = commitments.first(where: {
-                $0.id == id && $0.lifecycleStatus(at: now) == .active
-              })
+              let commitment = activeCommitment(withID: id, at: now)
         else {
             return nil
         }
@@ -525,13 +445,7 @@ final class RecordStore {
             return nil
         }
 
-        return CommitmentReminderPlan(
-            id: saved.id,
-            sourceRecordID: saved.sourceRecordID,
-            name: saved.name,
-            quote: saved.quote,
-            reminderDates: reminderDates
-        )
+        return makePlan(for: saved, reminderDates: reminderDates)
     }
 
     func reminderPlanningContext(for commitmentID: UUID) -> CommitmentReminderPlanningContext? {
@@ -541,15 +455,6 @@ final class RecordStore {
             return nil
         }
 
-        let snapshot = CommitmentSnapshot(
-            id: commitment.id,
-            name: commitment.name,
-            quote: commitment.quote,
-            topics: commitment.topics,
-            createdAt: commitment.createdAt,
-            lastContinuedAt: commitment.lastContinuedAt,
-            continuationCount: commitment.continuationCount
-        )
         let recentRecords = records
             .prefix(3)
             .map {
@@ -561,7 +466,7 @@ final class RecordStore {
             }
 
         return CommitmentReminderPlanningContext(
-            commitment: snapshot,
+            commitment: makeSnapshot(from: commitment),
             recentRecords: recentRecords
         )
     }
@@ -643,13 +548,7 @@ final class RecordStore {
                let pausedUntil = commitment.pausedUntil,
                pausedUntil > date {
                 return CommitmentReminderAllocationInput(
-                    plan: CommitmentReminderPlan(
-                        id: commitment.id,
-                        sourceRecordID: commitment.sourceRecordID,
-                        name: commitment.name,
-                        quote: commitment.quote,
-                        reminderDates: [pausedUntil]
-                    ),
+                    plan: makePlan(for: commitment, reminderDates: [pausedUntil]),
                     lastEncounteredAt: commitment.lastEncounteredAt,
                     createdAt: commitment.createdAt
                 )
@@ -692,11 +591,8 @@ final class RecordStore {
 
             let plan: CommitmentReminderPlan
             if !retainedDates.isEmpty {
-                plan = CommitmentReminderPlan(
-                    id: commitment.id,
-                    sourceRecordID: commitment.sourceRecordID,
-                    name: commitment.name,
-                    quote: commitment.quote,
+                plan = makePlan(
+                    for: commitment,
                     reminderDates: Array(retainedDates.prefix(1))
                 )
             } else {
@@ -1136,13 +1032,7 @@ final class RecordStore {
             return nil
         }
 
-        return CommitmentReminderPlan(
-            id: commitment.id,
-            sourceRecordID: commitment.sourceRecordID,
-            name: commitment.name,
-            quote: commitment.quote,
-            reminderDates: [pausedUntil]
-        )
+        return makePlan(for: commitment, reminderDates: [pausedUntil])
     }
 
     @discardableResult
@@ -1322,8 +1212,7 @@ final class RecordStore {
 
             if let deliveredAt = state.deliveredEncounterDates[encounter.id] {
                 encounter.presentedAt = encounter.presentedAt ?? deliveredAt
-                notificationSlot(requestIdentifier: identifier)?.consumedAt =
-                    notificationSlot(requestIdentifier: identifier)?.consumedAt ?? deliveredAt
+                consumeNotificationSlot(requestIdentifier: identifier, at: deliveredAt)
                 if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
                     commitment.lastEncounteredAt = [
                         commitment.lastEncounteredAt,
@@ -1337,9 +1226,10 @@ final class RecordStore {
             } else if encounter.scheduledAt <= date {
                 // 알림 센터에서 이미 지워졌더라도 예정 시각이 지났다면 한 번 노출된 것으로 보존해요.
                 encounter.presentedAt = encounter.presentedAt ?? encounter.scheduledAt
-                notificationSlot(requestIdentifier: identifier)?.consumedAt =
-                    notificationSlot(requestIdentifier: identifier)?.consumedAt
-                        ?? encounter.scheduledAt
+                consumeNotificationSlot(
+                    requestIdentifier: identifier,
+                    at: encounter.scheduledAt
+                )
                 if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
                     commitment.lastEncounteredAt = [
                         commitment.lastEncounteredAt,
@@ -1396,10 +1286,7 @@ final class RecordStore {
             return false
         }
         encounter.presentedAt = encounter.presentedAt ?? date
-        if let identifier = encounter.notificationIdentifier {
-            notificationSlot(requestIdentifier: identifier)?.consumedAt =
-                notificationSlot(requestIdentifier: identifier)?.consumedAt ?? date
-        }
+        consumeNotificationSlot(for: encounter, at: date)
         if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
             commitment.lastEncounteredAt = date
         }
@@ -1411,20 +1298,7 @@ final class RecordStore {
         guard let encounter = encounters.first(where: { $0.id == encounterID }) else {
             return false
         }
-        let wasUnread = encounter.openedAt == nil
-        encounter.openedAt = encounter.openedAt ?? date
-        encounter.presentedAt = encounter.presentedAt ?? date
-        if let identifier = encounter.notificationIdentifier {
-            notificationSlot(requestIdentifier: identifier)?.consumedAt =
-                notificationSlot(requestIdentifier: identifier)?.consumedAt ?? date
-        }
-        if let commitment = commitments.first(where: { $0.id == encounter.commitmentID }) {
-            commitment.lastEncounteredAt = encounter.presentedAt
-            commitment.lastReadAt = encounter.openedAt
-            if wasUnread {
-                commitment.encounterCount += 1
-            }
-        }
+        markEncounterOpenedState(encounter, at: date)
         return saveChanges()
     }
 
@@ -1442,19 +1316,8 @@ final class RecordStore {
             return false
         }
 
-        let wasUnread = encounter.openedAt == nil
         encounter.reaction = reaction
-        encounter.openedAt = encounter.openedAt ?? date
-        encounter.presentedAt = encounter.presentedAt ?? date
-        if let identifier = encounter.notificationIdentifier {
-            notificationSlot(requestIdentifier: identifier)?.consumedAt =
-                notificationSlot(requestIdentifier: identifier)?.consumedAt ?? date
-        }
-        commitment.lastEncounteredAt = encounter.presentedAt
-        commitment.lastReadAt = encounter.openedAt
-        if wasUnread {
-            commitment.encounterCount += 1
-        }
+        markEncounterOpenedState(encounter, commitment: commitment, at: date)
 
         switch reaction {
         case .keep:
@@ -1576,10 +1439,7 @@ final class RecordStore {
         }
         do {
             try modelContext.save()
-            persistenceError = nil
-            persistenceSupportCode = nil
-            persistenceDiagnosticSummary = nil
-            isPersistenceAvailable = true
+            clearPersistenceIssue()
             if reloadAfterSave {
                 reload()
             }
@@ -1594,11 +1454,7 @@ final class RecordStore {
 
     private func reload() {
         guard let modelContext else {
-            records = []
-            commitments = []
-            encounters = []
-            notificationSlots = []
-            journals = []
+            clearCachedModels()
             setUnavailablePersistenceError()
             return
         }
@@ -1628,19 +1484,99 @@ final class RecordStore {
                     sortBy: [SortDescriptor(\.date, order: .reverse)]
                 )
             )
-            persistenceError = nil
-            persistenceSupportCode = nil
-            persistenceDiagnosticSummary = nil
-            isPersistenceAvailable = true
+            clearPersistenceIssue()
         } catch {
-            records = []
-            commitments = []
-            encounters = []
-            notificationSlots = []
-            journals = []
+            clearCachedModels()
             isPersistenceAvailable = false
             recordPersistenceError(error, operation: "model-context-fetch")
         }
+    }
+
+    private func activeCommitment(
+        withID id: UUID,
+        at date: Date
+    ) -> WhisperCommitment? {
+        commitments.first {
+            $0.id == id && $0.lifecycleStatus(at: date) == .active
+        }
+    }
+
+    private func makeSnapshot(from commitment: WhisperCommitment) -> CommitmentSnapshot {
+        CommitmentSnapshot(
+            id: commitment.id,
+            name: commitment.name,
+            quote: commitment.quote,
+            topics: commitment.topics,
+            createdAt: commitment.createdAt,
+            lastContinuedAt: commitment.lastContinuedAt,
+            continuationCount: commitment.continuationCount
+        )
+    }
+
+    private func makePlan(
+        for commitment: WhisperCommitment,
+        reminderDates: [Date]
+    ) -> CommitmentReminderPlan {
+        CommitmentReminderPlan(
+            id: commitment.id,
+            sourceRecordID: commitment.sourceRecordID,
+            name: commitment.name,
+            quote: commitment.quote,
+            reminderDates: reminderDates
+        )
+    }
+
+    private func consumeNotificationSlot(
+        requestIdentifier: String,
+        at date: Date
+    ) {
+        guard let slot = notificationSlot(requestIdentifier: requestIdentifier) else { return }
+        slot.consumedAt = slot.consumedAt ?? date
+    }
+
+    private func consumeNotificationSlot(
+        for encounter: ReminderEncounter,
+        at date: Date
+    ) {
+        guard let identifier = encounter.notificationIdentifier else { return }
+        consumeNotificationSlot(requestIdentifier: identifier, at: date)
+    }
+
+    private func markEncounterOpenedState(
+        _ encounter: ReminderEncounter,
+        commitment providedCommitment: WhisperCommitment? = nil,
+        at date: Date
+    ) {
+        let wasUnread = encounter.openedAt == nil
+        encounter.openedAt = encounter.openedAt ?? date
+        encounter.presentedAt = encounter.presentedAt ?? date
+        consumeNotificationSlot(for: encounter, at: date)
+
+        guard let commitment = providedCommitment
+            ?? commitments.first(where: { $0.id == encounter.commitmentID })
+        else {
+            return
+        }
+        commitment.lastEncounteredAt = encounter.presentedAt
+        commitment.lastReadAt = encounter.openedAt
+        if wasUnread {
+            commitment.encounterCount += 1
+        }
+    }
+
+    private func clearCachedModels() {
+        records = []
+        commitments = []
+        encounters = []
+        notificationSlots = []
+        journals = []
+    }
+
+    private func clearPersistenceIssue() {
+        persistenceError = nil
+        persistenceSupportCode = nil
+        persistenceDiagnosticSummary = nil
+        isPersistenceAvailable = true
     }
 
     private func reminderPlan(
@@ -1649,11 +1585,8 @@ final class RecordStore {
         timing: CommitmentReminderTiming,
         firstReminderDate: Date? = nil
     ) -> CommitmentReminderPlan {
-        CommitmentReminderPlan(
-            id: commitment.id,
-            sourceRecordID: commitment.sourceRecordID,
-            name: commitment.name,
-            quote: commitment.quote,
+        makePlan(
+            for: commitment,
             reminderDates: makeReminderDates(
                 anchorDate: anchorDate,
                 timing: timing,
@@ -1674,13 +1607,7 @@ final class RecordStore {
             event: event,
             now: now
         )
-        return CommitmentReminderPlan(
-            id: commitment.id,
-            sourceRecordID: commitment.sourceRecordID,
-            name: commitment.name,
-            quote: commitment.quote,
-            reminderDates: [nextDate]
-        )
+        return makePlan(for: commitment, reminderDates: [nextDate])
     }
 
     private func hasFutureScheduledEncounter(
