@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		1D3C09333036847100A5EBD8 /* WhisperCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D3C09323036847100A5EBD8 /* WhisperCore */; };
-		1D97B5B8302AE9D300C4F5E8 /* WhisperCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D97B5B7302AE9D300C4F5E8 /* WhisperCore */; };
 		1DF412E3303BCB2F00B271A4 /* WhisperDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */; };
 /* End PBXBuildFile section */
 
@@ -58,7 +57,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1D97B5B8302AE9D300C4F5E8 /* WhisperCore in Frameworks */,
 				1D3C09333036847100A5EBD8 /* WhisperCore in Frameworks */,
 				1DF412E3303BCB2F00B271A4 /* WhisperDesignSystem in Frameworks */,
 			);
@@ -120,7 +118,6 @@
 			);
 			name = Whisper;
 			packageProductDependencies = (
-				1D97B5B7302AE9D300C4F5E8 /* WhisperCore */,
 				1D3C09323036847100A5EBD8 /* WhisperCore */,
 				1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */,
 			);
@@ -517,10 +514,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		1D3C09323036847100A5EBD8 /* WhisperCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = WhisperCore;
-		};
-		1D97B5B7302AE9D300C4F5E8 /* WhisperCore */ = {
-			isa = XCSwiftPackageProductDependency;
+			package = 1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "../WhisperCore" */;
 			productName = WhisperCore;
 		};
 		1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */ = {
