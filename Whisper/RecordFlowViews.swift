@@ -223,7 +223,8 @@ struct CollectionView: View {
     }
 
     private func storedCommitment(for record: WhisperRecord) -> WhisperCommitment? {
-        recordStore.commitments.first { $0.sourceRecordID == record.id }
+        guard CommitmentReminderFeature.isEnabled else { return nil }
+        return recordStore.commitments.first { $0.sourceRecordID == record.id }
     }
 
     private func recordAccessibilityLabel(_ record: WhisperRecord) -> String {
@@ -269,17 +270,19 @@ struct CollectionView: View {
                     )
                 }
 
-                Menu {
-                    Button("모든 상태") { selectedCommitmentStatus = nil }
-                    Button("기억 중") { selectedCommitmentStatus = .active }
-                    Button("잠시 쉬는 중") { selectedCommitmentStatus = .paused }
-                    Button("놓아준 마음") { selectedCommitmentStatus = .released }
-                } label: {
-                    filterChip(
-                        title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "다시 만나기",
-                        isActive: selectedCommitmentStatus != nil,
-                        showsMenuIndicator: true
-                    )
+                if CommitmentReminderFeature.isEnabled {
+                    Menu {
+                        Button("모든 상태") { selectedCommitmentStatus = nil }
+                        Button("기억 중") { selectedCommitmentStatus = .active }
+                        Button("잠시 쉬는 중") { selectedCommitmentStatus = .paused }
+                        Button("놓아준 마음") { selectedCommitmentStatus = .released }
+                    } label: {
+                        filterChip(
+                            title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "다시 만나기",
+                            isActive: selectedCommitmentStatus != nil,
+                            showsMenuIndicator: true
+                        )
+                    }
                 }
             }
         }

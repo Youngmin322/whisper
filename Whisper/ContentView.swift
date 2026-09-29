@@ -99,6 +99,7 @@ private struct MainTabView: View {
             consumePendingNotificationRoute()
         }
         .onReceive(NotificationCenter.default.publisher(for: WhisperNotificationRoute.didPresentEncounter)) { notification in
+            guard CommitmentReminderFeature.isEnabled else { return }
             guard let encounterID = notification.object as? UUID else { return }
             _ = recordStore.markEncounterPresented(encounterID)
         }
@@ -116,6 +117,8 @@ private struct MainTabView: View {
         let commitmentID = WhisperNotificationRoute.consumePendingCommitmentID()
         let encounterID = WhisperNotificationRoute.consumePendingEncounterID()
         let requestIdentifier = WhisperNotificationRoute.consumePendingRequestIdentifier()
+
+        guard CommitmentReminderFeature.isEnabled else { return }
 
         if let recordID {
             homePath = NavigationPath()
@@ -168,8 +171,10 @@ private struct NotificationRecordDestination: View {
             } description: {
                 Text("삭제되었거나 더 이상 존재하지 않는 기록이에요.")
             } actions: {
-                NavigationLink("결심 알림 관리") {
-                    SettingsView(recordStore: recordStore)
+                if CommitmentReminderFeature.isEnabled {
+                    NavigationLink("결심 알림 관리") {
+                        SettingsView(recordStore: recordStore)
+                    }
                 }
             }
             .navigationTitle("기록")
@@ -349,80 +354,82 @@ struct SettingsView: View {
     
     var body: some View {
         List {
-            Section("다시 만나기") {
-                LabeledContent("알림", value: notificationStatusDescription)
+            if CommitmentReminderFeature.isEnabled {
+                Section("다시 만나기") {
+                    LabeledContent("알림", value: notificationStatusDescription)
 
-                Toggle("알림에 기록 내용 표시", isOn: $showCommitmentPreview)
+                    Toggle("알림에 기록 내용 표시", isOn: $showCommitmentPreview)
 
-                if notificationStatus == .notDetermined {
-                    Button("다시 만나기 알림 허용") {
-                        Task { await requestNotificationAuthorization() }
+                    if notificationStatus == .notDetermined {
+                        Button("다시 만나기 알림 허용") {
+                            Task { await requestNotificationAuthorization() }
+                        }
+                    } else if notificationStatus == .denied {
+                        Button("알림 설정 열기", action: openAppSettings)
                     }
-                } else if notificationStatus == .denied {
-                    Button("알림 설정 열기", action: openAppSettings)
                 }
-            }
 
-            if !recordStore.commitments.isEmpty {
-                Section("간직한 결심") {
-                    ForEach(recordStore.commitments, id: \.id) { commitment in
-                        if let record = recordStore.record(withID: commitment.sourceRecordID) {
-                            NavigationLink {
-                                RecordDetailView(record: record, recordStore: recordStore)
-                            } label: {
-                                LabeledContent(commitment.name, value: commitmentStatus(commitment))
-                            }
-                            .accessibilityLabel("\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리")
-                        } else {
-                            LabeledContent(commitment.name, value: "원본 기록 없음")
-                            if commitment.lifecycleStatus() != .released {
-                                Button("이 결심 알림 중단", role: .destructive) {
-                                    orphanCommitmentToStop = commitment.id
+                if !recordStore.commitments.isEmpty {
+                    Section("간직한 결심") {
+                        ForEach(recordStore.commitments, id: \.id) { commitment in
+                            if let record = recordStore.record(withID: commitment.sourceRecordID) {
+                                NavigationLink {
+                                    RecordDetailView(record: record, recordStore: recordStore)
+                                } label: {
+                                    LabeledContent(commitment.name, value: commitmentStatus(commitment))
                                 }
-                                .accessibilityLabel("\(commitment.name) 결심 알림 중단")
+                                .accessibilityLabel("\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리")
+                            } else {
+                                LabeledContent(commitment.name, value: "원본 기록 없음")
+                                if commitment.lifecycleStatus() != .released {
+                                    Button("이 결심 알림 중단", role: .destructive) {
+                                        orphanCommitmentToStop = commitment.id
+                                    }
+                                    .accessibilityLabel("\(commitment.name) 결심 알림 중단")
+                                }
                             }
                         }
+                        Text("결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
-                    Text("결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
-            }
 
-            Section("집중 모드") {
-                Button("iPhone 집중 모드에 연결하기") {
-                    isFocusGuidePresented = true
+                Section("집중 모드") {
+                    Button("iPhone 집중 모드에 연결하기") {
+                        isFocusGuidePresented = true
+                    }
                 }
-            }
 
 #if DEBUG
-            Section("결심 알림 테스트") {
-                Button {
-                    Task { await scheduleDebugReminder() }
-                } label: {
-                    HStack {
-                        Text("10초 뒤 테스트 알림 보내기")
-                        Spacer()
-                        if isSchedulingDebugReminder {
-                            ProgressView()
+                Section("결심 알림 테스트") {
+                    Button {
+                        Task { await scheduleDebugReminder() }
+                    } label: {
+                        HStack {
+                            Text("10초 뒤 테스트 알림 보내기")
+                            Spacer()
+                            if isSchedulingDebugReminder {
+                                ProgressView()
+                            }
                         }
                     }
-                }
-                .disabled(isSchedulingDebugReminder)
+                    .disabled(isSchedulingDebugReminder)
 
-                Button("예약된 테스트 알림 취소", role: .destructive) {
-                    Task { await cancelDebugReminders() }
-                }
-                .disabled(isSchedulingDebugReminder)
+                    Button("예약된 테스트 알림 취소", role: .destructive) {
+                        Task { await cancelDebugReminders() }
+                    }
+                    .disabled(isSchedulingDebugReminder)
 
-                Text(
-                    debugReminderMessage
-                        ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
+                    Text(
+                        debugReminderMessage
+                            ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
 #endif
+            }
 
             Section("앱 정보") {
                 LabeledContent("기록 저장", value: "이 기기")
@@ -434,7 +441,9 @@ struct SettingsView: View {
         .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await refreshNotificationStatus()
+            if CommitmentReminderFeature.isEnabled {
+                await refreshNotificationStatus()
+            }
         }
         .sheet(isPresented: $isFocusGuidePresented) {
             FocusFilterGuideView()

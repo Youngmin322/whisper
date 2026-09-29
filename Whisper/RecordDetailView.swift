@@ -95,7 +95,8 @@ struct RecordDetailView: View {
                     Menu {
                         Button("수정", systemImage: "pencil", action: startEditing)
 
-                        if let commitment = displayedCommitment {
+                        if CommitmentReminderFeature.isEnabled,
+                           let commitment = displayedCommitment {
                             Section("결심 알림") {
                                 switch commitment.lifecycleStatus() {
                                 case .active:
@@ -133,7 +134,7 @@ struct RecordDetailView: View {
             Button("취소", role: .cancel) {}
             Button("삭제", role: .destructive, action: deleteRecord)
         } message: {
-            Text("이 순간의 원문과 사진, 연결된 결심 알림이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요.")
+            Text(deleteConfirmationMessage)
         }
         .alert("변경사항을 저장할 수 없어요", isPresented: $isPersistenceErrorPresented) {
             Button("확인", role: .cancel) {}
@@ -199,7 +200,8 @@ struct RecordDetailView: View {
                     )
             }
 
-            if let commitment = displayedCommitment,
+            if CommitmentReminderFeature.isEnabled,
+               let commitment = displayedCommitment,
                reminderEncounter == nil || reminderEncounter?.reaction != nil {
                 Spacer(minLength: 40)
 
@@ -512,7 +514,8 @@ struct RecordDetailView: View {
     }
 
     private var reminderEncounter: ReminderEncounter? {
-        guard let reminderEncounterID,
+        guard CommitmentReminderFeature.isEnabled,
+              let reminderEncounterID,
               let encounter = recordStore.encounters.first(where: {
                   $0.id == reminderEncounterID
               }),
@@ -543,7 +546,15 @@ struct RecordDetailView: View {
     }
 
     private var displayedCommitment: WhisperCommitment? {
-        reminderCommitment ?? storedCommitment
+        guard CommitmentReminderFeature.isEnabled else { return nil }
+        return reminderCommitment ?? storedCommitment
+    }
+
+    private var deleteConfirmationMessage: String {
+        if CommitmentReminderFeature.isEnabled {
+            return "이 순간의 원문과 사진, 연결된 결심 알림이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요."
+        }
+        return "이 순간의 원문과 사진이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요."
     }
 
     private func pauseReminder(until pausedUntil: Date) {
@@ -625,7 +636,8 @@ struct RecordDetailView: View {
     }
 
     private func processReminderEncounterIfNeeded() {
-        guard !didProcessReminderEncounter,
+        guard CommitmentReminderFeature.isEnabled,
+              !didProcessReminderEncounter,
               let reminderEncounterID
         else {
             return

@@ -116,6 +116,8 @@ struct HomeView: View {
         content: String,
         existingCommitments: [CommitmentSnapshot]
     ) {
+        guard CommitmentReminderFeature.isEnabled else { return }
+
         Task {
             let analysis = await CommitmentAnalyzer().analyze(
                 recordID: record.id,

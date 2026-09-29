@@ -32,7 +32,8 @@ struct WhisperRecordEntityQuery: EntityQuery {
     func entities(for identifiers: [WhisperRecordEntity.ID]) async throws
         -> [WhisperRecordEntity]
     {
-        await MainActor.run {
+        guard CommitmentReminderFeature.isEnabled else { return [] }
+        return await MainActor.run {
             let identifierSet = Set(identifiers)
             return RecordStore().records
                 .filter { identifierSet.contains($0.id.uuidString) }
@@ -41,7 +42,8 @@ struct WhisperRecordEntityQuery: EntityQuery {
     }
 
     func suggestedEntities() async throws -> [WhisperRecordEntity] {
-        await MainActor.run {
+        guard CommitmentReminderFeature.isEnabled else { return [] }
+        return await MainActor.run {
             RecordStore().records.map(WhisperRecordEntity.init(record:))
         }
     }
@@ -74,6 +76,7 @@ struct WhisperFocusFilter: SetFocusFilterIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        guard CommitmentReminderFeature.isEnabled else { return .result() }
         guard let flames, !flames.isEmpty else { return .result() }
 
         let settings = await UNUserNotificationCenter.current().notificationSettings()
