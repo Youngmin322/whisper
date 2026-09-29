@@ -53,9 +53,7 @@ struct WhisperJarAnimation: View {
                 )
 
             // 불꽃 캐릭터
-            Image.whisperFlame
-                .resizable()
-                .scaledToFit()
+            FlameCharacter(emotion: nil, size: size.width * 0.40)
                 .frame(
                     width: size.width * 0.40,
                     height: size.height * 0.55

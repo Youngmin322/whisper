@@ -140,7 +140,7 @@ struct QuickRecordView: View {
                 .padding(.top, WhisperSpacing.xSmall)
 
             LazyVGrid(columns: moodColumns, spacing: WhisperSpacing.medium) {
-                ForEach(WhisperEmotion.allCases) { emotion in
+                ForEach(WhisperEmotion.selectableCases) { emotion in
                     moodButton(emotion)
                 }
             }
@@ -202,15 +202,6 @@ struct QuickRecordView: View {
 
     private func emotionArtwork(_ emotion: WhisperEmotion, size: CGFloat) -> some View {
         FlameCharacter(emotion: emotion.rawValue, size: size)
-            .overlay(alignment: .topTrailing) {
-                if emotion == .proud {
-                    Text("✦")
-                        .font(.whisperHandwriting(17))
-                        .foregroundStyle(Color.whisperAccentText)
-                        .offset(x: 5, y: -3)
-                        .accessibilityHidden(true)
-                }
-            }
     }
 
     private var writingSection: some View {

@@ -252,6 +252,9 @@ struct RecordDetailView: View {
                 }
             }
             .padding(20)
+
+            FlameCharacter(emotion: record.emotion, size: 36)
+                .padding(20)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
@@ -330,12 +333,14 @@ struct RecordDetailView: View {
                 isEmotionPickerPresented = true
             } label: {
                 HStack {
-                    Label(
-                        selectedEmotion ?? "선택 안 함",
-                        systemImage: selectedEmotion.map(emotionSystemImage) ?? "circle.dashed"
-                    )
-                    .font(.whisperBodyEmphasis)
-                    .foregroundStyle(Color.whisperTextPrimary)
+                    if selectedEmotion != nil {
+                        FlameCharacter(emotion: selectedEmotion, size: 32)
+                    } else {
+                        Image(systemName: "circle.dashed")
+                    }
+                    Text(selectedEmotion ?? "선택 안 함")
+                        .font(.whisperBodyEmphasis)
+                        .foregroundStyle(Color.whisperTextPrimary)
 
                     Spacer()
 
@@ -417,7 +422,7 @@ struct RecordDetailView: View {
     }
 
     private func commitmentCard(_: WhisperCommitment) -> some View {
-        WhisperMessageCard {
+        WhisperMessageCard(emotion: record.emotion) {
             Text("이 마음은 제가 잘 간직하고 있을게요.")
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
@@ -495,7 +500,7 @@ struct RecordDetailView: View {
             ("이제 다시 건네지는 않을게요.", "기록은 여기 소중히 남겨둘게요.")
         }
 
-        return WhisperMessageCard(fill: .whisperSurfaceSubtle) {
+        return WhisperMessageCard(fill: .whisperSurfaceSubtle, emotion: record.emotion) {
             Text(message.title)
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
@@ -688,20 +693,20 @@ struct RecordDetailView: View {
         }
     }
 
-    private func emotionSystemImage(for emotion: String) -> String {
-        WhisperEmotion(rawValue: emotion)?.systemImage ?? "face.smiling"
-    }
 }
 
 private struct WhisperMessageCard<Content: View>: View {
     private let fill: Color
+    private let emotion: String?
     private let content: Content
 
     init(
         fill: Color = .whisperSurfaceHighlight,
+        emotion: String? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.fill = fill
+        self.emotion = emotion
         self.content = content()
     }
 
@@ -735,7 +740,7 @@ private struct WhisperMessageCard<Content: View>: View {
             .frame(maxWidth: 305)
             .frame(maxWidth: .infinity, alignment: .center)
 
-            WhisperJar(size: .recordDetail)
+            WhisperJar(size: .recordDetail, emotion: emotion)
                 .accessibilityHidden(true)
                 .frame(width: 60, height: 73)
         }

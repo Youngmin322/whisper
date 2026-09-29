@@ -5,16 +5,7 @@ struct FlameCharacter: View {
     var size: CGFloat = 52
 
     static func assetName(for emotion: String?) -> String {
-        switch emotion ?? "" {
-        case WhisperEmotion.calm.rawValue: "EmotionFlameCalm"
-        case WhisperEmotion.tired.rawValue: "FlameTired"
-        case WhisperEmotion.excitement.rawValue: "FlameExcited"
-        case WhisperEmotion.anxiety.rawValue: "EmotionFlameAnxiety"
-        case "우울": "EmotionFlameDepression"
-        case "분노": "EmotionFlameAnger"
-        case "슬픔", "속상": "EmotionFlameSadness"
-        default: "EmotionFlameJoy"
-        }
+        FlameAppearance.resolve(emotion).assetName
     }
 
     var body: some View {
@@ -31,83 +22,73 @@ struct AnimatedFlameCharacter: View {
     let pose: FlameHopPose
     var size: CGFloat = 48
 
-    private var assetName: String { FlameCharacter.assetName(for: emotion) }
-    private var usesLegacyAnimation: Bool {
-        emotion == WhisperEmotion.tired.rawValue || emotion == WhisperEmotion.excitement.rawValue
-    }
     private var canvasSize: CGFloat { size * 5 / 3 }
-    private var stepFrame: String { String(format: "%02d", pose.frameIndex) }
-    private var faceScale: CGFloat {
-        switch pose.frameIndex {
-        case 8...10: 0.82
-        case 11...12: 0.90
-        default: 1
-        }
-    }
-
-    private var palette: (outer: Color, inner: Color) {
-        switch emotion ?? "" {
-        case WhisperEmotion.calm.rawValue:
-            (flameColor(0xDB9D96), flameColor(0xFAD3AE))
-        case WhisperEmotion.tired.rawValue:
-            (flameColor(0x87B3AA), flameColor(0xD6E3C6))
-        case WhisperEmotion.excitement.rawValue:
-            (flameColor(0xEA8060), flameColor(0xFFC16D))
-        case WhisperEmotion.anxiety.rawValue:
-            (flameColor(0xB7A6CC), flameColor(0xE1D5EB))
-        case "속상":
-            (flameColor(0x9F9FCB), flameColor(0xD9CDEA))
-        default:
-            (flameColor(0xF0A143), flameColor(0xFFD477))
-        }
-    }
+    private var motionKind: FlameMotionKind { FlameMotionKind.resolve(emotion) }
 
     var body: some View {
+        let bounds = FlameAppearance.resolve(emotion).rigBounds(characterSize: size, canvasSize: canvasSize)
         ZStack {
             Ellipse()
                 .fill(Color.whisperTextSecondary.opacity(0.10))
                 .frame(width: size * 0.48 * pose.shadowScale, height: 5)
                 .offset(y: size * 0.50)
 
-            ZStack {
-                if usesLegacyAnimation {
-                    Image("FlameStepOuter\(stepFrame)")
-                        .resizable()
-                        .renderingMode(.template)
-                        .foregroundStyle(palette.outer)
-                    Image("FlameStepInner\(stepFrame)")
-                        .resizable()
-                        .renderingMode(.template)
-                        .foregroundStyle(palette.inner)
-                    Image("\(assetName)Face")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: size, height: size * 1.1)
-                        .scaleEffect(faceScale, anchor: UnitPoint(x: 0.5, y: 0.68))
-                        .rotationEffect(.degrees(pose.faceRotation), anchor: UnitPoint(x: 0.5, y: 0.68))
-                        .offset(y: -1.5)
-                } else {
-                    FlameCharacter(emotion: emotion, size: size)
-                        .scaleEffect(faceScale, anchor: .bottom)
-                        .rotationEffect(.degrees(pose.faceRotation), anchor: .bottom)
-                        .offset(y: -1.5)
-                }
-            }
-            .frame(width: canvasSize, height: canvasSize)
-            .scaleEffect(x: pose.facing, y: 1)
-            .offset(x: pose.facing * pose.lead, y: -pose.lift)
+            animatedArtwork(bounds: bounds)
+                .scaleEffect(x: pose.facing, y: 1)
+                .offset(x: pose.facing * pose.lead, y: -pose.lift - 1.5)
         }
         .frame(width: canvasSize, height: canvasSize)
         .accessibilityHidden(true)
     }
-}
 
-private func flameColor(_ hex: UInt32) -> Color {
-    Color(
-        red: Double((hex >> 16) & 0xFF) / 255,
-        green: Double((hex >> 8) & 0xFF) / 255,
-        blue: Double(hex & 0xFF) / 255
-    )
+    @ViewBuilder
+    private func animatedArtwork(bounds: CGRect) -> some View {
+        if motionKind == .joy {
+            let reference = FlameReferenceRig.frames[pose.frameIndex]
+            ZStack {
+                Image("EmotionFlameJoyBody")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size, height: size * 1.1)
+                    .frame(width: canvasSize, height: canvasSize)
+                    .distortionEffect(
+                        ShaderLibrary.flameReferenceWarp(
+                            .float4(Float(bounds.minX), Float(bounds.minY), Float(bounds.width), Float(bounds.height)),
+                            .floatArray(reference.mapping)
+                        ),
+                        maxSampleOffset: CGSize(width: size * 0.8, height: size * 0.8),
+                        isEnabled: pose.frameIndex != 0
+                    )
+
+                Image("EmotionFlameJoyFace")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size, height: size * 1.1)
+                    .scaleEffect(reference.faceScale, anchor: UnitPoint(x: 0.5, y: 0.68))
+                    .rotationEffect(.degrees(reference.faceRotation), anchor: UnitPoint(x: 0.5, y: 0.68))
+                    .frame(width: canvasSize, height: canvasSize)
+            }
+        } else {
+            FlameCharacter(emotion: emotion, size: size)
+                .frame(width: canvasSize, height: canvasSize)
+                .distortionEffect(
+                    ShaderLibrary.flameBodyWarp(
+                        .float4(Float(bounds.minX), Float(bounds.minY), Float(bounds.width), Float(bounds.height)),
+                        .float3(Float(pose.body.tipBend), Float(pose.body.footPush), Float(pose.body.baseCompression))
+                    ),
+                    maxSampleOffset: CGSize(width: size * 0.28, height: size * 0.12),
+                    isEnabled: pose.body.tipBend != 0 || pose.body.footPush != 0 || pose.body.baseCompression != 0
+                )
+                .rotationEffect(
+                    .degrees(pose.body.rotation),
+                    anchor: UnitPoint(x: bounds.midX / canvasSize, y: bounds.maxY / canvasSize)
+                )
+                .scaleEffect(
+                    pose.body.uniformScale,
+                    anchor: UnitPoint(x: bounds.midX / canvasSize, y: bounds.maxY / canvasSize)
+                )
+        }
+    }
 }
 
 struct FlameBottle: View {
