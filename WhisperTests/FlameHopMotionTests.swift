@@ -22,15 +22,14 @@ struct FlameHopMotionTests {
         #expect(distance(start.groundPosition, landing.groundPosition) > 5)
     }
 
-    @Test("휴식 중에는 위치가 고정되고 끝만 약하게 움직인다")
+    @Test("기쁨은 휴식 중에 위치와 원본 형태를 그대로 유지한다")
     func restingPositionIsFixed() {
         let first = sample(time: 2)
         let later = sample(time: 5)
         #expect(first.groundPosition == later.groundPosition)
         #expect(!first.isMoving && !later.isMoving)
         #expect(first.frameIndex == 0 && first.lift == 0 && first.lead == 0)
-        #expect(abs(first.body.tipBend) <= 0.008)
-        #expect(first.body.rotation == 0 && first.body.baseCompression == 0)
+        #expect(first.body == .rest && later.body == .rest)
     }
 
     @Test("개체와 이동 회차마다 방향·속도·거리·걸음 수가 독립적으로 달라진다")

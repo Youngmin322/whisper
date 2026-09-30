@@ -128,7 +128,7 @@ enum FlameHopMotion {
                          y: bounds.height > 0 ? (target.y - bounds.minY) / bounds.height : from.y)
         return FlameHopRun(kind: kind, startedAt: time, from: from, to: to,
                            stepDuration: profile.stepDuration * tempo, steps: steps,
-                           strength: CGFloat(0.88 + random(seed: seed, index: 0, channel: 6) * 0.12))
+                           strength: kind == .joy ? 1 : CGFloat(0.88 + random(seed: seed, index: 0, channel: 6) * 0.12))
     }
 
     static func seed(for id: UUID) -> Double {
@@ -181,7 +181,7 @@ enum FlameHopMotion {
     private static func idleBody(kind: FlameMotionKind, seed: Double, elapsed: TimeInterval) -> FlameBodyPose {
         let amplitude: CGFloat
         switch kind {
-        case .joy: amplitude = 0.008
+        case .joy: return .rest
         case .calm: amplitude = 0.010
         case .anxiety: amplitude = 0.006
         case .depression: amplitude = 0.003

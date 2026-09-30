@@ -43,7 +43,11 @@ struct AnimatedFlameCharacter: View {
 
     @ViewBuilder
     private func animatedArtwork(bounds: CGRect) -> some View {
-        if motionKind == .joy {
+        if motionKind == .joy && !pose.isMoving {
+            // Rest uses the approved image itself, without layer reconstruction or deformation.
+            FlameCharacter(emotion: emotion, size: size)
+                .frame(width: canvasSize, height: canvasSize)
+        } else if motionKind == .joy {
             let reference = FlameReferenceRig.frames[pose.frameIndex]
             ZStack {
                 Image("EmotionFlameJoyBody")
@@ -58,14 +62,6 @@ struct AnimatedFlameCharacter: View {
                         ),
                         maxSampleOffset: CGSize(width: size * 0.8, height: size * 0.8),
                         isEnabled: pose.frameIndex != 0
-                    )
-                    .distortionEffect(
-                        ShaderLibrary.flameBodyWarp(
-                            .float4(Float(bounds.minX), Float(bounds.minY), Float(bounds.width), Float(bounds.height)),
-                            .float3(Float(pose.body.tipBend), 0, 0)
-                        ),
-                        maxSampleOffset: CGSize(width: size * 0.02, height: 0),
-                        isEnabled: !pose.isMoving && pose.body.tipBend != 0
                     )
 
                 Image("EmotionFlameJoyFace")

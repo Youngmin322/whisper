@@ -43,6 +43,42 @@ struct FlameBodyMotionTests {
         #expect(FlameReferenceRig.frames[8].faceScale == 0.82)
     }
 
+    @Test("실제 생성한 기쁨도 원래 도약 강도와 기준 자세를 그대로 사용한다")
+    func generatedJoyUsesOriginalStrength() {
+        for seed in [0.0, 0.11, 0.27, 0.61, 0.94] {
+            for index in 0..<4 {
+                let run = FlameHopMotion.makeRun(seed: seed, kind: .joy, index: index, at: 0,
+                                                from: CGPoint(x: 0.5, y: 0.5), size: field)
+                #expect(run.strength == 1)
+                for phase in [0.25, 0.52, 0.83] {
+                    let pose = FlameHopMotion.sample(
+                        run: run, time: run.stepDuration * phase, size: field, restingAt: run.from,
+                        restingSince: 0, facing: 1, seed: seed, kind: .joy, reduceMotion: false
+                    )
+                    #expect(abs(pose.lift - 5.4 * sin(.pi * phase)) < 0.000001)
+                    #expect(abs(pose.lead - 3.5 * sin(.pi * phase)) < 0.000001)
+                    #expect(pose.body == .rest)
+                }
+            }
+        }
+    }
+
+    @Test("기쁨의 휴식은 시간과 개체에 관계없이 휘어짐·회전·축소가 없다")
+    func restingJoyKeepsOriginalShape() {
+        for seed in [0.0, 0.11, 0.27, 0.61, 0.94] {
+            for tick in 0...120 {
+                let pose = FlameHopMotion.sample(
+                    run: nil, time: Double(tick) / 10, size: field,
+                    restingAt: CGPoint(x: 0.5, y: 0.5), restingSince: 0,
+                    facing: 1, seed: seed, kind: .joy, reduceMotion: false
+                )
+                #expect(pose.body == .rest)
+                #expect(pose.frameIndex == 0 && pose.faceRotation == 0)
+                #expect(pose.lift == 0 && pose.lead == 0 && !pose.isMoving)
+            }
+        }
+    }
+
     @Test("움직임 줄이기는 정지 그림이고 휴식 중에는 작은 끝 움직임만 남는다")
     func restAndReducedMotion() {
         for kind in FlameMotionKind.allCases {
@@ -54,6 +90,7 @@ struct FlameBodyMotionTests {
             #expect(abs(resting.body.tipBend) <= 0.010)
             #expect(resting.body.footPush == 0 && resting.body.baseCompression == 0)
             #expect(resting.body.rotation == 0 && resting.body.uniformScale == 1)
+            if kind == .joy { #expect(resting.body == .rest) }
         }
     }
 
