@@ -69,7 +69,8 @@ struct FlameHomeScreen: View {
                 TodayFlameField(
                     records: records,
                     collectionStartedAt: collectionStartedAt,
-                    onSelect: openRecord
+                    onSelect: openRecord,
+                    isPaused: isRecording
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

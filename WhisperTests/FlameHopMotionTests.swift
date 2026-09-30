@@ -2,17 +2,16 @@ import CoreGraphics
 import Testing
 @testable import Whisper
 
-@Suite("참고 영상 기반 불꽃 걸음")
+@Suite("짧은 감정별 불꽃 걸음")
 struct FlameHopMotionTests {
     private let field = CGSize(width: 393, height: 590)
 
-    @Test("둥근 몸이 앞서고 불꽃 끝이 뒤따르는 프레임을 순서대로 보여준다")
+    @Test("기쁨의 기존 자세 프레임과 탄력은 유지한다")
     func referenceFramesAdvance() {
-        let start = FlameHopMotion.sample(seed: 0, time: 0, size: field, reduceMotion: false)
-        let bend = FlameHopMotion.sample(seed: 0, time: 0.66 * 0.25, size: field, reduceMotion: false)
-        let launch = FlameHopMotion.sample(seed: 0, time: 0.66 * 0.52, size: field, reduceMotion: false)
-        let landing = FlameHopMotion.sample(seed: 0, time: 0.66 * 0.83, size: field, reduceMotion: false)
-
+        let start = sample(time: 0)
+        let bend = sample(time: 0.66 * 0.25)
+        let launch = sample(time: 0.66 * 0.52)
+        let landing = sample(time: 0.66 * 0.83)
         #expect(start.frameIndex == 0)
         #expect(bend.frameIndex == 4)
         #expect(launch.frameIndex == 8)
@@ -23,43 +22,89 @@ struct FlameHopMotionTests {
         #expect(distance(start.groundPosition, landing.groundPosition) > 5)
     }
 
-    @Test("세 걸음을 잇고 잠깐 쉬었다가 다시 이동한다")
-    func burstAndPause() {
-        let first = FlameHopMotion.sample(seed: 0, time: 0.33, size: field, reduceMotion: false)
-        let second = FlameHopMotion.sample(seed: 0, time: 0.99, size: field, reduceMotion: false)
-        let pauseStart = FlameHopMotion.sample(seed: 0, time: 2.02, size: field, reduceMotion: false)
-        let pauseEnd = FlameHopMotion.sample(seed: 0, time: 2.20, size: field, reduceMotion: false)
-        let resumed = FlameHopMotion.sample(seed: 0, time: 2.40, size: field, reduceMotion: false)
-
-        #expect(distance(first.groundPosition, second.groundPosition) > 5)
-        #expect(pauseStart.groundPosition == pauseEnd.groundPosition)
-        #expect(pauseStart.frameIndex == 0 && pauseStart.lift == 0)
-        #expect(distance(pauseEnd.groundPosition, resumed.groundPosition) > 1)
+    @Test("휴식 중에는 위치가 고정되고 끝만 약하게 움직인다")
+    func restingPositionIsFixed() {
+        let first = sample(time: 2)
+        let later = sample(time: 5)
+        #expect(first.groundPosition == later.groundPosition)
+        #expect(!first.isMoving && !later.isMoving)
+        #expect(first.frameIndex == 0 && first.lift == 0 && first.lead == 0)
+        #expect(abs(first.body.tipBend) <= 0.008)
+        #expect(first.body.rotation == 0 && first.body.baseCompression == 0)
     }
 
-    @Test("불꽃은 화면 안을 이동하고 바닥을 박찰 때 작은 먼지를 만든다")
-    func staysInFieldWithDust() {
-        for seed in [0.0, 0.27, 0.61, 0.94] {
-            for step in 0...100 {
-                let time = Double(step) / 100 * (44 + seed * 8)
-                let pose = FlameHopMotion.sample(seed: seed, time: time, size: field, reduceMotion: false)
-                #expect(pose.groundPosition.x >= 44 && pose.groundPosition.x <= field.width - 44)
-                #expect(pose.groundPosition.y >= 52 && pose.groundPosition.y <= field.height - 52)
+    @Test("개체와 이동 회차마다 방향·속도·거리·걸음 수가 독립적으로 달라진다")
+    func individualJourneysVary() {
+        let runs = [0.11, 0.27, 0.61, 0.94].flatMap { seed in
+            (0..<4).map { index in
+                FlameHopMotion.makeRun(seed: seed, kind: .joy, index: index, at: 0,
+                                       from: CGPoint(x: 0.5, y: 0.5), size: field)
             }
         }
-
-        let dust = FlameHopMotion.sample(seed: 0, time: 0.66 * 0.42, size: field, reduceMotion: false)
-        #expect(dust.dustOpacity > 0 && dust.dustOpacity < 0.24)
+        #expect(Set(runs.map(\.stepDuration)).count == runs.count)
+        #expect(Set(runs.map { $0.to.x }).count == runs.count)
+        #expect(Set(runs.map(\.steps)) == [1, 2])
+        for run in runs {
+            let start = FlameHopMotion.fieldPosition(run.from, size: field)
+            let end = FlameHopMotion.fieldPosition(run.to, size: field)
+            #expect(distance(start, end) <= 30)
+            #expect(distance(start, end) >= 10)
+        }
+        // Waiting is outside the run; it cannot speed up the journey.
+        let repeated = FlameHopMotion.makeRun(seed: 0.11, kind: .joy, index: 0, at: 1000,
+                                             from: CGPoint(x: 0.5, y: 0.5), size: field)
+        #expect(repeated.stepDuration == runs[0].stepDuration)
+        #expect(repeated.to == runs[0].to)
     }
 
-    @Test("움직임 줄이기에서는 첫 프레임과 위치가 고정된다")
-    func reducedMotionIsStill() {
-        let first = FlameHopMotion.sample(seed: 0.42, time: 0, size: field, reduceMotion: true)
-        let later = FlameHopMotion.sample(seed: 0.42, time: 100, size: field, reduceMotion: true)
-        #expect(first.groundPosition == later.groundPosition)
-        #expect(first.frameIndex == 0)
-        #expect(first.lift == 0 && first.lead == 0)
-        #expect(first.dustOpacity == 0)
+    @Test("분노는 강하게 출발하고 불안은 먼저 멈칫한다")
+    func emotionalTravelIsDistinct() {
+        let origin = CGPoint(x: 0.3, y: 0.5)
+        let target = CGPoint(x: 0.7, y: 0.5)
+        func run(_ kind: FlameMotionKind) -> FlameHopRun {
+            FlameHopRun(kind: kind, startedAt: 0, from: origin, to: target, stepDuration: 1, steps: 1)
+        }
+        #expect(run(.anger).position(at: 0.15).x > run(.joy).position(at: 0.15).x)
+        #expect(run(.anxiety).position(at: 0.15) == origin)
+        #expect(run(.sadness).position(at: 0.5).x < run(.joy).position(at: 0.5).x)
+        for kind in FlameMotionKind.allCases {
+            #expect(run(kind).position(at: 0) == origin)
+            #expect(run(kind).position(at: 1) == target)
+        }
+    }
+
+    @Test("짧은 이동은 작은 화면과 가장자리에서도 화면 안에 머문다")
+    func staysInField() {
+        for size in [field, CGSize(width: 180, height: 220), CGSize(width: 60, height: 80), .zero] {
+            for kind in FlameMotionKind.allCases {
+                for seed in [0.0, 0.27, 0.61, 0.94] {
+                    for anchor in [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 1)] {
+                        let run = FlameHopMotion.makeRun(seed: seed, kind: kind, index: 0,
+                                                        at: 0, from: anchor, size: size)
+                        for tick in 0...20 {
+                            let point = FlameHopMotion.fieldPosition(run.position(at: run.duration * Double(tick) / 20), size: size)
+                            #expect(point.x >= 0 && point.x <= size.width)
+                            #expect(point.y >= 0 && point.y <= size.height)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test("먼지는 공중이 아닌 착지 구간에만 보인다")
+    func dustFollowsLanding() {
+        #expect(sample(time: 0.66 * 0.42).dustOpacity == 0)
+        let landing = sample(time: 0.66 * 0.86)
+        #expect(landing.dustOpacity > 0 && landing.dustOpacity < 0.24)
+        #expect(sample(time: 2).dustOpacity == 0)
+    }
+
+    private func sample(time: Double) -> FlameHopPose {
+        let run = FlameHopRun(kind: .joy, startedAt: 0, from: CGPoint(x: 0.5, y: 0.5),
+                              to: CGPoint(x: 0.58, y: 0.52), stepDuration: 0.66, steps: 2)
+        return FlameHopMotion.sample(run: run, time: time, size: field, restingAt: run.from,
+                                     restingSince: 0, facing: 1, seed: 0, kind: .joy, reduceMotion: false)
     }
 
     private func distance(_ first: CGPoint, _ second: CGPoint) -> CGFloat {
