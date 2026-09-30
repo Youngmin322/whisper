@@ -52,10 +52,14 @@ struct FlameHomeScreen: View {
             if records.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
-                    Text("아직 오늘의 불꽃이 없어요")
+                    Text(recordStore.journal(on: .now) == nil
+                         ? "아직 오늘의 불꽃이 없어요"
+                         : "오늘의 불꽃을 병에 담았어요")
                         .font(.whisperHandwriting(24))
                         .foregroundStyle(Color.whisperTextPrimary)
-                    Text("떠오른 순간 하나를 남겨보세요")
+                    Text(recordStore.journal(on: .now) == nil
+                         ? "떠오른 순간 하나를 남겨보세요"
+                         : "새로운 순간이 떠오르면 또 남겨보세요")
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                     Spacer()
@@ -118,6 +122,9 @@ struct FlameHomeScreen: View {
             }
         }
         .onChange(of: records.count) { _, _ in proposeCollectionIfNeeded() }
+        .onChange(of: isJournalPresented) { _, presented in
+            if !presented { collectionStartedAt = nil }
+        }
         .onChange(of: isRecording) { _, recording in
             if !recording { proposeCollectionIfNeeded() }
         }
@@ -184,7 +191,6 @@ struct FlameHomeScreen: View {
                 try? await Task.sleep(for: .milliseconds(820))
             }
             isJournalPresented = true
-            collectionStartedAt = nil
         }
     }
 }

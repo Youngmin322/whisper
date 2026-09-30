@@ -68,6 +68,16 @@ final class RecordStore {
         journals.first { calendar.isDate($0.date, inSameDayAs: date) }
     }
 
+    func uncollectedMoments(on date: Date, calendar: Calendar = .current) -> [WhisperRecord] {
+        let collectedIDs = Set(journals.flatMap(\.sourceRecordIDs))
+        return records
+            .filter {
+                calendar.isDate($0.createdAt, inSameDayAs: date)
+                    && !collectedIDs.contains($0.id)
+            }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
     @discardableResult
     func saveJournal(
         on date: Date,

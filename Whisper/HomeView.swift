@@ -48,9 +48,7 @@ struct HomeView: View {
     }
 
     private var todayMoments: [WhisperRecord] {
-        recordStore.records
-            .filter { Calendar.current.isDateInToday($0.createdAt) }
-            .sorted { $0.createdAt < $1.createdAt }
+        recordStore.uncollectedMoments(on: .now)
     }
 
     private func candidateCard(_ candidate: CommitmentCandidate) -> some View {
