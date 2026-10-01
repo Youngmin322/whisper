@@ -15,8 +15,14 @@ struct QuickRecordView: View {
     @State private var isSaveErrorPresented = false
     @State private var isDiscardConfirmationPresented = false
     @State private var isOptionalDetailsExpanded = false
-    @State private var isPhotoLoading = false
+    @State private var photoLoader: PhotoAttachmentLoader
     let onSave: () -> Bool
+
+    init(draft: Binding<RecordDraft>, onSave: @escaping () -> Bool) {
+        _draft = draft
+        self.onSave = onSave
+        _photoLoader = State(initialValue: PhotoAttachmentLoader(photoData: draft.wrappedValue.photoData))
+    }
 
     var body: some View {
         NavigationStack {
@@ -38,7 +44,7 @@ struct QuickRecordView: View {
                 if draft.emotion != nil {
                     Button("순간 저장", action: save)
                         .buttonStyle(.whisperPrimary(size: .compact))
-                        .disabled(!draft.canSaveNewMoment || isPhotoLoading)
+                        .disabled(!draft.canSaveNewMoment || photoLoader.isLoading)
                         .accessibilityIdentifier("record.saveButton")
                         .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                         .padding(.vertical, WhisperSpacing.xSmall)
@@ -46,6 +52,8 @@ struct QuickRecordView: View {
                 }
             }
         }
+        .onChange(of: photoLoader.photoData) { _, data in draft.photoData = data }
+        .onDisappear { photoLoader.cancelLoading() }
         .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("다시 시도", action: save)
             Button("계속 작성", role: .cancel) {}
@@ -58,6 +66,7 @@ struct QuickRecordView: View {
             titleVisibility: .visible
         ) {
             Button("작성 취소", role: .destructive) {
+                photoLoader.replacePhoto(with: nil)
                 draft = RecordDraft()
                 dismiss()
             }
@@ -290,6 +299,9 @@ struct QuickRecordView: View {
                     }
                     detailActionCopy
                     Spacer()
+                    if photoLoader.isLoading {
+                        ProgressView().accessibilityLabel("사진을 불러오는 중이에요")
+                    }
                 }
                 .font(.whisperControl)
                 .foregroundStyle(Color.whisperTextSecondary)
@@ -308,9 +320,7 @@ struct QuickRecordView: View {
 
     private var optionalDetails: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            PhotoAttachmentEditor(photoData: $draft.photoData) { isLoading in
-                isPhotoLoading = isLoading
-            }
+            PhotoAttachmentEditor(loader: photoLoader)
 
             Text("제목 · 선택 사항")
                 .font(.whisperFieldLabel)
@@ -360,7 +370,8 @@ struct QuickRecordView: View {
     }
 
     private func save() {
-        guard draft.canSaveNewMoment && !isPhotoLoading else { return }
+        guard draft.canSaveNewMoment && !photoLoader.isLoading else { return }
+        draft.photoData = photoLoader.photoData
         if onSave() {
             dismiss()
         } else {

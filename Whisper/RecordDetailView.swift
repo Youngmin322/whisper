@@ -21,7 +21,7 @@ struct RecordDetailView: View {
     @State private var isPersistenceErrorPresented = false
     @State private var isReminderErrorPresented = false
     @State private var selectedEmotion: String?
-    @State private var photoData: Data?
+    @State private var photoLoader: PhotoAttachmentLoader
     @State private var isEmotionPickerPresented = false
     @State private var isReleaseEncounterConfirmationPresented = false
     @State private var didProcessReminderEncounter = false
@@ -54,7 +54,7 @@ struct RecordDetailView: View {
             )
         )
         _selectedEmotion = State(initialValue: record.emotion)
-        _photoData = State(initialValue: record.photoData)
+        _photoLoader = State(initialValue: PhotoAttachmentLoader(photoData: record.photoData))
     }
 
     var body: some View {
@@ -90,7 +90,7 @@ struct RecordDetailView: View {
             ToolbarItem(placement: .confirmationAction) {
                 if isEditing {
                     Button("저장", action: saveChanges)
-                        .disabled(!draft.canSave)
+                        .disabled(!draft.canSave || photoLoader.isLoading)
                 } else {
                     Menu {
                         Button("수정", systemImage: "pencil", action: startEditing)
@@ -166,6 +166,7 @@ struct RecordDetailView: View {
             pauseDatePicker
                 .presentationDetents([.large])
         }
+        .onDisappear { photoLoader.cancelLoading() }
         .task(id: reminderEncounterID) {
             processReminderEncounterIfNeeded()
         }
@@ -364,7 +365,7 @@ struct RecordDetailView: View {
             .buttonStyle(.plain)
 
             fieldLabel("사진")
-            PhotoAttachmentEditor(photoData: $photoData)
+            PhotoAttachmentEditor(loader: photoLoader)
         }
     }
 
@@ -677,16 +678,17 @@ struct RecordDetailView: View {
     private func resetDraft() {
         draft = RecordDraft(title: record.title, content: record.content)
         selectedEmotion = record.emotion
-        photoData = record.photoData
+        photoLoader.replacePhoto(with: record.photoData)
     }
 
     private func saveChanges() {
+        guard draft.canSave, !photoLoader.isLoading else { return }
         let didSave = recordStore.update(
             record,
             title: draft.titleForSaving,
             content: draft.contentForSaving,
             emotion: selectedEmotion,
-            photoData: photoData
+            photoData: photoLoader.photoData
         )
 
         if didSave {

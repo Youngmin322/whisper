@@ -6,29 +6,22 @@
 import SwiftUI
 import PhotosUI
 import ImageIO
-import OSLog
 import UIKit
 import UniformTypeIdentifiers
 import WhisperDesignSystem
 
 struct PhotoAttachmentEditor: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Binding var photoData: Data?
-    let onLoadingChange: (Bool) -> Void
-    @State private var selectedItem: PhotosPickerItem?
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var photoLoadTask: Task<Void, Never>?
-    @State private var photoLoadGeneration = UUID()
+    @Bindable var loader: PhotoAttachmentLoader
 
-    init(photoData: Binding<Data?>, onLoadingChange: @escaping (Bool) -> Void = { _ in }) {
-        _photoData = photoData
-        self.onLoadingChange = onLoadingChange
+    private var selection: Binding<PhotosPickerItem?> {
+        Binding(get: { loader.selectedItem }, set: { loader.select($0) })
     }
 
     var body: some View {
+        let isLoading = loader.isLoading
         Group {
-            if let photoData, let image = UIImage(data: photoData) {
+            if let photoData = loader.photoData, let image = UIImage(data: photoData) {
                 VStack(spacing: 10) {
                     Image(uiImage: image)
                         .resizable()
@@ -42,6 +35,11 @@ struct PhotoAttachmentEditor: View {
                             )
                         )
 
+                    if isLoading {
+                        ProgressView("사진을 불러오는 중이에요")
+                            .font(.whisperCaption)
+                    }
+
                     if dynamicTypeSize.isAccessibilitySize {
                         VStack(spacing: 10) { photoActions }
                     } else {
@@ -49,7 +47,7 @@ struct PhotoAttachmentEditor: View {
                     }
                 }
             } else {
-                PhotosPicker(selection: $selectedItem, matching: .images) {
+                PhotosPicker(selection: selection, matching: .images) {
                     HStack {
                         Label("사진 추가", systemImage: "photo")
                             .font(.whisperControl)
@@ -73,108 +71,37 @@ struct PhotoAttachmentEditor: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .disabled(isLoading)
+                .disabled(loader.isLoading)
             }
-        }
-        .onChange(of: selectedItem) { _, newItem in
-            guard let newItem else { return }
-            photoLoadTask?.cancel()
-            let generation = UUID()
-            photoLoadGeneration = generation
-            photoLoadTask = Task {
-                await loadPhoto(from: newItem, generation: generation)
-            }
-        }
-        .onChange(of: isLoading) { _, newValue in
-            onLoadingChange(newValue)
-        }
-        .onDisappear {
-            photoLoadTask?.cancel()
-            photoLoadGeneration = UUID()
-            isLoading = false
-            onLoadingChange(false)
         }
         .alert(
             "사진을 불러올 수 없어요",
             isPresented: Binding(
-                get: { errorMessage != nil },
-                set: { if !$0 { errorMessage = nil } }
+                get: { loader.errorMessage != nil },
+                set: { if !$0 { loader.dismissError() } }
             )
         ) {
             Button("확인", role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
+            Text(loader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
         }
     }
 
     @ViewBuilder
     private var photoActions: some View {
-        PhotosPicker(selection: $selectedItem, matching: .images) {
+        PhotosPicker(selection: selection, matching: .images) {
             Label("사진 바꾸기", systemImage: "photo")
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
 
         Button(role: .destructive) {
-            photoLoadTask?.cancel()
-            photoLoadGeneration = UUID()
-            isLoading = false
-            photoData = nil
-            selectedItem = nil
+            loader.replacePhoto(with: nil)
         } label: {
             Label("삭제", systemImage: "trash")
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
-    }
-
-    private func loadPhoto(from item: PhotosPickerItem, generation: UUID) async {
-        isLoading = true
-        defer {
-            if photoLoadGeneration == generation {
-                isLoading = false
-            }
-        }
-
-        do {
-            guard let originalData = try await item.loadTransferable(type: Data.self) else {
-                if photoLoadGeneration == generation {
-                    errorMessage = "지원하지 않는 사진 형식이에요."
-                }
-                return
-            }
-
-            let processingTask = Task.detached(priority: .userInitiated) {
-                PhotoAttachmentProcessor.optimizedData(from: originalData)
-            }
-            let optimizedData = await withTaskCancellationHandler {
-                await processingTask.value
-            } onCancel: {
-                processingTask.cancel()
-            }
-            try Task.checkCancellation()
-            guard photoLoadGeneration == generation else { return }
-
-            guard let optimizedData else {
-                errorMessage = originalData.count > PhotoAttachmentProcessor.maximumInputByteCount
-                    ? "사진 파일이 너무 커요. 다른 사진으로 다시 시도해 주세요."
-                    : "지원하지 않는 사진 형식이에요."
-                return
-            }
-
-            photoData = optimizedData
-            selectedItem = nil
-        } catch is CancellationError {
-            return
-        } catch {
-            let nsError = error as NSError
-            WhisperDiagnostics.photoLogger.error(
-                "Photo loading failed domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public)"
-            )
-            if photoLoadGeneration == generation {
-                errorMessage = error.localizedDescription
-            }
-        }
     }
 }
 
@@ -251,10 +178,10 @@ enum PhotoAttachmentProcessor {
 }
 
 private struct PhotoAttachmentPreview: View {
-    @State private var photoData: Data?
+    @State private var loader = PhotoAttachmentLoader()
 
     var body: some View {
-        PhotoAttachmentEditor(photoData: $photoData)
+        PhotoAttachmentEditor(loader: loader)
             .padding()
     }
 }
