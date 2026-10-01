@@ -1,7 +1,7 @@
 import Foundation
 
 /// The civil day and time zone captured when a journal is opened or collected.
-struct JournalDay: Equatable {
+struct JournalDay: Codable, Equatable {
     let key: String
     let calendar: Calendar
     let date: Date

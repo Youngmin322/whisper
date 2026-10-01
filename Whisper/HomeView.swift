@@ -19,6 +19,11 @@ struct HomeView: View {
     @State private var isCandidatePresented = false
     @State private var today = JournalDay(date: .now)
     @State private var dayRefreshID = UUID()
+    @State private var isDraftListPresented = false
+    @State private var pendingMomentDraft: RecordDraft?
+    @State private var pendingJournalDraft: JournalWritingDraft?
+    @State private var resumedJournalDraft: JournalWritingDraft?
+    @State private var isResumedJournalPresented = false
 
     var body: some View {
         FlameHomeScreen(
@@ -26,9 +31,29 @@ struct HomeView: View {
             records: todayMoments,
             recordStore: recordStore,
             isRecording: isQuickRecordPresented || isCandidatePresented,
-            onAddMoment: { isQuickRecordPresented = true },
+            onAddMoment: openMoment,
             onOpenCollection: onOpenCollection
         )
+        .safeAreaInset(edge: .top) {
+            if recordStore.writingDraftStore.count > 0 || recordStore.writingDraftStore.errorMessage != nil {
+                Button { isDraftListPresented = true } label: {
+                    HStack {
+                        Image(systemName: "square.and.pencil")
+                        Text("작성 중인 기록 이어 쓰기 · \(recordStore.writingDraftStore.count)")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                    .font(.whisperControl)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .padding(WhisperSpacing.medium)
+                    .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
+                }
+                .accessibilityIdentifier("home.resumeDraftsButton")
+                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
+                .padding(.vertical, WhisperSpacing.xSmall)
+                .background(Color.whisperBackground)
+            }
+        }
         .task(id: dayRefreshID) {
             while !Task.isCancelled {
                 refreshDay(reschedule: false)
@@ -45,10 +70,23 @@ struct HomeView: View {
         .sheet(isPresented: $isQuickRecordPresented, onDismiss: presentPendingCommitmentCandidateIfPossible) {
             QuickRecordView(
                 draft: $recordDraft,
+                draftStore: recordStore.writingDraftStore,
                 onSave: { saveDraft() }
             )
             .presentationDetents([.large])
-            .interactiveDismissDisabled(recordDraft.hasChanges)
+            .interactiveDismissDisabled(recordStore.writingDraftStore.errorMessage != nil)
+        }
+        .sheet(isPresented: $isDraftListPresented, onDismiss: openSelectedDraft) {
+            WritingDraftListView(draftStore: recordStore.writingDraftStore, onOpenMoment: { draft in
+                pendingMomentDraft = draft
+                isDraftListPresented = false
+            }, onOpenJournal: { draft in
+                pendingJournalDraft = draft
+                isDraftListPresented = false
+            })
+        }
+        .navigationDestination(isPresented: $isResumedJournalPresented) {
+            if let resumedJournalDraft { JournalEditorView(draft: resumedJournalDraft, recordStore: recordStore) }
         }
         .sheet(isPresented: $isCandidatePresented, onDismiss: dismissCandidate) {
             if let candidate = presentedCommitmentCandidate {
@@ -66,6 +104,23 @@ struct HomeView: View {
 
     private var todayMoments: [WhisperRecord] {
         recordStore.uncollectedMoments(on: today)
+    }
+
+    private func openMoment() {
+        recordDraft = recordStore.writingDraftStore.momentDraft ?? RecordDraft()
+        isQuickRecordPresented = true
+    }
+
+    private func openSelectedDraft() {
+        if let journal = pendingJournalDraft {
+            pendingJournalDraft = nil
+            resumedJournalDraft = journal
+            isResumedJournalPresented = true
+        } else if let moment = pendingMomentDraft {
+            pendingMomentDraft = nil
+            recordDraft = moment
+            isQuickRecordPresented = true
+        }
     }
 
     private func refreshDay(reschedule: Bool = true) {
@@ -112,12 +167,7 @@ struct HomeView: View {
         let content = recordDraft.contentForSaving
         let existingCommitments = recordStore.activeCommitmentSnapshots
 
-        guard let savedRecord = recordStore.addAndReturn(
-            title: title,
-            content: content,
-            emotion: recordDraft.emotion,
-            photoData: recordDraft.photoData
-        ) else {
+        guard let savedRecord = recordStore.saveMomentDraft(recordDraft) else {
             return false
         }
 

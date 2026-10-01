@@ -6,13 +6,12 @@ struct JournalEditorView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let recordStore: RecordStore
-    @State private var day: JournalDay
-    @State private var existingJournalID: UUID?
-    @State private var title: String
-    @State private var bodyText: String
-    @State private var sourceRecordIDs: [UUID]
-    @State private var representativeEmotion: String?
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var draft: JournalWritingDraft
     @State private var isSaveErrorPresented = false
+    @State private var isDiscardConfirmationPresented = false
+    @State private var isDraftErrorPresented = false
+    @State private var didFinish = false
 
     init(date: Date, recordStore: RecordStore) {
         self.init(day: JournalDay(date: date), recordStore: recordStore)
@@ -25,23 +24,20 @@ struct JournalEditorView: View {
     init(day: JournalDay, recordStore: RecordStore, existing: DailyJournal? = nil) {
         self.recordStore = recordStore
         let journal = existing ?? recordStore.journal(on: day)
-        _day = State(initialValue: day)
-        _existingJournalID = State(initialValue: journal?.id)
-        let draft = JournalDraftComposer.compose(
-            on: day,
-            records: recordStore.records,
-            existing: journal
-        )
-        _title = State(initialValue: draft.title)
-        _bodyText = State(initialValue: draft.body)
-        _sourceRecordIDs = State(initialValue: draft.sourceRecordIDs)
-        _representativeEmotion = State(initialValue: draft.representativeEmotion)
+        let restored = recordStore.writingDraftStore.journalDraft(on: day, existingJournalID: journal?.id)
+        let value = restored ?? JournalWritingDraft(day: day, existing: journal, records: recordStore.records)
+        _draft = State(initialValue: value.includingNewMoments(from: recordStore.records))
+    }
+
+    init(draft: JournalWritingDraft, recordStore: RecordStore) {
+        self.recordStore = recordStore
+        _draft = State(initialValue: draft.includingNewMoments(from: recordStore.records))
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text(day.fullDescription)
+                Text(draft.day.fullDescription)
                     .font(.whisperControl)
                     .foregroundStyle(Color.whisperTextSecondary)
 
@@ -55,6 +51,7 @@ struct JournalEditorView: View {
                     .accessibilityHidden(true)
                 }
 
+                WritingDraftErrorView(message: recordStore.writingDraftStore.errorMessage) { persistDraft() }
                 writingSection
             }
             .padding(.horizontal, 30)
@@ -67,10 +64,43 @@ struct JournalEditorView: View {
         .background(Color.whisperBackground)
         .navigationTitle("나의 하루")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("닫기", action: close).accessibilityIdentifier("journal.closeButton")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("초안 버리기", role: .destructive) { isDiscardConfirmationPresented = true }
+                    .accessibilityIdentifier("journal.discardDraftButton")
+            }
+        }
+        .onAppear { persistDraft() }
+        .onChange(of: draft) { _, _ in persistDraft() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { persistDraft() }
+        }
+        .onDisappear { persistDraft() }
+        .confirmationDialog("작성 중인 일기 초안을 버릴까요?", isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
+            Button("초안 버리기", role: .destructive) {
+                guard recordStore.writingDraftStore.discard(id: draft.id) else {
+                    isDraftErrorPresented = true
+                    return
+                }
+                didFinish = true
+                dismiss()
+            }
+            Button("계속 작성", role: .cancel) {}
+        } message: {
+            Text("이미 저장한 일기와 원본 순간은 그대로 남아요.")
+        }
+        .alert("초안을 보관할 수 없어요", isPresented: $isDraftErrorPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("작성한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.")
+        }
         .safeAreaInset(edge: .bottom) {
             Button("일기 저장", action: save)
                 .buttonStyle(.whisperPrimary)
-                .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("journal.saveButton")
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.vertical, WhisperSpacing.small)
@@ -87,7 +117,7 @@ struct JournalEditorView: View {
 
     private var writingSection: some View {
         VStack(alignment: .leading, spacing: 18) {
-            TextEditor(text: $bodyText)
+            TextEditor(text: $draft.body)
                 .font(.custom("NotoSansKR-Thin", size: 17, relativeTo: .body))
                 .foregroundStyle(Color.whisperTextPrimary)
                 .lineSpacing(18)
@@ -104,7 +134,7 @@ struct JournalEditorView: View {
                     }
                 }
                 .overlay(alignment: .topLeading) {
-                    if bodyText.isEmpty {
+                    if draft.body.isEmpty {
                         Text("오늘을 돌아보며 적어보세요.")
                             .font(.whisperBodyLarge)
                             .foregroundStyle(Color.whisperTextSecondary)
@@ -126,7 +156,7 @@ struct JournalEditorView: View {
 
             Text("제목 · 선택 사항")
                 .font(.whisperControl)
-            TextField("이 하루를 알아볼 짧은 이름", text: $title)
+            TextField("이 하루를 알아볼 짧은 이름", text: $draft.title)
                 .font(.whisperBodyLarge)
                 .padding(WhisperSpacing.medium)
                 .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
@@ -136,13 +166,13 @@ struct JournalEditorView: View {
                 }
                 .accessibilityIdentifier("journal.titleField")
 
-            if existingJournalID != nil || !moments.isEmpty {
+            if draft.existingJournalID != nil || !moments.isEmpty {
                 Menu {
                     ForEach(WhisperEmotion.selectableCases) { emotion in
-                        Button(emotion.rawValue) { representativeEmotion = emotion.rawValue }
+                        Button(emotion.rawValue) { draft.representativeEmotion = emotion.rawValue }
                     }
                 } label: {
-                    Text("대표 감정 · \(representativeEmotion ?? "선택 안 함")")
+                    Text("대표 감정 · \(draft.representativeEmotion ?? "선택 안 함")")
                         .font(.whisperControl)
                         .foregroundStyle(Color.whisperTextSecondary)
                 }
@@ -151,22 +181,27 @@ struct JournalEditorView: View {
     }
 
     private var moments: [WhisperRecord] {
-        recordStore.records.filter { day.contains($0.createdAt) }
+        recordStore.records.filter { draft.day.contains($0.createdAt) }
             .sorted { $0.createdAt < $1.createdAt }
     }
 
+    @discardableResult
+    private func persistDraft() -> Bool {
+        didFinish || recordStore.writingDraftStore.save(draft)
+    }
+
+    private func close() {
+        guard persistDraft() else { isDraftErrorPresented = true; return }
+        didFinish = true
+        dismiss()
+    }
+
     private func save() {
-        guard recordStore.saveJournal(
-            on: day,
-            existingJournalID: existingJournalID,
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            body: bodyText,
-            sourceRecordIDs: sourceRecordIDs,
-            emotion: representativeEmotion
-        ) != nil else {
+        guard recordStore.saveJournalDraft(draft) != nil else {
             isSaveErrorPresented = true
             return
         }
+        didFinish = true
         dismiss()
     }
 }

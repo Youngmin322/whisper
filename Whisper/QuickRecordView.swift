@@ -10,17 +10,22 @@ import WhisperDesignSystem
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var draft: RecordDraft
     @FocusState private var isContentFocused: Bool
     @State private var isSaveErrorPresented = false
     @State private var isDiscardConfirmationPresented = false
     @State private var isOptionalDetailsExpanded = false
     @State private var photoLoader: PhotoAttachmentLoader
+    @State private var didFinish = false
+    @State private var isDraftErrorPresented = false
+    let draftStore: WritingDraftStore
     let onSave: () -> Bool
 
-    init(draft: Binding<RecordDraft>, onSave: @escaping () -> Bool) {
+    init(draft: Binding<RecordDraft>, draftStore: WritingDraftStore, onSave: @escaping () -> Bool) {
         _draft = draft
         self.onSave = onSave
+        self.draftStore = draftStore
         _photoLoader = State(initialValue: PhotoAttachmentLoader(photoData: draft.wrappedValue.photoData))
     }
 
@@ -37,7 +42,12 @@ struct QuickRecordView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("취소", action: cancel)
+                    Button("닫기", action: close)
+                        .accessibilityIdentifier("record.closeButton")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("초안 버리기", role: .destructive) { isDiscardConfirmationPresented = true }
+                        .accessibilityIdentifier("record.discardDraftButton")
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -52,8 +62,26 @@ struct QuickRecordView: View {
                 }
             }
         }
-        .onChange(of: photoLoader.photoData) { _, data in draft.photoData = data }
-        .onDisappear { photoLoader.cancelLoading() }
+        .onAppear { persistDraft() }
+        .onChange(of: draft) { _, _ in persistDraft() }
+        .onChange(of: photoLoader.photoData) { _, data in
+            if !didFinish { draft.photoData = data }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { persistDraft() }
+        }
+        .onDisappear {
+            if !didFinish {
+                draft.photoData = photoLoader.photoData
+                persistDraft()
+            }
+            photoLoader.cancelLoading()
+        }
+        .alert("초안을 보관할 수 없어요", isPresented: $isDraftErrorPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("작성한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.")
+        }
         .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("다시 시도", action: save)
             Button("계속 작성", role: .cancel) {}
@@ -65,7 +93,12 @@ struct QuickRecordView: View {
             isPresented: $isDiscardConfirmationPresented,
             titleVisibility: .visible
         ) {
-            Button("작성 취소", role: .destructive) {
+            Button("초안 버리기", role: .destructive) {
+                guard draftStore.discard(id: draft.id) else {
+                    isDraftErrorPresented = true
+                    return
+                }
+                didFinish = true
                 photoLoader.replacePhoto(with: nil)
                 draft = RecordDraft()
                 dismiss()
@@ -78,6 +111,7 @@ struct QuickRecordView: View {
 
     private var formContent: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
+            WritingDraftErrorView(message: draftStore.errorMessage) { persistDraft() }
             Text(Date.now.whisperFullDayDescription)
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperTextSecondary)
@@ -361,30 +395,39 @@ struct QuickRecordView: View {
         }
     }
 
-    private func cancel() {
-        if draft.hasChanges {
-            isDiscardConfirmationPresented = true
-        } else {
-            dismiss()
-        }
+    @discardableResult
+    private func persistDraft() -> Bool {
+        guard !didFinish else { return true }
+        if draft.photoData != photoLoader.photoData { draft.photoData = photoLoader.photoData }
+        return draftStore.save(draft)
+    }
+
+    private func close() {
+        draft.photoData = photoLoader.photoData
+        guard persistDraft() else { isDraftErrorPresented = true; return }
+        didFinish = true
+        dismiss()
     }
 
     private func save() {
         guard draft.canSaveNewMoment && !photoLoader.isLoading else { return }
         draft.photoData = photoLoader.photoData
+        didFinish = true
         if onSave() {
             dismiss()
         } else {
+            didFinish = false
             isSaveErrorPresented = true
         }
     }
 }
 
 private struct QuickRecordPreview: View {
+    private let store = RecordStore(isStoredInMemoryOnly: true)
     @State private var draft = RecordDraft()
 
     var body: some View {
-        QuickRecordView(draft: $draft, onSave: { true })
+        QuickRecordView(draft: $draft, draftStore: store.writingDraftStore, onSave: { true })
     }
 }
 

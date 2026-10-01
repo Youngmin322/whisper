@@ -794,6 +794,31 @@ enum WhisperSchemaV5: VersionedSchema {
     }
 }
 
+enum WhisperSchemaV6: VersionedSchema {
+    static let versionIdentifier = Schema.Version(6, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        WhisperSchemaV5.models + [WritingDraft.self]
+    }
+
+    @Model
+    final class WritingDraft {
+        @Attribute(.unique) var id: UUID
+        @Attribute(.unique) var storageKey: String
+        var payload: Data
+        @Attribute(.externalStorage) var photoData: Data?
+        var updatedAt: Date
+
+        init(id: UUID, storageKey: String, payload: Data, photoData: Data? = nil) {
+            self.id = id
+            self.storageKey = storageKey
+            self.payload = payload
+            self.photoData = photoData
+            updatedAt = .now
+        }
+    }
+}
+
 enum WhisperMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
@@ -803,7 +828,8 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             WhisperSchemaV2.self,
             WhisperSchemaV3.self,
             WhisperSchemaV4.self,
-            WhisperSchemaV5.self
+            WhisperSchemaV5.self,
+            WhisperSchemaV6.self
         ]
     }
 
@@ -876,6 +902,10 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: WhisperSchemaV4.self,
                 toVersion: WhisperSchemaV5.self
+            ),
+            .lightweight(
+                fromVersion: WhisperSchemaV5.self,
+                toVersion: WhisperSchemaV6.self
             )
         ]
     }
@@ -886,3 +916,4 @@ typealias WhisperCommitment = WhisperSchemaV4.WhisperCommitment
 typealias ReminderEncounter = WhisperSchemaV4.ReminderEncounter
 typealias NotificationDaySlot = WhisperSchemaV4.NotificationDaySlot
 typealias DailyJournal = WhisperSchemaV5.DailyJournal
+typealias WritingDraft = WhisperSchemaV6.WritingDraft

@@ -13,9 +13,10 @@ enum RecordWritingCopy {
     static let contentExample = "기억하고 싶은 일을 적어보세요."
 }
 
-struct RecordDraft {
+struct RecordDraft: Codable, Equatable, Identifiable {
     static let contentLimit = 1_000
 
+    var id = UUID()
     var title = ""
     var content = ""
     var emotion: String?

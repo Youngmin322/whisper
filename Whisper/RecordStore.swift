@@ -26,28 +26,34 @@ final class RecordStore {
     private(set) var persistenceSupportCode: String?
     private(set) var persistenceDiagnosticSummary: String?
     private(set) var isPersistenceAvailable = true
+    let writingDraftStore: WritingDraftStore
 
     @ObservationIgnored private let modelContainer: ModelContainer?
     @ObservationIgnored private let modelContext: ModelContext?
+    @ObservationIgnored private let persist: (ModelContext) throws -> Void
     @ObservationIgnored private let legacyStorageKey = "whisper.records"
 
-    init(isStoredInMemoryOnly: Bool = false) {
-        let configuration = ModelConfiguration(
+    init(isStoredInMemoryOnly: Bool = false, configuration: ModelConfiguration? = nil,
+         persist: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+        self.persist = persist
+        let storageConfiguration = configuration ?? ModelConfiguration(
             isStoredInMemoryOnly: isStoredInMemoryOnly
         )
 
         do {
-            let schema = Schema(versionedSchema: WhisperSchemaV5.self)
+            let schema = Schema(versionedSchema: WhisperSchemaV6.self)
             let container = try ModelContainer(
                 for: schema,
                 migrationPlan: WhisperMigrationPlan.self,
-                configurations: configuration
+                configurations: storageConfiguration
             )
             modelContainer = container
             modelContext = container.mainContext
+            writingDraftStore = WritingDraftStore(context: container.mainContext, persist: persist)
         } catch {
             modelContainer = nil
             modelContext = nil
+            writingDraftStore = WritingDraftStore(context: nil)
             isPersistenceAvailable = false
             recordPersistenceError(error, operation: "model-container-initialization")
             return
@@ -55,7 +61,7 @@ final class RecordStore {
 
         reload()
 
-        if !isStoredInMemoryOnly {
+        if !isStoredInMemoryOnly && configuration == nil {
             migrateLegacyRecordsIfNeeded()
         }
     }
@@ -109,7 +115,8 @@ final class RecordStore {
         title: String,
         body: String,
         sourceRecordIDs: [UUID],
-        emotion: String? = nil
+        emotion: String? = nil,
+        writingDraftID: UUID? = nil
     ) -> DailyJournal? {
         guard let modelContext else {
             setUnavailablePersistenceError()
@@ -136,6 +143,7 @@ final class RecordStore {
             if let emotion { existing.emotion = emotion }
         } else {
             let journal = DailyJournal(
+                id: writingDraftID ?? UUID(),
                 dayKey: day.key,
                 date: day.date,
                 title: title,
@@ -147,8 +155,34 @@ final class RecordStore {
             savedID = journal.id
             modelContext.insert(journal)
         }
+        if let writingDraftID { writingDraftStore.stageCompletion(of: writingDraftID) }
         guard saveChanges(reloadAfterSave: true) else { return nil }
+        if let writingDraftID { writingDraftStore.didComplete(id: writingDraftID) }
         return journals.first { $0.id == savedID }
+    }
+
+    @discardableResult
+    func saveJournalDraft(_ draft: JournalWritingDraft) -> DailyJournal? {
+        guard !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              writingDraftStore.save(draft) else { return nil }
+        return saveJournal(on: draft.day, existingJournalID: draft.existingJournalID,
+                           title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines), body: draft.body,
+                           sourceRecordIDs: draft.sourceRecordIDs, emotion: draft.representativeEmotion,
+                           writingDraftID: draft.id)
+    }
+
+    @discardableResult
+    func saveMomentDraft(_ draft: RecordDraft) -> WhisperRecord? {
+        guard draft.canSaveNewMoment, let modelContext, writingDraftStore.save(draft) else { return nil }
+        if record(withID: draft.id) == nil {
+            modelContext.insert(WhisperRecord(id: draft.id, title: draft.titleForSaving,
+                                             content: draft.contentForSaving, createdAt: .now,
+                                             emotion: draft.emotion, photoData: draft.photoData))
+        }
+        writingDraftStore.stageCompletion(of: draft.id)
+        guard saveChanges(reloadAfterSave: true) else { return nil }
+        writingDraftStore.didComplete(id: draft.id)
+        return record(withID: draft.id)
     }
 
     @discardableResult
@@ -1485,7 +1519,7 @@ final class RecordStore {
             return false
         }
         do {
-            try modelContext.save()
+            try persist(modelContext)
             clearPersistenceIssue()
             if reloadAfterSave {
                 reload()
@@ -1500,6 +1534,7 @@ final class RecordStore {
     }
 
     private func reload() {
+        writingDraftStore.reload()
         guard let modelContext else {
             clearCachedModels()
             setUnavailablePersistenceError()

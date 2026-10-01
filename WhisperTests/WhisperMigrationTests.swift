@@ -66,7 +66,7 @@ struct WhisperMigrationTests {
             photoData: photoData
         )
 
-        let currentSchema = Schema(versionedSchema: WhisperSchemaV5.self)
+        let currentSchema = Schema(versionedSchema: WhisperSchemaV6.self)
         let configuration = ModelConfiguration(
             schema: currentSchema,
             url: storeURL,
@@ -225,8 +225,8 @@ struct WhisperMigrationTests {
         #expect(journals.first?.sourceRecordIDs == [recordID])
     }
 
-    @Test("V4 저장소를 V5로 열어도 순간의 UUID 감정 사진과 결심이 보존된다")
-    func migratesV4StoreToV5() throws {
+    @Test("V4 저장소를 현재 스키마로 열어도 순간의 UUID 감정 사진과 결심이 보존된다")
+    func migratesV4StoreToCurrentSchema() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let storeURL = directory.appending(path: "default.store")
@@ -409,7 +409,7 @@ struct WhisperMigrationTests {
     }
 
     private func makeCurrentContainer(at storeURL: URL) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: WhisperSchemaV5.self)
+        let schema = Schema(versionedSchema: WhisperSchemaV6.self)
         let configuration = ModelConfiguration(
             schema: schema,
             url: storeURL,
