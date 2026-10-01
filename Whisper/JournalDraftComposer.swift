@@ -29,7 +29,7 @@ enum JournalDraftComposer {
             title: existing?.title ?? "",
             body: body,
             sourceRecordIDs: existingIDs + newlyAdded.map(\.id),
-            representativeEmotion: representativeEmotion(in: moments) ?? existing?.emotion
+            representativeEmotion: existing == nil ? representativeEmotion(in: moments) : existing?.emotion
         )
     }
 
