@@ -37,7 +37,7 @@ struct JournalMemorySearchView: View {
     }
 
     private var results: [DailyJournal] {
-        let sorted = recordStore.journals.sorted { $0.date > $1.date }
+        let sorted = recordStore.journals.sorted { $0.displayDate > $1.displayDate }
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return sorted }
 
@@ -68,7 +68,7 @@ private struct JournalSearchResultRow: View {
                 .frame(width: 44)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(journal.date.whisperDateDescription)
+                Text(journal.displayDate.whisperDateDescription)
                     .font(.whisperMetadata)
                     .foregroundStyle(Color.whisperAccentText)
 
@@ -85,7 +85,7 @@ private struct JournalSearchResultRow: View {
             .padding(.vertical, 8)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(journal.date.whisperDateDescription), \(displayTitle), \(journal.body)")
+        .accessibilityLabel("\(journal.displayDate.whisperDateDescription), \(displayTitle), \(journal.body)")
     }
 
     private var displayTitle: String {

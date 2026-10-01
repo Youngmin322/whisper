@@ -5,8 +5,9 @@ struct JournalEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    let date: Date
     let recordStore: RecordStore
+    @State private var day: JournalDay
+    @State private var existingJournalID: UUID?
     @State private var title: String
     @State private var bodyText: String
     @State private var sourceRecordIDs: [UUID]
@@ -14,12 +15,22 @@ struct JournalEditorView: View {
     @State private var isSaveErrorPresented = false
 
     init(date: Date, recordStore: RecordStore) {
-        self.date = date
+        self.init(day: JournalDay(date: date), recordStore: recordStore)
+    }
+
+    init(journal: DailyJournal, recordStore: RecordStore) {
+        self.init(day: JournalDay(date: journal.displayDate), recordStore: recordStore, existing: journal)
+    }
+
+    init(day: JournalDay, recordStore: RecordStore, existing: DailyJournal? = nil) {
         self.recordStore = recordStore
+        let journal = existing ?? recordStore.journal(on: day)
+        _day = State(initialValue: day)
+        _existingJournalID = State(initialValue: journal?.id)
         let draft = JournalDraftComposer.compose(
-            on: date,
+            on: day,
             records: recordStore.records,
-            existing: recordStore.journal(on: date)
+            existing: journal
         )
         _title = State(initialValue: draft.title)
         _bodyText = State(initialValue: draft.body)
@@ -30,7 +41,7 @@ struct JournalEditorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text(date.whisperFullDayDescription)
+                Text(day.fullDescription)
                     .font(.whisperControl)
                     .foregroundStyle(Color.whisperTextSecondary)
 
@@ -125,7 +136,7 @@ struct JournalEditorView: View {
                 }
                 .accessibilityIdentifier("journal.titleField")
 
-            if !moments.isEmpty {
+            if existingJournalID != nil || !moments.isEmpty {
                 Menu {
                     ForEach(WhisperEmotion.selectableCases) { emotion in
                         Button(emotion.rawValue) { representativeEmotion = emotion.rawValue }
@@ -140,13 +151,14 @@ struct JournalEditorView: View {
     }
 
     private var moments: [WhisperRecord] {
-        recordStore.records.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: date) }
+        recordStore.records.filter { day.contains($0.createdAt) }
             .sorted { $0.createdAt < $1.createdAt }
     }
 
     private func save() {
         guard recordStore.saveJournal(
-            on: date,
+            on: day,
+            existingJournalID: existingJournalID,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             body: bodyText,
             sourceRecordIDs: sourceRecordIDs,
@@ -171,7 +183,7 @@ struct JournalDetailView: View {
             if let journal {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
-                        Text(journal.date.whisperFullDayDescription)
+                        Text(journal.displayDate.whisperFullDayDescription)
                             .font(.whisperControl)
                             .foregroundStyle(Color.whisperTextSecondary)
 
@@ -235,7 +247,7 @@ struct JournalDetailView: View {
             if let journal {
                 ToolbarItem(placement: .confirmationAction) {
                     NavigationLink("수정") {
-                        JournalEditorView(date: journal.date, recordStore: recordStore)
+                        JournalEditorView(journal: journal, recordStore: recordStore)
                     }
                     .accessibilityLabel("일기 수정")
                 }

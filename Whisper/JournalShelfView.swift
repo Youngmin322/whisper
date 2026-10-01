@@ -179,7 +179,7 @@ struct JournalShelfView: View {
 
     private var monthJournals: [DailyJournal] {
         recordStore.journals.filter {
-            JournalCalendar.calendar.isDate($0.date, equalTo: displayedMonth, toGranularity: .month)
+            JournalCalendar.calendar.isDate($0.displayDate, equalTo: displayedMonth, toGranularity: .month)
         }
     }
 
@@ -188,7 +188,7 @@ struct JournalShelfView: View {
     }
 
     private func journal(on date: Date) -> DailyJournal? {
-        monthJournals.first { JournalCalendar.calendar.isDate($0.date, inSameDayAs: date) }
+        monthJournals.first { JournalCalendar.calendar.isDate($0.displayDate, inSameDayAs: date) }
     }
 
     private func dayNumber(for date: Date) -> String {
@@ -257,12 +257,12 @@ private enum JournalCalendar {
     }
 
     static let weekdaySymbols = ["월", "화", "수", "목", "금", "토", "일"]
-    static let yearStyle = Date.FormatStyle()
-        .locale(Locale(identifier: "ko_KR"))
-        .year()
-    static let monthStyle = Date.FormatStyle()
-        .locale(Locale(identifier: "ko_KR"))
-        .month(.wide)
+    static var yearStyle: Date.FormatStyle {
+        Date.FormatStyle(calendar: calendar).locale(Locale(identifier: "ko_KR")).year()
+    }
+    static var monthStyle: Date.FormatStyle {
+        Date.FormatStyle(calendar: calendar).locale(Locale(identifier: "ko_KR")).month(.wide)
+    }
 
     static func days(in month: Date) -> [JournalCalendarDay] {
         guard let monthInterval = calendar.dateInterval(of: .month, for: month),
@@ -308,7 +308,7 @@ private struct JournalPreviewSheet: View {
                         FlameBottle(emotion: journal.emotion, width: 68)
 
                         VStack(alignment: .leading, spacing: 7) {
-                            Text(journal.date.whisperFullDayDescription)
+                            Text(journal.displayDate.whisperFullDayDescription)
                                 .font(.whisperMetadata)
                                 .foregroundStyle(Color.whisperAccentText)
 
@@ -353,6 +353,6 @@ private struct JournalPreviewSheet: View {
 
     private func displayTitle(for journal: DailyJournal) -> String {
         let title = journal.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? "\(journal.date.whisperDayDescription)의 하루" : title
+        return title.isEmpty ? "\(journal.displayDate.whisperDayDescription)의 하루" : title
     }
 }

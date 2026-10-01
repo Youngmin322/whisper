@@ -8,7 +8,7 @@ import Foundation
 extension Date {
     var whisperDayDescription: String {
         formatted(
-            Date.FormatStyle()
+            Date.FormatStyle(calendar: JournalDayKey.calendar())
                 .locale(Locale(identifier: "ko_KR"))
                 .month(.wide)
                 .day()
@@ -18,7 +18,7 @@ extension Date {
 
     var whisperFullDayDescription: String {
         formatted(
-            Date.FormatStyle()
+            Date.FormatStyle(calendar: JournalDayKey.calendar())
                 .locale(Locale(identifier: "ko_KR"))
                 .year()
                 .month(.wide)
@@ -29,14 +29,14 @@ extension Date {
 
     var whisperRecordHeaderDescription: String {
         let date = formatted(
-            Date.FormatStyle()
+            Date.FormatStyle(calendar: JournalDayKey.calendar())
                 .locale(Locale(identifier: "ko_KR"))
                 .year()
                 .month(.wide)
                 .day()
         )
         let weekday = formatted(
-            Date.FormatStyle()
+            Date.FormatStyle(calendar: JournalDayKey.calendar())
                 .locale(Locale(identifier: "ko_KR"))
                 .weekday(.wide)
         )
@@ -45,7 +45,7 @@ extension Date {
 
     var whisperTimeDescription: String {
         formatted(
-            Date.FormatStyle()
+            Date.FormatStyle(calendar: JournalDayKey.calendar())
                 .locale(Locale(identifier: "ko_KR"))
                 .hour()
                 .minute()
@@ -54,7 +54,7 @@ extension Date {
 
     var whisperDateDescription: String {
         formatted(
-            Date.FormatStyle()
+            Date.FormatStyle(calendar: JournalDayKey.calendar())
                 .locale(Locale(identifier: "ko_KR"))
                 .year()
                 .month(.wide)
@@ -64,7 +64,7 @@ extension Date {
 
     var whisperDateTimeDescription: String {
         formatted(
-            Date.FormatStyle()
+            Date.FormatStyle(calendar: JournalDayKey.calendar())
                 .locale(Locale(identifier: "ko_KR"))
                 .year()
                 .month(.wide)

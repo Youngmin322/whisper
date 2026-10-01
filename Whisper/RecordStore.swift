@@ -65,14 +65,23 @@ final class RecordStore {
     }
 
     func journal(on date: Date, calendar: Calendar = .current) -> DailyJournal? {
-        journals.first { calendar.isDate($0.date, inSameDayAs: date) }
+        journal(on: JournalDay(date: date, calendar: calendar))
+    }
+
+    func journal(on day: JournalDay) -> DailyJournal? {
+        let matches = journals.filter { $0.civilDayKey == day.key }
+        return matches.count == 1 ? matches.first : nil
     }
 
     func uncollectedMoments(on date: Date, calendar: Calendar = .current) -> [WhisperRecord] {
+        uncollectedMoments(on: JournalDay(date: date, calendar: calendar))
+    }
+
+    func uncollectedMoments(on day: JournalDay) -> [WhisperRecord] {
         let collectedIDs = Set(journals.flatMap(\.sourceRecordIDs))
         return records
             .filter {
-                calendar.isDate($0.createdAt, inSameDayAs: date)
+                day.contains($0.createdAt)
                     && !collectedIDs.contains($0.id)
             }
             .sorted { $0.createdAt < $1.createdAt }
@@ -87,31 +96,59 @@ final class RecordStore {
         emotion: String? = nil,
         calendar: Calendar = .current
     ) -> DailyJournal? {
+        saveJournal(
+            on: JournalDay(date: date, calendar: calendar), title: title, body: body,
+            sourceRecordIDs: sourceRecordIDs, emotion: emotion
+        )
+    }
+
+    @discardableResult
+    func saveJournal(
+        on day: JournalDay,
+        existingJournalID: UUID? = nil,
+        title: String,
+        body: String,
+        sourceRecordIDs: [UUID],
+        emotion: String? = nil
+    ) -> DailyJournal? {
         guard let modelContext else {
             setUnavailablePersistenceError()
             return nil
         }
-        let day = calendar.startOfDay(for: date)
-        let key = JournalDayKey.make(for: date, calendar: calendar)
+        let matches = journals.filter { $0.civilDayKey == day.key }
+        let existing: DailyJournal?
+        if let existingJournalID {
+            guard let journal = journals.first(where: { $0.id == existingJournalID }) else { return nil }
+            existing = journal
+        } else {
+            // Never let SwiftData's unique-key upsert replace an unrelated or ambiguous legacy journal.
+            guard matches.count <= 1,
+                  !journals.contains(where: { $0.dayKey == day.key && $0.civilDayKey != day.key })
+            else { return nil }
+            existing = matches.first
+        }
         var seenIDs = Set<UUID>()
         let ids = sourceRecordIDs.filter { seenIDs.insert($0).inserted }
-        let existing = journals.first { $0.dayKey == key }
+        let savedID: UUID
         if let existing {
+            savedID = existing.id
             existing.update(title: title, body: body, sourceRecordIDs: ids)
             if let emotion { existing.emotion = emotion }
         } else {
-            modelContext.insert(DailyJournal(
-                dayKey: key,
-                date: day,
+            let journal = DailyJournal(
+                dayKey: day.key,
+                date: day.date,
                 title: title,
                 body: body,
                 reflection: "",
                 emotion: emotion,
                 sourceRecordIDs: ids
-            ))
+            )
+            savedID = journal.id
+            modelContext.insert(journal)
         }
         guard saveChanges(reloadAfterSave: true) else { return nil }
-        return journals.first { $0.dayKey == key }
+        return journals.first { $0.id == savedID }
     }
 
     @discardableResult
@@ -1493,7 +1530,10 @@ final class RecordStore {
                 FetchDescriptor<DailyJournal>(
                     sortBy: [SortDescriptor(\.date, order: .reverse)]
                 )
-            )
+            ).sorted {
+                if $0.displayDate != $1.displayDate { return $0.displayDate > $1.displayDate }
+                return $0.createdAt > $1.createdAt
+            }
             clearPersistenceIssue()
         } catch {
             clearCachedModels()

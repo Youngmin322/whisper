@@ -7,6 +7,7 @@ import SwiftUI
 import WhisperDesignSystem
 
 struct HomeView: View {
+    @Environment(\.scenePhase) private var scenePhase
     let recordStore: RecordStore
     let onOpenCollection: () -> Void
 
@@ -16,15 +17,31 @@ struct HomeView: View {
     @State private var presentedCommitmentCandidate: CommitmentCandidate?
     @State private var isReminderUnavailablePresented = false
     @State private var isCandidatePresented = false
+    @State private var today = JournalDay(date: .now)
+    @State private var dayRefreshID = UUID()
 
     var body: some View {
         FlameHomeScreen(
+            day: today,
             records: todayMoments,
             recordStore: recordStore,
             isRecording: isQuickRecordPresented || isCandidatePresented,
             onAddMoment: { isQuickRecordPresented = true },
             onOpenCollection: onOpenCollection
         )
+        .task(id: dayRefreshID) {
+            while !Task.isCancelled {
+                refreshDay(reschedule: false)
+                let delay = max(0.01, today.nextBoundary.timeIntervalSinceNow)
+                do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshDay() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in refreshDay() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in refreshDay() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in refreshDay() }
         .sheet(isPresented: $isQuickRecordPresented, onDismiss: presentPendingCommitmentCandidateIfPossible) {
             QuickRecordView(
                 draft: $recordDraft,
@@ -48,7 +65,13 @@ struct HomeView: View {
     }
 
     private var todayMoments: [WhisperRecord] {
-        recordStore.uncollectedMoments(on: .now)
+        recordStore.uncollectedMoments(on: today)
+    }
+
+    private func refreshDay(reschedule: Bool = true) {
+        let current = JournalDay(date: .now)
+        if today != current { today = current }
+        if reschedule { dayRefreshID = UUID() }
     }
 
     private func candidateCard(_ candidate: CommitmentCandidate) -> some View {

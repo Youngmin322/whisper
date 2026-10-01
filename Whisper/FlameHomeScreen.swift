@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FlameHomeScreen: View {
+    let day: JournalDay
     let records: [WhisperRecord]
     let recordStore: RecordStore
     let isRecording: Bool
@@ -15,6 +16,8 @@ struct FlameHomeScreen: View {
     @State private var isJournalPresented = false
     @State private var isSettingsPresented = false
     @State private var collectionStartedAt: Date?
+    @State private var collectionDay: JournalDay?
+    @State private var collectionTask: Task<Void, Never>?
     @State private var isTimeProposalPresented = false
 
     var body: some View {
@@ -32,12 +35,13 @@ struct FlameHomeScreen: View {
                 }
                 .accessibilityLabel("메뉴")
                 .accessibilityIdentifier("home.menuButton")
+                .disabled(collectionStartedAt != nil)
                 Spacer()
             }
             .padding(.horizontal, 21)
             .padding(.top, 8)
 
-            Text(Date.now.formatted(Date.FormatStyle().locale(Locale(identifier: "ko_KR")).month(.wide).day()))
+            Text(day.shortDescription)
                 .font(.whisperHandwriting(27, bold: true))
                 .foregroundStyle(Color.whisperTextPrimary)
                 .padding(.horizontal, 6)
@@ -52,12 +56,12 @@ struct FlameHomeScreen: View {
             if records.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
-                    Text(recordStore.journal(on: .now) == nil
+                    Text(recordStore.journal(on: day) == nil
                          ? "아직 오늘의 불꽃이 없어요"
                          : "오늘의 불꽃을 병에 담았어요")
                         .font(.whisperHandwriting(24))
                         .foregroundStyle(Color.whisperTextPrimary)
-                    Text(recordStore.journal(on: .now) == nil
+                    Text(recordStore.journal(on: day) == nil
                          ? "떠오른 순간 하나를 남겨보세요"
                          : "새로운 순간이 떠오르면 또 남겨보세요")
                         .font(.whisperBody)
@@ -79,6 +83,7 @@ struct FlameHomeScreen: View {
                 Button("+ 순간 남기기", action: onAddMoment)
                     .buttonStyle(HomeMomentButtonStyle())
                     .accessibilityIdentifier("home.recordButton")
+                    .disabled(collectionStartedAt != nil)
 
                 Button(action: collect) {
                     HStack(spacing: 4) {
@@ -106,7 +111,9 @@ struct FlameHomeScreen: View {
             }
         }
         .navigationDestination(isPresented: $isJournalPresented) {
-            JournalEditorView(date: .now, recordStore: recordStore)
+            if let collectionDay {
+                JournalEditorView(day: collectionDay, recordStore: recordStore)
+            }
         }
         .navigationDestination(isPresented: $isSettingsPresented) {
             SettingsView(recordStore: recordStore)
@@ -119,18 +126,29 @@ struct FlameHomeScreen: View {
         .task {
             while !Task.isCancelled {
                 proposeCollectionIfNeeded()
-                try? await Task.sleep(for: .seconds(60))
+                do { try await Task.sleep(for: .seconds(60)) } catch { return }
             }
         }
         .onChange(of: records.count) { _, _ in proposeCollectionIfNeeded() }
         .onChange(of: isJournalPresented) { _, presented in
-            if !presented { collectionStartedAt = nil }
+            if !presented {
+                collectionStartedAt = nil
+                collectionDay = nil
+            }
         }
         .onChange(of: isRecording) { _, recording in
             if !recording { proposeCollectionIfNeeded() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { proposeCollectionIfNeeded() }
+        }
+        .onChange(of: day) { _, _ in proposeCollectionIfNeeded() }
+        .onDisappear {
+            if !isJournalPresented {
+                collectionTask?.cancel()
+                collectionStartedAt = nil
+                collectionDay = nil
+            }
         }
     }
 
@@ -169,28 +187,32 @@ struct FlameHomeScreen: View {
 
     private func proposeCollectionIfNeeded() {
         guard !isRecording,
+              collectionStartedAt == nil,
               Calendar.current.component(.hour, from: .now) >= 22,
               !records.isEmpty,
-              recordStore.journal(on: .now) == nil
+              recordStore.journal(on: day) == nil
         else { return }
-        let today = JournalDayKey.make(for: .now)
+        let today = day.key
         guard lastProposalDay != today else { return }
         lastProposalDay = today
         isTimeProposalPresented = true
     }
 
     private func openRecord(_ id: UUID) {
+        guard collectionStartedAt == nil else { return }
         selectedRecordID = id
         isRecordPresented = true
     }
 
     private func collect() {
         guard !records.isEmpty, collectionStartedAt == nil else { return }
+        collectionDay = day
         collectionStartedAt = .now
-        Task { @MainActor in
-            if !reduceMotion {
-                try? await Task.sleep(for: .milliseconds(820))
-            }
+        collectionTask = Task { @MainActor in
+            do {
+                if !reduceMotion { try await Task.sleep(for: .milliseconds(820)) }
+            } catch { return }
+            guard !Task.isCancelled else { return }
             isJournalPresented = true
         }
     }
