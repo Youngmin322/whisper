@@ -99,6 +99,53 @@ struct FlameHopMotionTests {
         #expect(sample(time: 2).dustOpacity == 0)
     }
 
+    @Test("기쁨은 좌우 모두 착지 전에 원본 형태로 돌아가며 정지 경계에서 방향을 유지한다", arguments: [-1.0, 1.0])
+    func joySettlesBeforeStopping(direction: Double) {
+        let origin = CGPoint(x: 0.5, y: 0.5)
+        let run = FlameHopRun(kind: .joy, startedAt: 10, from: origin,
+                              to: CGPoint(x: 0.5 + direction * 0.1, y: 0.5), stepDuration: 0.66, steps: 2)
+        func pose(at time: Double, activeRun: FlameHopRun?) -> FlameHopPose {
+            FlameHopMotion.sample(run: activeRun, time: time, size: field, restingAt: run.to,
+                                  restingSince: run.endsAt, facing: CGFloat(direction), seed: 0,
+                                  kind: .joy, reduceMotion: false)
+        }
+        for step in 0..<run.steps {
+            let start = run.startedAt + Double(step) * run.stepDuration
+            let anticipation = pose(at: start, activeRun: run)
+            let mainMotion = pose(at: start + run.stepDuration * 0.52, activeRun: run)
+            let settling = [0.82, 0.90, 0.97, 0.999999].map {
+                pose(at: start + run.stepDuration * $0, activeRun: run)
+            }
+            #expect(anticipation.referenceBlend == 0)
+            #expect(mainMotion.referenceBlend == 1)
+            for (earlier, later) in zip(settling, settling.dropFirst()) {
+                #expect(earlier.referenceBlend > later.referenceBlend)
+                #expect(earlier.facing == later.facing)
+            }
+            #expect(settling.last!.referenceBlend < 0.000001)
+        }
+        let beforeLanding = pose(at: run.endsAt - 0.000001, activeRun: run)
+        let landed = pose(at: run.endsAt, activeRun: run)
+        let resting = pose(at: run.endsAt + 1, activeRun: nil)
+        #expect(beforeLanding.facing == landed.facing && landed.facing == resting.facing)
+        #expect(landed.referenceBlend == 0 && resting.referenceBlend == 0)
+        #expect(landed.body == .rest && resting.body == .rest)
+        #expect(landed.groundPosition == resting.groundPosition)
+    }
+
+    @Test("새 이동 시작 전에는 이전 방향을 유지하고 실제 방향 변경 때만 돌아선다")
+    func futureRunDoesNotTurnRestingFlame() {
+        let origin = CGPoint(x: 0.5, y: 0.5)
+        let run = FlameHopRun(kind: .joy, startedAt: 10, from: origin,
+                              to: CGPoint(x: 0.4, y: 0.5), stepDuration: 0.66, steps: 1)
+        let before = FlameHopMotion.sample(run: run, time: 9.9, size: field, restingAt: origin,
+                                          restingSince: 0, facing: 1, seed: 0, kind: .joy, reduceMotion: false)
+        let started = FlameHopMotion.sample(run: run, time: 10, size: field, restingAt: origin,
+                                           restingSince: 0, facing: 1, seed: 0, kind: .joy, reduceMotion: false)
+        #expect(!before.isMoving && before.facing == 1)
+        #expect(started.isMoving && started.facing == -1)
+    }
+
     private func sample(time: Double) -> FlameHopPose {
         let run = FlameHopRun(kind: .joy, startedAt: 0, from: CGPoint(x: 0.5, y: 0.5),
                               to: CGPoint(x: 0.58, y: 0.52), stepDuration: 0.66, steps: 2)

@@ -142,6 +142,37 @@ struct FlameFieldMotionTests {
         #expect(Set(finalPoints.map(\.x)).count == participants.count)
     }
 
+    @Test("여러 기쁨 불꽃은 착지와 휴식 중 방향을 유지하고 실제 다음 이동에서만 변경한다")
+    func joyDirectionChangesOnlyWhenNewJourneyStarts() throws {
+        let participants = makeParticipants(count: 6, sameKind: .joy)
+        var motion = FlameFieldMotion()
+        motion.updateParticipants(participants, at: 0, size: field)
+        var previous: [UUID: FlameHopPose] = [:]
+        var landedDirections = Set<CGFloat>()
+        var turns = 0
+
+        for tick in 0...3600 {
+            let time = Double(tick) / 30
+            motion.advance(to: time, size: field)
+            for participant in participants {
+                let pose = try #require(motion.pose(for: participant.id, at: time, size: field, reduceMotion: false))
+                if let earlier = previous[participant.id] {
+                    if !pose.isMoving {
+                        #expect(pose.facing == earlier.facing)
+                        #expect(pose.referenceBlend == 0)
+                        if earlier.isMoving { landedDirections.insert(pose.facing) }
+                    } else if pose.facing != earlier.facing {
+                        #expect(!earlier.isMoving)
+                        turns += 1
+                    }
+                }
+                previous[participant.id] = pose
+            }
+        }
+        #expect(landedDirections == [-1, 1])
+        #expect(turns > 0)
+    }
+
     @Test("렌더링 빈도와 기록 순서가 달라도 같은 위치와 자세를 유지한다")
     func renderingDoesNotChangeJourneys() throws {
         let participants = makeParticipants(count: 10)

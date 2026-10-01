@@ -43,7 +43,7 @@ struct AnimatedFlameCharacter: View {
 
     @ViewBuilder
     private func animatedArtwork(bounds: CGRect) -> some View {
-        if motionKind == .joy && !pose.isMoving {
+        if motionKind == .joy && (!pose.isMoving || pose.referenceBlend == 0) {
             // Rest uses the approved image itself, without layer reconstruction or deformation.
             FlameCharacter(emotion: emotion, size: size)
                 .frame(width: canvasSize, height: canvasSize)
@@ -58,18 +58,21 @@ struct AnimatedFlameCharacter: View {
                     .distortionEffect(
                         ShaderLibrary.flameReferenceWarp(
                             .float4(Float(bounds.minX), Float(bounds.minY), Float(bounds.width), Float(bounds.height)),
-                            .floatArray(reference.mapping)
+                            .floatArray(reference.mapping),
+                            .float(Float(pose.referenceBlend))
                         ),
                         maxSampleOffset: CGSize(width: size * 0.8, height: size * 0.8),
-                        isEnabled: pose.frameIndex != 0
+                        isEnabled: pose.referenceBlend > 0
                     )
 
                 Image("EmotionFlameJoyFace")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size * 1.1)
-                    .scaleEffect(reference.faceScale, anchor: UnitPoint(x: 0.5, y: 0.68))
-                    .rotationEffect(.degrees(reference.faceRotation), anchor: UnitPoint(x: 0.5, y: 0.68))
+                    .scaleEffect(1 + (reference.faceScale - 1) * pose.referenceBlend,
+                                 anchor: UnitPoint(x: 0.5, y: 0.68))
+                    .rotationEffect(.degrees(reference.faceRotation * Double(pose.referenceBlend)),
+                                    anchor: UnitPoint(x: 0.5, y: 0.68))
                     .frame(width: canvasSize, height: canvasSize)
             }
         } else {

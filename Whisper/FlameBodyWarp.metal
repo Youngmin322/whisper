@@ -13,9 +13,10 @@ static float thinPlateRadial(float2 delta) {
     float2 position,
     float4 bounds,
     device const float *mapping,
-    int count
+    int count,
+    float blend
 ) {
-    if (count < 10 || bounds.z <= 0.0f || bounds.w <= 0.0f) {
+    if (count < 10 || bounds.z <= 0.0f || bounds.w <= 0.0f || blend <= 0.0f) {
         return position;
     }
 
@@ -32,7 +33,7 @@ static float thinPlateRadial(float2 delta) {
         float2 weight = float2(mapping[offset + 2], mapping[offset + 3]);
         source += weight * thinPlateRadial(target - control);
     }
-    return bounds.xy + source * bounds.zw;
+    return mix(position, bounds.xy + source * bounds.zw, clamp(blend, 0.0f, 1.0f));
 }
 
 // Work on the approved, flattened PNG without sampling a different texture.

@@ -13,6 +13,7 @@ struct FlameHopPose {
     let facing: CGFloat
     var body: FlameBodyPose = .rest
     var isMoving = false
+    var referenceBlend: CGFloat = 0
 }
 
 /// One short journey. Normalized positions preserve a character's place across layout changes.
@@ -57,10 +58,11 @@ enum FlameHopMotion {
         let ground = fieldPosition(position, size: size)
         guard !reduceMotion, let run, time >= run.startedAt, time < run.endsAt else {
             let restStart = run.map { max(restingSince, $0.endsAt) } ?? restingSince
+            let restFacing = run.flatMap { time >= $0.startedAt ? $0.facing : nil } ?? facing
             return FlameHopPose(
                 groundPosition: ground, frameIndex: 0, lift: 0, lead: 0,
                 faceRotation: 0, dustOpacity: 0, dustSpread: 0, shadowScale: 1,
-                facing: run?.facing ?? facing,
+                facing: restFacing,
                 body: reduceMotion ? .rest : idleBody(kind: kind, seed: seed, elapsed: time - restStart)
             )
         }
@@ -102,8 +104,17 @@ enum FlameHopMotion {
             lift: lift * run.strength, lead: profile.lead * pulse * run.strength,
             faceRotation: faceRotation, dustOpacity: dust * Double(run.strength),
             dustSpread: CGFloat(dustLife), shadowScale: max(0.78, 1 - lift * run.strength / 28),
-            facing: run.facing, body: body, isMoving: true
+            facing: run.facing, body: body, isMoving: true,
+            referenceBlend: run.kind == .joy ? joyReferenceBlend(phase: phase) : 0
         )
+    }
+
+    /// The last reference frames still lean to one side. Return to the approved
+    /// silhouette before landing, instead of snapping to it when the run ends.
+    private static func joyReferenceBlend(phase: Double) -> CGFloat {
+        let entering = smoothstep((phase - 2.0 / 16.0) / (2.0 / 16.0))
+        let settling = 1 - smoothstep((phase - 13.0 / 16.0) / (3.0 / 16.0))
+        return CGFloat(entering * settling)
     }
 
     static func makeRun(
