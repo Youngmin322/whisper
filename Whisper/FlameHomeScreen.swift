@@ -22,36 +22,9 @@ struct FlameHomeScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Menu {
-                    Button("보관함", systemImage: "archivebox", action: onOpenCollection)
-                    Button("설정", systemImage: "gearshape") { isSettingsPresented = true }
-                } label: {
-                    Image("HanddrawnMenu")
-                        .resizable()
-                        .frame(width: 30, height: 27)
-                        .frame(width: 48, height: 48, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("메뉴")
-                .accessibilityIdentifier("home.menuButton")
+            HomeToolbarView(day: day, onOpenSettings: { isSettingsPresented = true },
+                            onOpenCollection: onOpenCollection)
                 .disabled(collectionStartedAt != nil)
-                Spacer()
-            }
-            .padding(.horizontal, 21)
-            .padding(.top, 8)
-
-            Text(day.shortDescription)
-                .font(.whisperHandwriting(27, bold: true))
-                .foregroundStyle(Color.whisperTextPrimary)
-                .padding(.horizontal, 6)
-                .background(alignment: .bottom) {
-                    Capsule()
-                        .fill(Color.whisperSurfaceHighlight)
-                        .frame(height: 7)
-                        .offset(y: 2)
-                }
-                .padding(.top, 12)
 
             if records.isEmpty {
                 VStack(spacing: 12) {

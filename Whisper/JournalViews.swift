@@ -25,13 +25,13 @@ struct JournalEditorView: View {
         self.recordStore = recordStore
         let journal = existing ?? recordStore.journal(on: day)
         let restored = recordStore.writingDraftStore.journalDraft(on: day, existingJournalID: journal?.id)
-        let value = restored ?? JournalWritingDraft(day: day, existing: journal, records: recordStore.records)
-        _draft = State(initialValue: value.includingNewMoments(from: recordStore.records))
+        let value = restored ?? JournalWritingDraft(day: day, existing: journal, records: recordStore.uncollectedMoments(on: day))
+        _draft = State(initialValue: value.includingNewMoments(from: recordStore.uncollectedMoments(on: value.day)))
     }
 
     init(draft: JournalWritingDraft, recordStore: RecordStore) {
         self.recordStore = recordStore
-        _draft = State(initialValue: draft.includingNewMoments(from: recordStore.records))
+        _draft = State(initialValue: draft.includingNewMoments(from: recordStore.uncollectedMoments(on: draft.day)))
     }
 
     var body: some View {
@@ -181,7 +181,8 @@ struct JournalEditorView: View {
     }
 
     private var moments: [WhisperRecord] {
-        recordStore.records.filter { draft.day.contains($0.createdAt) }
+        let sourceIDs = Set(draft.sourceRecordIDs)
+        return recordStore.records.filter { sourceIDs.contains($0.id) }
             .sorted { $0.createdAt < $1.createdAt }
     }
 
