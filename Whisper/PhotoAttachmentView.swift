@@ -13,6 +13,8 @@ import WhisperDesignSystem
 struct PhotoAttachmentEditor: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var loader: PhotoAttachmentLoader
+    var isCompact = false
+    var showsErrorAlert = true
 
     private var selection: Binding<PhotosPickerItem?> {
         Binding(get: { loader.selectedItem }, set: { loader.select($0) })
@@ -22,38 +24,54 @@ struct PhotoAttachmentEditor: View {
         let isLoading = loader.isLoading
         Group {
             if let photoData = loader.photoData, let image = UIImage(data: photoData) {
-                VStack(spacing: 10) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 210)
-                        .clipShape(
-                            RoundedRectangle(
-                                cornerRadius: WhisperRadius.large,
-                                style: .continuous
+                if isCompact {
+                    compactPhoto(image)
+                } else {
+                    VStack(spacing: 10) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 210)
+                            .clipShape(
+                                RoundedRectangle(
+                                    cornerRadius: WhisperRadius.large,
+                                    style: .continuous
+                                )
                             )
-                        )
 
-                    if isLoading {
-                        ProgressView("사진을 불러오는 중이에요")
-                            .font(.whisperCaption)
-                    }
+                        if isLoading {
+                            ProgressView("사진을 불러오는 중이에요")
+                                .font(.whisperCaption)
+                        }
 
-                    if dynamicTypeSize.isAccessibilitySize {
-                        VStack(spacing: 10) { photoActions }
-                    } else {
-                        HStack(spacing: 10) { photoActions }
+                        if dynamicTypeSize.isAccessibilitySize {
+                            VStack(spacing: 10) { photoActions }
+                        } else {
+                            HStack(spacing: 10) { photoActions }
+                        }
                     }
                 }
             } else {
                 PhotosPicker(selection: selection, matching: .images) {
                     HStack {
-                        Label("사진 추가", systemImage: "photo")
+                        if isCompact {
+                            HStack(spacing: WhisperSpacing.xxSmall) {
+                                Image(systemName: "photo")
+                                    .resizable().scaledToFit().frame(width: 18, height: 18)
+                                Text("사진 추가")
+                            }
                             .font(.whisperControl)
+                        } else {
+                            Label("사진 추가", systemImage: "photo")
+                                .font(.whisperControl)
+                        }
                         Spacer()
                         if isLoading {
                             ProgressView()
+                        } else if isCompact {
+                            Image(systemName: "plus.circle")
+                                .resizable().scaledToFit().frame(width: 18, height: 18)
                         } else {
                             Image(systemName: "plus.circle")
                         }
@@ -77,13 +95,51 @@ struct PhotoAttachmentEditor: View {
         .alert(
             "사진을 불러올 수 없어요",
             isPresented: Binding(
-                get: { loader.errorMessage != nil },
+                get: { showsErrorAlert && loader.errorMessage != nil },
                 set: { if !$0 { loader.dismissError() } }
             )
         ) {
             Button("확인", role: .cancel) {}
         } message: {
             Text(loader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
+        }
+    }
+
+    private func compactPhoto(_ image: UIImage) -> some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
+            HStack(spacing: WhisperSpacing.small) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: WhisperRadius.small))
+                    .accessibilityLabel("첨부한 사진")
+
+                PhotosPicker(selection: selection, matching: .images) {
+                    Text("바꾸기")
+                        .font(.whisperControl)
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("사진 바꾸기")
+
+                Spacer(minLength: 0)
+
+                Button(role: .destructive) { loader.replacePhoto(with: nil) } label: {
+                    Image(systemName: "trash")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("사진 삭제")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.whisperTextSecondary)
+
+            if loader.isLoading {
+                ProgressView("사진을 불러오는 중이에요")
+                    .font(.whisperCaption)
+            }
         }
     }
 

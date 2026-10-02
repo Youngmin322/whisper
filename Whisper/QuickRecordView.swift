@@ -12,55 +12,100 @@ struct QuickRecordView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.scenePhase) private var scenePhase
     @Binding var draft: RecordDraft
-    @FocusState private var isContentFocused: Bool
+    @FocusState private var focusedField: WritingField?
     @State private var isSaveErrorPresented = false
     @State private var isDiscardConfirmationPresented = false
-    @State private var isOptionalDetailsExpanded = false
+    @State private var optionalSection: OptionalSection?
+    @State private var isEmotionPickerPresented = false
     @State private var photoLoader: PhotoAttachmentLoader
     @State private var didFinish = false
     @State private var isDraftErrorPresented = false
+    @State private var writingHeaderHeight: CGFloat = 44
     let draftStore: WritingDraftStore
     let onSave: () -> Bool
 
-    init(draft: Binding<RecordDraft>, draftStore: WritingDraftStore, onSave: @escaping () -> Bool) {
+    private enum WritingField: Hashable { case content, title }
+    private enum OptionalSection { case photo, title }
+
+    init(draft: Binding<RecordDraft>, draftStore: WritingDraftStore,
+         photoLoader: PhotoAttachmentLoader? = nil, onSave: @escaping () -> Bool) {
         _draft = draft
         self.onSave = onSave
         self.draftStore = draftStore
-        _photoLoader = State(initialValue: PhotoAttachmentLoader(photoData: draft.wrappedValue.photoData))
+        _photoLoader = State(initialValue: photoLoader ?? PhotoAttachmentLoader(photoData: draft.wrappedValue.photoData))
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                formContent
+            GeometryReader { geometry in
+                if selectedEmotion != nil {
+                    ScrollViewReader { scrollProxy in
+                        ScrollView {
+                            // Keep the editor's identity and cursor while the keyboard resizes
+                            // the page. Very short viewports can scroll the header out of view.
+                            writingForm(editorHeight: max(64, geometry.size.height - writingHeaderHeight - 24))
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                        .scrollBounceBehavior(.basedOnSize)
+                        .onChange(of: geometry.size.height) { _, _ in
+                            if focusedField == .content { scrollProxy.scrollTo("record.contentArea", anchor: .top) }
+                        }
+                        .onChange(of: focusedField) { _, field in
+                            if field == .content { scrollProxy.scrollTo("record.contentArea", anchor: .top) }
+                        }
+                    }
+                } else {
+                    ScrollView {
+                        moodForm
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                    .scrollBounceBehavior(.basedOnSize)
+                }
             }
             .scrollIndicators(.hidden)
-            .scrollDismissesKeyboard(.interactively)
-            .scrollBounceBehavior(.basedOnSize)
             .background(Color.whisperBackground)
             .navigationTitle("순간 남기기")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("닫기", action: close)
-                        .accessibilityIdentifier("record.closeButton")
+                    Button(action: close) {
+                        Image(systemName: "xmark")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                            .frame(width: 44, height: 44)
+                    }
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .accessibilityLabel("작성 화면 닫기")
+                    .accessibilityHint("작성 중인 초안을 보관해요.")
+                    .accessibilityIdentifier("record.closeButton")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("초안 버리기", role: .destructive) { isDiscardConfirmationPresented = true }
-                        .accessibilityIdentifier("record.discardDraftButton")
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                if draft.emotion != nil {
-                    Button("순간 저장", action: save)
-                        .buttonStyle(.whisperPrimary(size: .compact))
-                        .disabled(!draft.canSaveNewMoment || photoLoader.isLoading)
+                    Button("저장", action: save)
+                        .font(.whisperAction)
+                        .foregroundStyle(canSave ? Color.whisperTextOnAccent : Color.whisperTextSecondary)
+                        .padding(.horizontal, WhisperSpacing.medium)
+                        .frame(minWidth: 62, minHeight: 44)
+                        .background(canSave ? Color.whisperAccentText : Color.whisperSurfaceSubtle, in: Capsule())
+                        .buttonStyle(.plain)
+                        .disabled(!canSave)
+                        .accessibilityLabel("순간 저장")
                         .accessibilityIdentifier("record.saveButton")
-                        .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-                        .padding(.vertical, WhisperSpacing.xSmall)
-                        .background(Color.whisperBackground)
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                writingAccessories
+            }
+        }
+        .task(id: selectedEmotion) {
+            guard selectedEmotion != nil, !isEmotionPickerPresented,
+                  optionalSection != .photo, !didFinish else { return }
+            await Task.yield()
+            focusedField = .content
+        }
+        .sheet(isPresented: $isEmotionPickerPresented, onDismiss: { focusedField = .content }) {
+            EmotionPickerView(selectedEmotion: $draft.emotion, allowsEmptySelection: false)
+                .presentationDetents([.medium, .large])
         }
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
@@ -88,6 +133,14 @@ struct QuickRecordView: View {
         } message: {
             Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
         }
+        .alert("사진을 불러올 수 없어요", isPresented: Binding(
+            get: { photoLoader.errorMessage != nil },
+            set: { if !$0 { photoLoader.dismissError() } }
+        )) {
+            Button("확인", role: .cancel) { photoLoader.dismissError() }
+        } message: {
+            Text(photoLoader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
+        }
         .confirmationDialog(
             "작성 중인 순간을 버릴까요?",
             isPresented: $isDiscardConfirmationPresented,
@@ -109,20 +162,14 @@ struct QuickRecordView: View {
         }
     }
 
-    private var formContent: some View {
+    private var moodForm: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
             WritingDraftErrorView(message: draftStore.errorMessage) { persistDraft() }
             Text(Date.now.whisperFullDayDescription)
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperTextSecondary)
 
-            if let emotion = selectedEmotion {
-                selectedEmotionSection(emotion)
-                writingSection
-                detailsDisclosure
-            } else {
-                moodSection
-            }
+            moodSection
         }
         .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
         .padding(.top, WhisperSpacing.large)
@@ -135,40 +182,73 @@ struct QuickRecordView: View {
         WhisperEmotion.allCases.first { $0.rawValue == draft.emotion }
     }
 
-    private func selectedEmotionSection(_ emotion: WhisperEmotion) -> some View {
-        HStack(spacing: WhisperSpacing.medium) {
-            emotionArtwork(emotion, size: 65)
+    private var canSave: Bool { draft.canSaveNewMoment && !photoLoader.isLoading }
 
-            VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-                Text("지금 마음")
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                Text(emotion.rawValue)
-                    .font(.whisperSectionTitle)
-                    .foregroundStyle(Color.whisperTextPrimary)
+    private func writingForm(editorHeight: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+            VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                if draftStore.errorMessage != nil {
+                    WritingDraftErrorView(message: draftStore.errorMessage) { persistDraft() }
+                }
+                writingHeader
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { writingHeaderHeight = $0 }
+            writingSection(editorHeight: editorHeight).id("record.contentArea")
+        }
+        .padding(.horizontal, 26)
+        .padding(.top, WhisperSpacing.xSmall)
+        .padding(.bottom, WhisperSpacing.xxSmall)
+        .frame(maxWidth: 700, alignment: .top)
+        .frame(maxWidth: .infinity)
+    }
 
-            Spacer(minLength: 0)
+    private var writingHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: WhisperSpacing.small) {
+                writingDate.fixedSize()
+                Spacer(minLength: WhisperSpacing.xSmall)
+                emotionControl
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                writingDate
+                HStack { Spacer(); emotionControl }
+            }
+        }
+    }
 
-            Button("감정 바꾸기") {
-                isContentFocused = false
-                withAnimation(.easeInOut(duration: 0.24)) {
-                    draft.emotion = nil
+    private var writingDate: some View {
+        Text(Date.now.whisperDayDescription)
+            .font(.whisperMetadata)
+            .foregroundStyle(Color.whisperTextSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel(Date.now.whisperFullDayDescription)
+            .accessibilityIdentifier("record.dateLabel")
+    }
+
+    private var emotionControl: some View {
+        Button {
+            focusedField = nil
+            isEmotionPickerPresented = true
+        } label: {
+            HStack(spacing: WhisperSpacing.xxSmall) {
+                if let emotion = selectedEmotion {
+                    emotionArtwork(emotion, size: 28).accessibilityHidden(true)
+                    Text(emotion.rawValue)
+                    Image(systemName: "chevron.down")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 8, height: 8)
                 }
             }
             .font(.whisperMetadata)
-            .foregroundStyle(Color.whisperAccentText)
-            .frame(minHeight: 44)
-            .accessibilityIdentifier("record.changeEmotionButton")
+            .foregroundStyle(Color.whisperTextSecondary)
+            .frame(minWidth: 44, minHeight: 44)
+            .fixedSize(horizontal: true, vertical: false)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, WhisperSpacing.medium)
-        .frame(maxWidth: .infinity, minHeight: 102)
-        .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
-        .overlay {
-            RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                .stroke(Color.whisperBorderSubtle, lineWidth: 1)
-        }
-        .accessibilityElement(children: .contain)
+        .buttonStyle(.plain)
+        .accessibilityLabel("감정 바꾸기, 현재 \(draft.emotion ?? "선택 안 함")")
+        .accessibilityIdentifier("record.changeEmotionButton")
     }
 
     private var moodSection: some View {
@@ -247,52 +327,32 @@ struct QuickRecordView: View {
         FlameCharacter(emotion: emotion.rawValue, size: size)
     }
 
-    private var writingSection: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-            Text("어떤 순간이었나요?")
-                .font(.whisperHandwriting(29, bold: true))
-                .foregroundStyle(Color.whisperTextPrimary)
+    private func writingSection(editorHeight: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $draft.content)
+                    .focused($focusedField, equals: .content)
+                    .font(.whisperBodyLarge)
+                    .foregroundStyle(Color.whisperTextPrimary)
+                    .tint(Color.whisperAccentText)
+                    .lineSpacing(8)
+                    .scrollContentBackground(.hidden)
+                    .scrollDismissesKeyboard(.interactively)
+                    .padding(.horizontal, -5)
+                    .accessibilityLabel("순간 본문")
+                    .accessibilityIdentifier("record.contentField")
 
-            Text("있는 그대로 한두 문장으로 남겨보세요.")
-                .font(.whisperControl)
-                .foregroundStyle(Color.whisperTextSecondary)
-
-            TextField("", text: $draft.content, axis: .vertical)
-            .focused($isContentFocused)
-            .font(.whisperBodyLarge)
-            .lineSpacing(4)
-            .lineLimit(5 ... 9)
-            .padding(WhisperSpacing.medium)
-            .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
-            .overlay(alignment: .topLeading) {
                 if draft.content.isEmpty {
-                    Text(RecordWritingCopy.contentExample)
+                    Text("기억하고 싶은 순간을 적어보세요.")
                         .font(.whisperBodyLarge)
+                        .lineSpacing(8)
                         .foregroundStyle(Color.whisperTextSecondary)
-                        .padding(WhisperSpacing.medium)
+                        .padding(.top, 8)
                         .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
             }
-            .background {
-                RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                    .fill(Color.whisperSurfaceDefault)
-                Canvas { context, size in
-                    var lines = Path()
-                    for y in stride(from: CGFloat(73), through: size.height - 16, by: 47) {
-                        lines.move(to: CGPoint(x: 16, y: y))
-                        lines.addLine(to: CGPoint(x: size.width - 16, y: y))
-                    }
-                    context.stroke(lines, with: .color(Color.whisperBorderSubtle), lineWidth: 1)
-                }
-                .allowsHitTesting(false)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                    .stroke(Color.whisperBorderSubtle, lineWidth: 1)
-            }
-            .accessibilityLabel("기록 내용")
-            .accessibilityIdentifier("record.contentField")
-            .padding(.top, WhisperSpacing.medium)
+            .frame(height: editorHeight)
 
             if draft.content.count >= RecordDraft.contentLimit - 100 {
                 Text("\(draft.content.count) / \(RecordDraft.contentLimit.formatted())")
@@ -311,88 +371,132 @@ struct QuickRecordView: View {
         }
     }
 
-    private var detailsDisclosure: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            Button {
-                isContentFocused = false
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isOptionalDetailsExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: WhisperSpacing.xSmall) {
-                    if let photoData = draft.photoData, let image = UIImage(data: photoData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 28, height: 28)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                            .accessibilityHidden(true)
-                    } else {
-                        Image(systemName: "plus")
-                            .accessibilityHidden(true)
-                    }
-                    detailActionCopy
-                    Spacer()
-                    if photoLoader.isLoading {
-                        ProgressView().accessibilityLabel("사진을 불러오는 중이에요")
-                    }
-                }
-                .font(.whisperControl)
-                .foregroundStyle(Color.whisperTextSecondary)
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(isOptionalDetailsExpanded ? "사진과 제목 입력을 접어요." : "사진과 제목 입력을 열어요.")
-            .accessibilityIdentifier("record.openDetailButton")
-
-            if isOptionalDetailsExpanded {
-                optionalDetails
-            }
-        }
-    }
-
-    private var optionalDetails: some View {
-        VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            PhotoAttachmentEditor(loader: photoLoader)
-
-            Text("제목 · 선택 사항")
-                .font(.whisperFieldLabel)
-                .foregroundStyle(Color.whisperTextPrimary)
-            TextField(RecordWritingCopy.titleExample, text: $draft.title)
-                .font(.whisperBodyLarge)
-                .padding(.horizontal, WhisperSpacing.medium)
-                .frame(minHeight: WhisperSize.controlRegular)
-                .background(Color.whisperSurfaceSubtle, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
-                .accessibilityIdentifier("record.titleField")
-        }
-    }
-
-    private var detailActionCopy: some View {
+    @ViewBuilder
+    private var writingAccessories: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-            Text("사진 · 제목 더하기")
-                .font(.whisperControl)
-            if visibleDraftTitle != nil || draft.photoData != nil {
-                Text(detailSummary)
-                    .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .lineLimit(1)
+            if selectedEmotion != nil {
+                if optionalSection == .photo {
+                    ScrollView {
+                        PhotoAttachmentEditor(loader: photoLoader, isCompact: true, showsErrorAlert: false)
+                    }
+                    .frame(height: dynamicTypeSize.isAccessibilitySize ? 100 : 76)
+                } else if optionalSection == .title {
+                    TextField("이 순간의 제목 · 선택 사항", text: $draft.title)
+                        .font(.whisperBodyLarge)
+                        .foregroundStyle(Color.whisperTextPrimary)
+                        .tint(Color.whisperAccentText)
+                        .focused($focusedField, equals: .title)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = .content }
+                        .padding(.vertical, WhisperSpacing.xSmall)
+                        .frame(minHeight: 44)
+                        .overlay(alignment: .bottom) {
+                            Color.whisperDivider.frame(height: 1)
+                        }
+                        .accessibilityLabel("순간 제목, 선택 사항")
+                        .accessibilityIdentifier("record.titleField")
+                }
+            }
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: WhisperSpacing.small) {
+                    optionalButtons
+                    Spacer(minLength: 0)
+                    writingOptions
+                }
+                VStack(spacing: 0) {
+                    HStack(spacing: WhisperSpacing.small) { optionalButtons; Spacer(minLength: 0) }
+                    HStack { Spacer(minLength: 0); writingOptions }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    optionalButtons
+                    HStack { Spacer(minLength: 0); writingOptions }
+                }
             }
         }
+        .padding(.horizontal, 26)
+        .padding(.top, WhisperSpacing.xxSmall)
+        .padding(.bottom, WhisperSpacing.xxSmall)
+        .font(.whisperControl)
+        .foregroundStyle(Color.whisperTextSecondary)
+        .buttonStyle(.plain)
+        .frame(maxWidth: 700)
+        .frame(maxWidth: .infinity)
+        .background(Color.whisperBackground)
     }
 
-    private var visibleDraftTitle: String? {
-        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? nil : title
-    }
+    @ViewBuilder
+    private var optionalButtons: some View {
+        if selectedEmotion != nil {
+            Button {
+                optionalSection = optionalSection == .photo ? nil : .photo
+                focusedField = optionalSection == nil ? .content : nil
+            } label: {
+                HStack(spacing: WhisperSpacing.xxSmall) {
+                    if photoLoader.isLoading {
+                        ProgressView().frame(width: 18)
+                    } else {
+                        Image(systemName: draft.photoData == nil ? "photo" : "photo.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                    }
+                    Text("사진")
+                }
+                .frame(minWidth: 44, minHeight: 44)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityLabel("사진")
+            .accessibilityValue(photoLoader.isLoading ? "불러오는 중" : draft.photoData == nil ? "첨부 없음" : "1장 첨부됨")
+            .accessibilityHint(optionalSection == .photo ? "사진 영역을 접어요." : "사진을 추가하거나 바꿔요.")
+            .accessibilityIdentifier("record.photoButton")
 
-    private var detailSummary: String {
-        switch (visibleDraftTitle, draft.photoData != nil) {
-        case let (title?, true): "\(title) · 사진 1장"
-        case let (title?, false): title
-        case (nil, true): "사진 1장 첨부됨"
-        case (nil, false): ""
+            Button {
+                optionalSection = optionalSection == .title ? nil : .title
+                focusedField = optionalSection == .title ? .title : .content
+            } label: {
+                HStack(spacing: WhisperSpacing.xxSmall) {
+                    Image(systemName: draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "textformat" : "textformat.alt")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                    Text("제목")
+                }
+                .frame(minWidth: 44, minHeight: 44)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityValue(draft.title.isEmpty ? "입력 없음" : draft.title)
+            .accessibilityHint(optionalSection == .title ? "제목 영역을 접어요." : "제목을 입력해요.")
+            .accessibilityIdentifier("record.titleButton")
         }
+    }
+
+    @ViewBuilder
+    private var writingOptions: some View {
+        if focusedField != nil {
+            Button { focusedField = nil } label: {
+                Image(systemName: "keyboard.chevron.compact.down")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("키보드 내리기")
+            .accessibilityIdentifier("record.dismissKeyboardButton")
+        }
+
+        Menu {
+            Button("초안 버리기", role: .destructive) { isDiscardConfirmationPresented = true }
+                .accessibilityIdentifier("record.discardDraftButton")
+        } label: {
+            Image(systemName: "ellipsis")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
+                .frame(width: 44, height: 44)
+        }
+        .accessibilityLabel("작성 옵션")
+        .accessibilityIdentifier("record.optionsButton")
     }
 
     @discardableResult
