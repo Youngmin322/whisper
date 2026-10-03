@@ -206,7 +206,7 @@ struct QuickRecordView: View {
 
     private var titleField: some View {
         TextField("이 순간의 제목 · 선택 사항", text: $draft.title)
-            .font(.whisperBodyLarge)
+            .font(.whisperHandwriting(28, bold: true))
             .foregroundStyle(Color.whisperTextPrimary)
             .tint(Color.whisperAccentText)
             .focused($isTitleFocused)

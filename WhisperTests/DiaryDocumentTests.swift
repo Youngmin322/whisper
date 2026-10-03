@@ -42,6 +42,35 @@ struct DiaryDocumentTests {
         #expect(restored.diaryDocument.photos.first?.offset == original.content.utf16.count)
     }
 
+    @Test("순간 초안을 닫고 복원한 뒤 저장·수정해도 사진 위치와 데이터가 남는다")
+    func restoresMomentDraftAndSavedPosition() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "MomentDiary-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let configuration = ModelConfiguration(schema: Schema(versionedSchema: WhisperSchemaV7.self),
+                                              url: directory.appending(path: "default.store"), cloudKitDatabase: .none)
+        var draft = RecordDraft(title: "함께 걸은 오후", emotion: "기쁨")
+        draft.setDiaryDocument(DiaryDocument(text: "사진 앞 👨‍👩‍👧\n사진 뒤", photos: [
+            DiaryPhoto(offset: "사진 앞 👨‍👩‍👧\n".utf16.count, data: Data([1, 2, 3]))
+        ]))
+        do {
+            let store = RecordStore(configuration: configuration)
+            #expect(store.writingDraftStore.save(draft))
+        }
+        let store = RecordStore(configuration: configuration)
+        let restored = try #require(store.writingDraftStore.momentDraft)
+        #expect(restored == draft)
+        let record = try #require(store.saveMomentDraft(restored))
+        #expect(store.writingDraftStore.momentDraft == nil)
+        #expect(store.diaryDocument(for: record) == draft.diaryDocument)
+        var edited = store.diaryDocument(for: record)
+        edited.text = "덧붙인 문장\n" + edited.text
+        edited.photos[0].offset += "덧붙인 문장\n".utf16.count
+        #expect(store.update(record, title: record.title, content: edited.text, emotion: record.emotion,
+                             photoData: record.photoData, document: edited))
+        #expect(store.refreshPersistentState())
+        #expect(store.diaryDocument(for: record) == edited)
+    }
+
     @Test("일기를 고치고 원본을 삭제한 뒤에도 저장한 사진과 위치를 복원한다")
     func preservesJournalSnapshotAfterSourceDeletion() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "Diary-\(UUID())")

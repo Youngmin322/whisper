@@ -66,7 +66,7 @@ struct WhisperMigrationTests {
             photoData: photoData
         )
 
-        let currentSchema = Schema(versionedSchema: WhisperSchemaV6.self)
+        let currentSchema = Schema(versionedSchema: WhisperSchemaV7.self)
         let configuration = ModelConfiguration(
             schema: currentSchema,
             url: storeURL,
@@ -409,7 +409,7 @@ struct WhisperMigrationTests {
     }
 
     private func makeCurrentContainer(at storeURL: URL) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: WhisperSchemaV6.self)
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
         let configuration = ModelConfiguration(
             schema: schema,
             url: storeURL,

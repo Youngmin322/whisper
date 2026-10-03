@@ -299,11 +299,6 @@ struct RecordDetailView: View {
         }
     }
 
-    private func fieldLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.whisperFieldLabel)
-            .foregroundStyle(Color.whisperTextPrimary)
-    }
 
     private var encounterResponseCard: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {

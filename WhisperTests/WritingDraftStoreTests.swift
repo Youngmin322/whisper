@@ -162,7 +162,7 @@ struct WritingDraftStoreTests {
 
     @Test("임시 저장 실패는 최신 내용을 메모리에 남기고 재시도로 기기에 저장한다")
     func autosaveFailureRetainsMemoryAndRetries() throws {
-        let schema = Schema(versionedSchema: WhisperSchemaV6.self)
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
         let container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         var shouldFail = false
         let drafts = WritingDraftStore(context: container.mainContext) { context in
@@ -306,7 +306,7 @@ struct WritingDraftStoreTests {
     }
 
     private func configuration(at directory: URL) -> ModelConfiguration {
-        ModelConfiguration(schema: Schema(versionedSchema: WhisperSchemaV6.self),
+        ModelConfiguration(schema: Schema(versionedSchema: WhisperSchemaV7.self),
                            url: directory.appending(path: "default.store"), cloudKitDatabase: .none)
     }
 }
