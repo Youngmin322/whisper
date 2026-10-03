@@ -65,12 +65,19 @@ struct JournalEditorView: View {
         .navigationTitle("나의 하루")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("닫기", action: close).accessibilityIdentifier("journal.closeButton")
-            }
             ToolbarItem(placement: .topBarTrailing) {
-                Button("초안 버리기", role: .destructive) { isDiscardConfirmationPresented = true }
-                    .accessibilityIdentifier("journal.discardDraftButton")
+                Button(role: .destructive) {
+                    isDiscardConfirmationPresented = true
+                } label: {
+                    Image(systemName: "trash")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("초안 삭제")
+                .accessibilityHint("작성 중인 초안만 삭제해요.")
+                .accessibilityIdentifier("journal.discardDraftButton")
             }
         }
         .onAppear { persistDraft() }
@@ -79,8 +86,8 @@ struct JournalEditorView: View {
             if phase != .active { persistDraft() }
         }
         .onDisappear { persistDraft() }
-        .confirmationDialog("작성 중인 일기 초안을 버릴까요?", isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
-            Button("초안 버리기", role: .destructive) {
+        .confirmationDialog("작성 중인 일기 초안을 삭제할까요?", isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
+            Button("삭제", role: .destructive) {
                 guard recordStore.writingDraftStore.discard(id: draft.id) else {
                     isDraftErrorPresented = true
                     return
@@ -189,12 +196,6 @@ struct JournalEditorView: View {
     @discardableResult
     private func persistDraft() -> Bool {
         didFinish || recordStore.writingDraftStore.save(draft)
-    }
-
-    private func close() {
-        guard persistDraft() else { isDraftErrorPresented = true; return }
-        didFinish = true
-        dismiss()
     }
 
     private func save() {
