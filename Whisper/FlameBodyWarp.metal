@@ -14,13 +14,20 @@ static float thinPlateRadial(float2 delta) {
     float4 bounds,
     device const float *mapping,
     int count,
-    float blend
+    float blend,
+    float facing
 ) {
     if (count < 10 || bounds.z <= 0.0f || bounds.w <= 0.0f || blend <= 0.0f) {
         return position;
     }
 
     float2 target = (position - bounds.xy) / bounds.zw;
+    // Reflect the deformation's coordinates in both directions, so an identity
+    // warp always samples the original artwork, even after a leftward journey.
+    bool movingLeft = facing < 0.0f;
+    if (movingLeft) {
+        target.x = 1.0f - target.x;
+    }
     int controlCount = (count - 6) / 4;
     int affine = controlCount * 4;
     float2 source = float2(mapping[affine], mapping[affine + 1]);
@@ -32,6 +39,9 @@ static float thinPlateRadial(float2 delta) {
         float2 control = float2(mapping[offset], mapping[offset + 1]);
         float2 weight = float2(mapping[offset + 2], mapping[offset + 3]);
         source += weight * thinPlateRadial(target - control);
+    }
+    if (movingLeft) {
+        source.x = 1.0f - source.x;
     }
     return mix(position, bounds.xy + source * bounds.zw, clamp(blend, 0.0f, 1.0f));
 }

@@ -7,25 +7,25 @@ import UIKit
 @MainActor
 @Suite("기쁨 불꽃의 실제 렌더링 전환", .serialized)
 struct FlameRenderingTests {
-    @Test("좌우 착지 직전 화면은 정지 원본으로 이어지고 이전의 급격한 형태 전환을 제거한다", arguments: [-1.0, 1.0])
+    @Test("좌우 이동의 시작·착지·긴 휴식과 움직임 줄이기는 반전하지 않은 승인 원본으로 이어진다", arguments: [-1.0, 1.0])
     func landingMatchesRestArtwork(direction: Double) async throws {
         let run = FlameHopRun(kind: .joy, startedAt: 0, from: CGPoint(x: 0.5, y: 0.5),
                               to: CGPoint(x: 0.5 + direction * 0.1, y: 0.5), stepDuration: 0.66, steps: 1)
-        func pose(at time: Double) -> FlameHopPose {
-            FlameHopMotion.sample(run: run, time: time, size: CGSize(width: 393, height: 590),
+        func pose(at time: Double, activeRun: FlameHopRun? = nil, reduceMotion: Bool = false) -> FlameHopPose {
+            FlameHopMotion.sample(run: activeRun, time: time, size: CGSize(width: 393, height: 590),
                                   restingAt: run.to, restingSince: run.endsAt, facing: CGFloat(direction),
-                                  seed: 0, kind: .joy, reduceMotion: false)
+                                  seed: 0, kind: .joy, reduceMotion: reduceMotion)
         }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 240, height: 240)
-        let host = UIHostingController(rootView: artwork(pose(at: 0)))
+        let host = UIHostingController(rootView: artwork(pose(at: 0, activeRun: run)))
         window.rootViewController = host
         window.isHidden = false
         defer { window.isHidden = true; window.rootViewController = nil }
 
-        func capture(_ pose: FlameHopPose) async throws -> [UInt8] {
-            host.rootView = artwork(pose)
+        func capture(_ view: AnyView) async throws -> [UInt8] {
+            host.rootView = view
             host.view.setNeedsLayout()
             host.view.layoutIfNeeded()
             // Allow the Metal-backed SwiftUI distortion to reach the render server.
@@ -50,29 +50,56 @@ struct FlameRenderingTests {
             return bytes
         }
 
-        let rest = try await capture(pose(at: run.endsAt))
-        let starting = try await capture(pose(at: 0))
-        let almostLanded = pose(at: run.endsAt - 0.000001)
-        let smoothLanding = try await capture(almostLanded)
-        var oldLanding = almostLanded
-        oldLanding.referenceBlend = 1
-        let abruptLanding = try await capture(oldLanding)
-
-        let coloredPixels = stride(from: 0, to: rest.count, by: 4).filter {
-            rest[$0] > 200 && rest[$0 + 1] > 100 && rest[$0 + 1] < 230 && rest[$0 + 2] < 150
+        // The approved image is an independent baseline: comparing two poses alone
+        // also passes when both incorrectly mirror the original.
+        let approved = try await capture(originalArtwork(mirrored: false))
+        let mirrored = try await capture(originalArtwork(mirrored: true))
+        let coloredPixels = stride(from: 0, to: approved.count, by: 4).filter {
+            approved[$0] > 200 && approved[$0 + 1] > 100 && approved[$0 + 1] < 230 && approved[$0 + 2] < 150
         }.count
         #expect(coloredPixels > 1_000)
-        #expect(difference(starting, rest) < 0.002)
-        #expect(difference(smoothLanding, rest) < 0.002)
-        // Replaying the old last-frame behavior demonstrates the discontinuity.
-        #expect(difference(abruptLanding, rest) > 0.01)
+        #expect(difference(approved, mirrored) > 0.01)
+
+        let settledPoses = [
+            pose(at: 0, activeRun: run),
+            pose(at: run.endsAt - 0.000001, activeRun: run),
+            pose(at: run.endsAt, activeRun: run),
+            pose(at: run.endsAt + 1),
+            pose(at: run.endsAt + 12),
+            pose(at: run.stepDuration * 0.52, activeRun: run, reduceMotion: true)
+        ]
+        for settled in settledPoses {
+            let rendered = try await capture(artwork(settled))
+            #expect(difference(rendered, approved) < 0.002)
+            #expect(difference(rendered, mirrored) > 0.01)
+        }
+
+        // Keep actual motion on both sides; disabling the animation would also
+        // make every settled pose match the approved image.
+        let moving = pose(at: run.stepDuration * 0.52, activeRun: run)
+        let movingPixels = try await capture(artwork(moving))
+        #expect(difference(movingPixels, approved) > 0.01)
+        let almostLanded = pose(at: run.endsAt - 0.000001, activeRun: run)
+        var oldLanding = almostLanded
+        oldLanding.referenceBlend = 1
+        let abruptLanding = try await capture(artwork(oldLanding))
+        #expect(difference(abruptLanding, approved) > 0.01)
     }
 
-    private func artwork(_ pose: FlameHopPose) -> some View {
-        AnimatedFlameCharacter(emotion: "기쁨", pose: pose, size: 120)
+    private func artwork(_ pose: FlameHopPose) -> AnyView {
+        AnyView(AnimatedFlameCharacter(emotion: "기쁨", pose: pose, size: 120)
             .frame(width: 240, height: 240)
             .background(Color.white)
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.light))
+    }
+
+    private func originalArtwork(mirrored: Bool) -> AnyView {
+        AnyView(FlameCharacter(emotion: "기쁨", size: 120)
+            .scaleEffect(x: mirrored ? -1 : 1, y: 1)
+            .offset(y: -1.5)
+            .frame(width: 240, height: 240)
+            .background(Color.white)
+            .preferredColorScheme(.light))
     }
 
     private func difference(_ first: [UInt8], _ second: [UInt8]) -> Double {
