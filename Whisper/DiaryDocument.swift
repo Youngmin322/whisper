@@ -66,6 +66,16 @@ extension RecordDraft {
         return value
     }
 
+    mutating func attachPhoto(_ data: Data?, at offset: Int) {
+        var value = diaryDocument
+        if let data {
+            if value.photos.isEmpty {
+                value.photos = [DiaryPhoto(offset: value.validOffset(offset), data: data)]
+            } else { value.photos[0].data = data }
+        } else { value.photos = [] }
+        setDiaryDocument(value)
+    }
+
     mutating func setDiaryDocument(_ value: DiaryDocument) {
         content = value.text
         photoData = value.photos.first?.data

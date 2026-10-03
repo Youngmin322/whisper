@@ -24,7 +24,7 @@ struct JournalWritingDraft: Codable, Equatable, Identifiable {
         representativeEmotion = composed.representativeEmotion
     }
 
-    func includingNewMoments(from records: [WhisperRecord]) -> Self {
+    func includingNewMoments(from records: [WhisperRecord], documents: [UUID: DiaryDocument] = [:]) -> Self {
         var resumed = self
         let known = Set(sourceRecordIDs)
         let added = records.filter { day.contains($0.createdAt) && !known.contains($0.id) }
@@ -32,7 +32,7 @@ struct JournalWritingDraft: Codable, Equatable, Identifiable {
         guard !added.isEmpty else { return resumed }
         if var document {
             for record in added {
-                var moment = DiaryDocument.moment(text: record.content, photoData: record.photoData, caption: record.title)
+                var moment = documents[record.id] ?? DiaryDocument.moment(text: record.content, photoData: record.photoData, caption: record.title)
                 moment.photos = moment.photos.map { var photo = $0; photo.sourceRecordID = record.id; return photo }
                 document.append(moment)
             }

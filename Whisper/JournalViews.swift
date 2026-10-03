@@ -3,15 +3,15 @@ import WhisperDesignSystem
 
 struct JournalEditorView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    let recordStore: RecordStore
     @Environment(\.scenePhase) private var scenePhase
+    let recordStore: RecordStore
     @State private var draft: JournalWritingDraft
     @State private var isSaveErrorPresented = false
     @State private var isDiscardConfirmationPresented = false
     @State private var isDraftErrorPresented = false
     @State private var didFinish = false
+    @State private var isBodyFocused = false
+    @State private var selectedPhoto: DiaryPhoto?
 
     init(date: Date, recordStore: RecordStore) {
         self.init(day: JournalDay(date: date), recordStore: recordStore)
@@ -25,38 +25,68 @@ struct JournalEditorView: View {
         self.recordStore = recordStore
         let journal = existing ?? recordStore.journal(on: day)
         let restored = recordStore.writingDraftStore.journalDraft(on: day, existingJournalID: journal?.id)
-        let value = restored ?? JournalWritingDraft(day: day, existing: journal, records: recordStore.uncollectedMoments(on: day))
-        _draft = State(initialValue: value.includingNewMoments(from: recordStore.uncollectedMoments(on: value.day)))
+        let moments = recordStore.uncollectedMoments(on: day)
+        let value = restored ?? JournalWritingDraft(day: day, existing: journal, records: journal == nil ? moments : [])
+        let prepared = recordStore.prepareJournalDraft(value, existing: journal)
+        _draft = State(initialValue: prepared.includingNewMoments(from: moments,
+            documents: Dictionary(uniqueKeysWithValues: moments.map { ($0.id, recordStore.diaryDocument(for: $0)) })))
     }
 
     init(draft: JournalWritingDraft, recordStore: RecordStore) {
         self.recordStore = recordStore
-        _draft = State(initialValue: draft.includingNewMoments(from: recordStore.uncollectedMoments(on: draft.day)))
+        let journal = recordStore.journals.first { $0.id == draft.existingJournalID }
+        let moments = recordStore.uncollectedMoments(on: draft.day)
+        let prepared = recordStore.prepareJournalDraft(draft, existing: journal)
+        _draft = State(initialValue: prepared.includingNewMoments(from: moments,
+            documents: Dictionary(uniqueKeysWithValues: moments.map { ($0.id, recordStore.diaryDocument(for: $0)) })))
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text(draft.day.fullDescription)
-                    .font(.whisperControl)
-                    .foregroundStyle(Color.whisperTextSecondary)
-
-                if !moments.isEmpty {
-                    HStack(spacing: 4) {
-                        Spacer()
-                        ForEach(moments.suffix(5)) { record in
-                            FlameCharacter(emotion: record.emotion, size: 32)
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top) {
+                        Text(draft.day.fullDescription)
+                            .font(.whisperMetadata)
+                            .foregroundStyle(Color.whisperTextSecondary)
+                        Spacer(minLength: 12)
+                        Menu {
+                            ForEach(WhisperEmotion.selectableCases) { emotion in
+                                Button(emotion.rawValue) { draft.representativeEmotion = emotion.rawValue }
+                            }
+                        } label: {
+                            FlameCharacter(emotion: draft.representativeEmotion, size: 38)
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityLabel("대표 감정 바꾸기, 현재 \(draft.representativeEmotion ?? "선택 안 함")")
+                    }
+                    TextField("이 하루의 제목 · 선택 사항", text: $draft.title, axis: .vertical)
+                        .font(.whisperHandwriting(28, bold: true))
+                        .foregroundStyle(Color.whisperTextPrimary)
+                        .accessibilityIdentifier("journal.titleField")
+                    Rectangle().fill(Color.whisperDivider).frame(height: 1)
+                }
+                WritingDraftErrorView(message: recordStore.writingDraftStore.errorMessage) { persistDraft() }
+                DiaryTextView(document: Binding(
+                    get: { draft.document ?? DiaryDocument(text: draft.body) },
+                    set: { draft.document = $0; draft.body = $0.text }
+                ), isFocused: $isBodyFocused, minimumHeight: 260, showsRules: true,
+                   accessibilityIdentifier: "journal.bodyField",
+                   onPhotoTap: { selectedPhoto = $0 })
+                    .overlay(alignment: .topLeading) {
+                        if draft.body.isEmpty, draft.document?.photos.isEmpty != false {
+                            Text("오늘을 돌아보며 적어보세요.")
+                                .font(.whisperBodyLarge)
+                                .foregroundStyle(Color.whisperTextSecondary)
+                                .allowsHitTesting(false)
                         }
                     }
-                    .accessibilityHidden(true)
-                }
-
-                WritingDraftErrorView(message: recordStore.writingDraftStore.errorMessage) { persistDraft() }
-                writingSection
+                DiarySourcesView(ids: draft.sourceRecordIDs, recordStore: recordStore)
+                    .padding(.top, 18)
             }
             .padding(.horizontal, 30)
             .padding(.top, 18)
-            .padding(.bottom, 110)
+            .padding(.bottom, 50)
             .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
@@ -66,34 +96,29 @@ struct JournalEditorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                // Preserve a 44pt hit area instead of the smaller native icon button.
-                ZStack {
-                    Color.clear
-                        .frame(width: 44, height: 44)
-                        .accessibilityHidden(true)
-                    Button(role: .destructive) {
-                        isDiscardConfirmationPresented = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 18, height: 18)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .accessibilityLabel("초안 삭제")
-                    .accessibilityHint("작성 중인 초안만 삭제해요.")
-                    .accessibilityIdentifier("journal.discardDraftButton")
+                Button(role: .destructive) { isDiscardConfirmationPresented = true } label: {
+                    Image(systemName: "trash").frame(width: 44, height: 44).contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.whisperTextSecondary)
+                .accessibilityLabel("초안 삭제")
+                .accessibilityHint("작성 중인 초안만 삭제해요.")
+                .accessibilityIdentifier("journal.discardDraftButton")
             }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("저장", action: save)
+                    .font(.whisperAction)
+                    .tint(Color.whisperAccentText)
+                    .disabled(draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel("일기 저장")
+                    .accessibilityIdentifier("journal.saveButton")
+            }
+
         }
+        .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { persistDraft() }
-        }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { persistDraft() } }
         .onDisappear { persistDraft() }
         .confirmationDialog("작성 중인 일기 초안을 삭제할까요?", isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
             Button("삭제", role: .destructive) {
@@ -113,17 +138,6 @@ struct JournalEditorView: View {
         } message: {
             Text("작성한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.")
         }
-        .safeAreaInset(edge: .bottom) {
-            Button("일기 저장", action: save)
-                .buttonStyle(.whisperPrimary)
-                .disabled(draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .accessibilityIdentifier("journal.saveButton")
-                .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
-                .padding(.vertical, WhisperSpacing.small)
-                .frame(maxWidth: 700)
-                .frame(maxWidth: .infinity)
-                .background(Color.whisperBackground)
-        }
         .alert("일기를 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("확인", role: .cancel) {}
         } message: {
@@ -131,81 +145,8 @@ struct JournalEditorView: View {
         }
     }
 
-    private var writingSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            TextEditor(text: $draft.body)
-                .font(.custom("NotoSansKR-Thin", size: 17, relativeTo: .body))
-                .foregroundStyle(Color.whisperTextPrimary)
-                .lineSpacing(18)
-                .scrollContentBackground(.hidden)
-                .frame(height: dynamicTypeSize.isAccessibilitySize ? 480 : 410)
-                .background(alignment: .topLeading) {
-                    Canvas { context, size in
-                        var lines = Path()
-                        for y in stride(from: CGFloat(44), through: size.height, by: 47) {
-                            lines.move(to: CGPoint(x: 0, y: y))
-                            lines.addLine(to: CGPoint(x: size.width, y: y))
-                        }
-                        context.stroke(lines, with: .color(Color.whisperBorderSubtle.opacity(0.7)), lineWidth: 1)
-                    }
-                }
-                .overlay(alignment: .topLeading) {
-                    if draft.body.isEmpty {
-                        Text("오늘을 돌아보며 적어보세요.")
-                            .font(.whisperBodyLarge)
-                            .foregroundStyle(Color.whisperTextSecondary)
-                            .padding(.leading, 5)
-                            .padding(.top, 8)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .accessibilityLabel("일기 본문")
-                .accessibilityIdentifier("journal.bodyField")
-
-            Text("오늘을 돌아보며 더 적어보세요.")
-                .font(.whisperBody)
-                .foregroundStyle(Color.whisperTextSecondary.opacity(0.7))
-
-            Text("남긴 순간은 원문 그대로 담았어요")
-                .font(.whisperHandwriting(19))
-                .foregroundStyle(Color.whisperTextSecondary)
-
-            Text("제목 · 선택 사항")
-                .font(.whisperControl)
-            TextField("이 하루를 알아볼 짧은 이름", text: $draft.title)
-                .font(.whisperBodyLarge)
-                .padding(WhisperSpacing.medium)
-                .background(Color.whisperSurfaceDefault, in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
-                .overlay {
-                    RoundedRectangle(cornerRadius: WhisperRadius.medium)
-                        .stroke(Color.whisperBorderSubtle, lineWidth: 1)
-                }
-                .accessibilityIdentifier("journal.titleField")
-
-            if draft.existingJournalID != nil || !moments.isEmpty {
-                Menu {
-                    ForEach(WhisperEmotion.selectableCases) { emotion in
-                        Button(emotion.rawValue) { draft.representativeEmotion = emotion.rawValue }
-                    }
-                } label: {
-                    Text("대표 감정 · \(draft.representativeEmotion ?? "선택 안 함")")
-                        .font(.whisperControl)
-                        .foregroundStyle(Color.whisperTextSecondary)
-                }
-            }
-        }
-    }
-
-    private var moments: [WhisperRecord] {
-        let sourceIDs = Set(draft.sourceRecordIDs)
-        return recordStore.records.filter { sourceIDs.contains($0.id) }
-            .sorted { $0.createdAt < $1.createdAt }
-    }
-
     @discardableResult
-    private func persistDraft() -> Bool {
-        didFinish || recordStore.writingDraftStore.save(draft)
-    }
+    private func persistDraft() -> Bool { didFinish || recordStore.writingDraftStore.save(draft) }
 
     private func save() {
         guard recordStore.saveJournalDraft(draft) != nil else {
@@ -217,75 +158,93 @@ struct JournalEditorView: View {
     }
 }
 
+struct DiaryPageHeader: View {
+    let date: String
+    let title: String
+    let emotion: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                Text(date).font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
+                Spacer(minLength: 12)
+                FlameCharacter(emotion: emotion, size: 38)
+                    .accessibilityLabel(emotion ?? "남긴 마음")
+            }
+            if !title.isEmpty {
+                Text(title).font(.whisperHandwriting(28, bold: true)).foregroundStyle(Color.whisperTextPrimary)
+            }
+            Rectangle().fill(Color.whisperDivider).frame(height: 1)
+        }
+    }
+}
+
+struct DiarySourcesView: View {
+    let ids: [UUID]
+    let recordStore: RecordStore
+    var body: some View {
+        if !ids.isEmpty {
+            DisclosureGroup("담아 둔 순간 · \(ids.count)개") {
+                ForEach(ids, id: \.self) { id in sourceRow(id).padding(.vertical, 6) }
+            }
+            .font(.whisperControl)
+            .foregroundStyle(Color.whisperTextSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private func sourceRow(_ id: UUID) -> some View {
+        if let record = recordStore.record(withID: id) {
+            NavigationLink {
+                RecordDetailView(record: record, recordStore: recordStore)
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(record.title)
+                    Text(record.createdAt.whisperDateTimeDescription)
+                        .font(.whisperCaption)
+                        .foregroundStyle(Color.whisperTextSecondary)
+                    if record.photoData != nil { Label("사진 있음", systemImage: "photo").font(.whisperCaption) }
+                }
+            }
+            .accessibilityLabel("출처 순간, \(record.title), 원본 상세 열기")
+        } else {
+            Label("삭제된 순간 · 원본을 볼 수 없어요", systemImage: "minus.circle")
+        }
+    }
+}
+
 struct JournalDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let journalID: UUID
     let recordStore: RecordStore
     @State private var isDeleteConfirmationPresented = false
     @State private var isDeleteErrorPresented = false
+    @State private var selectedPhoto: DiaryPhoto?
 
     var body: some View {
         Group {
             if let journal {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
-                        Text(journal.displayDate.whisperFullDayDescription)
-                            .font(.whisperControl)
-                            .foregroundStyle(Color.whisperTextSecondary)
-
-                        HStack {
-                            if !journal.title.isEmpty {
-                                Text(journal.title)
-                                    .font(.whisperHandwriting(26, bold: true))
-                            }
-                            Spacer()
-                            FlameCharacter(emotion: journal.emotion, size: 38)
-                        }
-
-                        Text(journal.body)
-                            .font(.whisperBodyLarge)
-                            .lineSpacing(20)
-                            .foregroundStyle(Color.whisperTextPrimary)
-                            .frame(maxWidth: .infinity, minHeight: 320, alignment: .topLeading)
-                            .background(alignment: .topLeading) {
-                                Canvas { context, size in
-                                    var lines = Path()
-                                    for y in stride(from: CGFloat(45), through: size.height, by: 47) {
-                                        lines.move(to: CGPoint(x: 0, y: y))
-                                        lines.addLine(to: CGPoint(x: size.width, y: y))
-                                    }
-                                    context.stroke(lines, with: .color(Color.whisperBorderSubtle.opacity(0.7)), lineWidth: 1)
-                                }
-                            }
-                            .textSelection(.enabled)
-
-                        if !journal.reflection.isEmpty {
-                            Text(journal.reflection)
-                                .font(.whisperBody)
-                                .textSelection(.enabled)
-                        }
-
-                        Text("남긴 순간은 원문 그대로 담았어요")
-                            .font(.whisperHandwriting(19))
-                            .foregroundStyle(Color.whisperTextSecondary)
-
-                        DisclosureGroup("담긴 순간 · \(availableSourceCount(in: journal))/\(journal.sourceRecordIDs.count)개 열람 가능") {
-                            ForEach(journal.sourceRecordIDs, id: \.self) { id in
-                                sourceRow(id)
-                                    .padding(.vertical, 6)
-                            }
-                        }
-                        .font(.whisperControl)
-                        .foregroundStyle(Color.whisperTextSecondary)
+                        DiaryPageHeader(date: journal.displayDate.whisperFullDayDescription,
+                                        title: journal.title, emotion: journal.emotion)
+                        DiaryTextView(document: .constant(recordStore.diaryDocument(for: journal)),
+                                      isFocused: .constant(false), isEditable: false,
+                                      minimumHeight: 0, showsRules: true,
+                                      onPhotoTap: { selectedPhoto = $0 })
+                        DiarySourcesView(ids: journal.sourceRecordIDs, recordStore: recordStore)
+                            .padding(.top, 18)
                     }
                     .padding(.horizontal, 30)
                     .padding(.top, 18)
                     .padding(.bottom, 50)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
             } else {
                 ContentUnavailableView("일기를 찾을 수 없어요", systemImage: "book.closed")
             }
         }
+        .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
         .background(Color.whisperBackground)
         .navigationTitle("나의 하루")
         .navigationBarTitleDisplayMode(.inline)
@@ -324,34 +283,6 @@ struct JournalDetailView: View {
 
     private var journal: DailyJournal? {
         recordStore.journals.first { $0.id == journalID }
-    }
-
-    @ViewBuilder
-    private func sourceRow(_ id: UUID) -> some View {
-        if let record = recordStore.record(withID: id) {
-            NavigationLink {
-                RecordDetailView(record: record, recordStore: recordStore)
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(record.title)
-                    Text("순간 · \(record.createdAt.whisperDateTimeDescription)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if record.photoData != nil {
-                        Label("사진 있음", systemImage: "photo")
-                            .font(.caption)
-                    }
-                }
-            }
-            .accessibilityLabel("출처 순간, \(record.title), 원본 상세 열기")
-        } else {
-            Label("삭제된 순간 · 원본과 사진을 볼 수 없어요", systemImage: "minus.circle")
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func availableSourceCount(in journal: DailyJournal) -> Int {
-        journal.sourceRecordIDs.filter { recordStore.record(withID: $0) != nil }.count
     }
 
     private func delete() {

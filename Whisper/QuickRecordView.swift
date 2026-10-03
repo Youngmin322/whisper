@@ -13,7 +13,8 @@ struct QuickRecordView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.scenePhase) private var scenePhase
     @Binding var draft: RecordDraft
-    @FocusState private var focusedField: WritingField?
+    @FocusState private var isTitleFocused: Bool
+    @State private var isBodyFocused = false
     @ScaledMetric(relativeTo: .body) private var minimumEditorLineHeight: CGFloat = 24
     @State private var isSaveErrorPresented = false
     @State private var isTitleVisible: Bool
@@ -23,14 +24,24 @@ struct QuickRecordView: View {
     @State private var didFinish = false
     @State private var isDraftErrorPresented = false
     @State private var writingHeaderHeight: CGFloat = 44
+    @State private var photoInsertionOffset = 0
+    @State private var selectedPhoto: DiaryPhoto?
     let draftStore: WritingDraftStore
     let onSave: () -> Bool
 
     private enum WritingField: Hashable { case content, title }
+    private var focusedField: WritingField? {
+        get { isTitleFocused ? .title : isBodyFocused ? .content : nil }
+        nonmutating set {
+            isTitleFocused = newValue == .title
+            isBodyFocused = newValue == .content
+        }
+    }
 
     init(draft: Binding<RecordDraft>, draftStore: WritingDraftStore,
          photoLoader: PhotoAttachmentLoader? = nil, onSave: @escaping () -> Bool) {
         _draft = draft
+        _photoInsertionOffset = State(initialValue: draft.wrappedValue.content.utf16.count)
         self.onSave = onSave
         self.draftStore = draftStore
         _isTitleVisible = State(initialValue: !draft.wrappedValue.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -109,6 +120,7 @@ struct QuickRecordView: View {
             EmotionPickerView(selectedEmotion: $draft.emotion, allowsEmptySelection: false)
                 .presentationDetents([.medium, .large])
         }
+        .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
         .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
             get: { photoLoader.selectedItem },
             set: { photoLoader.select($0) }
@@ -119,14 +131,13 @@ struct QuickRecordView: View {
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
         .onChange(of: photoLoader.photoData) { _, data in
-            if !didFinish { draft.photoData = data }
+            if !didFinish { draft.attachPhoto(data, at: photoInsertionOffset) }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { persistDraft() }
         }
         .onDisappear {
             if !didFinish {
-                draft.photoData = photoLoader.photoData
                 persistDraft()
             }
             photoLoader.cancelLoading()
@@ -198,7 +209,7 @@ struct QuickRecordView: View {
             .font(.whisperBodyLarge)
             .foregroundStyle(Color.whisperTextPrimary)
             .tint(Color.whisperAccentText)
-            .focused($focusedField, equals: .title)
+            .focused($isTitleFocused)
             .submitLabel(.done)
             .onSubmit { focusedField = .content }
             .padding(.vertical, WhisperSpacing.xSmall)
@@ -338,17 +349,19 @@ struct QuickRecordView: View {
     private func writingSection(editorHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
             ZStack(alignment: .topLeading) {
-                TextEditor(text: $draft.content)
-                    .focused($focusedField, equals: .content)
-                    .font(.whisperBodyLarge)
-                    .foregroundStyle(Color.whisperTextPrimary)
-                    .tint(Color.whisperAccentText)
-                    .lineSpacing(8)
-                    .scrollContentBackground(.hidden)
-                    .scrollDismissesKeyboard(.interactively)
-                    .padding(.horizontal, -5)
-                    .accessibilityLabel("순간 본문")
-                    .accessibilityIdentifier("record.contentField")
+                DiaryTextView(document: Binding(
+                    get: { draft.diaryDocument },
+                    set: { value in
+                        draft.setDiaryDocument(value)
+                        if photoLoader.photoData != draft.photoData { photoLoader.replacePhoto(with: draft.photoData) }
+                    }
+                ), isFocused: Binding(
+                    get: { focusedField == .content },
+                    set: { isBodyFocused = $0 }
+                ), fillsHeight: true, minimumHeight: 64,
+                   accessibilityIdentifier: "record.contentField",
+                   onSelectionChange: { photoInsertionOffset = $0 },
+                   onPhotoTap: { selectedPhoto = $0 })
 
                 if draft.content.isEmpty {
                     Text("기억하고 싶은 순간을 적어보세요.")
@@ -382,12 +395,6 @@ struct QuickRecordView: View {
     @ViewBuilder
     private var writingAccessories: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-            if selectedEmotion != nil, photoLoader.photoData != nil {
-                ScrollView {
-                    PhotoAttachmentEditor(loader: photoLoader, isCompact: true, showsErrorAlert: false)
-                }
-                .frame(height: dynamicTypeSize.isAccessibilitySize ? 100 : 76)
-            }
 
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: WhisperSpacing.small) {
@@ -416,31 +423,43 @@ struct QuickRecordView: View {
         .background(Color.whisperBackground)
     }
 
+    private var photoButtonLabel: some View {
+        HStack(spacing: WhisperSpacing.xxSmall) {
+            if photoLoader.isLoading { ProgressView().frame(width: 18) }
+            else {
+                Image(systemName: draft.photoData == nil ? "photo" : "photo.fill")
+                    .resizable().scaledToFit().frame(width: 18, height: 18)
+            }
+            Text("사진")
+        }
+        .frame(minWidth: 44, minHeight: 44)
+    }
+
     @ViewBuilder
     private var optionalButtons: some View {
         if selectedEmotion != nil {
-            Button {
-                focusedField = nil
-                isPhotoPickerPresented = true
-            } label: {
-                HStack(spacing: WhisperSpacing.xxSmall) {
-                    if photoLoader.isLoading {
-                        ProgressView().frame(width: 18)
-                    } else {
-                        Image(systemName: draft.photoData == nil ? "photo" : "photo.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 18, height: 18)
-                    }
-                    Text("사진")
+            Group {
+                if draft.photoData != nil {
+                    Menu {
+                        Button("사진 보기", systemImage: "arrow.up.left.and.arrow.down.right") {
+                            selectedPhoto = draft.diaryDocument.photos.first
+                        }
+                        Button("사진 바꾸기", systemImage: "photo") {
+                            focusedField = nil
+                            isPhotoPickerPresented = true
+                        }
+                        Button("사진 삭제", systemImage: "trash", role: .destructive) {
+                            photoLoader.replacePhoto(with: nil)
+                        }
+                    } label: { photoButtonLabel }
+                } else {
+                    Button { focusedField = nil; isPhotoPickerPresented = true } label: { photoButtonLabel }
                 }
-                .frame(minWidth: 44, minHeight: 44)
             }
             .fixedSize(horizontal: true, vertical: false)
             .disabled(photoLoader.isLoading)
             .accessibilityLabel("사진")
             .accessibilityValue(photoLoader.isLoading ? "불러오는 중" : draft.photoData == nil ? "첨부 없음" : "1장 첨부됨")
-            .accessibilityHint("사진 보관함에서 사진을 선택해요.")
             .accessibilityIdentifier("record.photoButton")
 
             Button {
@@ -481,12 +500,11 @@ struct QuickRecordView: View {
     @discardableResult
     private func persistDraft() -> Bool {
         guard !didFinish else { return true }
-        if draft.photoData != photoLoader.photoData { draft.photoData = photoLoader.photoData }
+        if draft.photoData != photoLoader.photoData { draft.attachPhoto(photoLoader.photoData, at: photoInsertionOffset) }
         return draftStore.save(draft)
     }
 
     private func close() {
-        draft.photoData = photoLoader.photoData
         guard persistDraft() else { isDraftErrorPresented = true; return }
         didFinish = true
         dismiss()
@@ -494,7 +512,7 @@ struct QuickRecordView: View {
 
     private func save() {
         guard draft.canSaveNewMoment && !photoLoader.isLoading else { return }
-        draft.photoData = photoLoader.photoData
+        if draft.photoData != photoLoader.photoData { draft.attachPhoto(photoLoader.photoData, at: photoInsertionOffset) }
         didFinish = true
         if onSave() {
             dismiss()
