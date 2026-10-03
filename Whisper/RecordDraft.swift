@@ -21,6 +21,7 @@ struct RecordDraft: Codable, Equatable, Identifiable {
     var content = ""
     var emotion: String?
     var photoData: Data?
+    var document: DiaryDocument? = nil
 
     var titleForSaving: String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)

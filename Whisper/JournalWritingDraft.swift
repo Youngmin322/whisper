@@ -8,6 +8,7 @@ struct JournalWritingDraft: Codable, Equatable, Identifiable {
     var body: String
     var sourceRecordIDs: [UUID]
     var representativeEmotion: String?
+    var document: DiaryDocument? = nil
 
     var storageKey: String {
         existingJournalID.map { "journal:edit:\($0.uuidString)" } ?? "journal:new:\(day.key)"
@@ -29,6 +30,14 @@ struct JournalWritingDraft: Codable, Equatable, Identifiable {
         let added = records.filter { day.contains($0.createdAt) && !known.contains($0.id) }
             .sorted { $0.createdAt < $1.createdAt }
         guard !added.isEmpty else { return resumed }
+        if var document {
+            for record in added {
+                var moment = DiaryDocument.moment(text: record.content, photoData: record.photoData, caption: record.title)
+                moment.photos = moment.photos.map { var photo = $0; photo.sourceRecordID = record.id; return photo }
+                document.append(moment)
+            }
+            resumed.document = document
+        }
         resumed.body = [body, added.map(\.content).joined(separator: "\n\n")]
             .filter { !$0.isEmpty }.joined(separator: "\n\n")
         resumed.sourceRecordIDs += added.map(\.id)

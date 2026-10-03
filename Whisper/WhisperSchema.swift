@@ -819,6 +819,22 @@ enum WhisperSchemaV6: VersionedSchema {
     }
 }
 
+enum WhisperSchemaV7: VersionedSchema {
+    static let versionIdentifier = Schema.Version(7, 0, 0)
+    static var models: [any PersistentModel.Type] { WhisperSchemaV6.models + [DiaryPage.self] }
+
+    @Model
+    final class DiaryPage {
+        @Attribute(.unique) var storageKey: String
+        @Attribute(.externalStorage) var documentData: Data
+
+        init(storageKey: String, documentData: Data) {
+            self.storageKey = storageKey
+            self.documentData = documentData
+        }
+    }
+}
+
 enum WhisperMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
@@ -829,7 +845,8 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             WhisperSchemaV3.self,
             WhisperSchemaV4.self,
             WhisperSchemaV5.self,
-            WhisperSchemaV6.self
+            WhisperSchemaV6.self,
+            WhisperSchemaV7.self
         ]
     }
 
@@ -906,6 +923,10 @@ enum WhisperMigrationPlan: SchemaMigrationPlan {
             .lightweight(
                 fromVersion: WhisperSchemaV5.self,
                 toVersion: WhisperSchemaV6.self
+            ),
+            .lightweight(
+                fromVersion: WhisperSchemaV6.self,
+                toVersion: WhisperSchemaV7.self
             )
         ]
     }
@@ -917,3 +938,4 @@ typealias ReminderEncounter = WhisperSchemaV4.ReminderEncounter
 typealias NotificationDaySlot = WhisperSchemaV4.NotificationDaySlot
 typealias DailyJournal = WhisperSchemaV5.DailyJournal
 typealias WritingDraft = WhisperSchemaV6.WritingDraft
+typealias DiaryPage = WhisperSchemaV7.DiaryPage

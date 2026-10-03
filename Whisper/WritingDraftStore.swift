@@ -53,8 +53,19 @@ final class WritingDraftStore {
         pendingJournals[draft.storageKey] = draft
         journalDrafts.removeAll { $0.storageKey == draft.storageKey }
         journalDrafts.append(draft)
+        var metadata = draft
+        metadata.document = draft.document?.withoutPhotoData
         return write {
-            try upsert(id: draft.id, key: draft.storageKey, payload: JSONEncoder().encode(draft), photoData: nil)
+            try upsert(id: draft.id, key: draft.storageKey, payload: JSONEncoder().encode(metadata),
+                       photoData: draft.document.map { document in
+                DiaryDocument(text: "", photos: document.photos.map { photo in
+                    var snapshot = photo
+                    snapshot.offset = 0
+                    snapshot.caption = nil
+                    snapshot.sourceRecordID = nil
+                    return snapshot
+                }).encoded()
+            } ?? nil)
         } onSuccess: {
             pendingJournals.removeValue(forKey: draft.storageKey)
         }
@@ -103,7 +114,11 @@ final class WritingDraftStore {
                     decoded.photoData = row.photoData
                     moment = decoded
                 } else {
-                    journals.append(try JSONDecoder().decode(JournalWritingDraft.self, from: row.payload))
+                    var decoded = try JSONDecoder().decode(JournalWritingDraft.self, from: row.payload)
+                    if let snapshot = DiaryDocument.decode(row.photoData) {
+                        decoded.document = decoded.document?.restoringPhotos(from: snapshot)
+                    }
+                    journals.append(decoded)
                 }
             }
             momentDraft = pendingMoment ?? moment
