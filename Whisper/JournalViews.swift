@@ -66,18 +66,27 @@ struct JournalEditorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) {
-                    isDiscardConfirmationPresented = true
-                } label: {
-                    Image(systemName: "trash")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 18, height: 18)
+                // Preserve a 44pt hit area instead of the smaller native icon button.
+                ZStack {
+                    Color.clear
                         .frame(width: 44, height: 44)
+                        .accessibilityHidden(true)
+                    Button(role: .destructive) {
+                        isDiscardConfirmationPresented = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.whisperTextSecondary)
+                    .accessibilityLabel("초안 삭제")
+                    .accessibilityHint("작성 중인 초안만 삭제해요.")
+                    .accessibilityIdentifier("journal.discardDraftButton")
                 }
-                .accessibilityLabel("초안 삭제")
-                .accessibilityHint("작성 중인 초안만 삭제해요.")
-                .accessibilityIdentifier("journal.discardDraftButton")
             }
         }
         .onAppear { persistDraft() }
