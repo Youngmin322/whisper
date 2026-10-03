@@ -14,7 +14,6 @@ struct QuickRecordView: View {
     @Binding var draft: RecordDraft
     @FocusState private var focusedField: WritingField?
     @State private var isSaveErrorPresented = false
-    @State private var isDiscardConfirmationPresented = false
     @State private var optionalSection: OptionalSection?
     @State private var isEmotionPickerPresented = false
     @State private var photoLoader: PhotoAttachmentLoader
@@ -80,18 +79,16 @@ struct QuickRecordView: View {
                     .accessibilityHint("작성 중인 초안을 보관해요.")
                     .accessibilityIdentifier("record.closeButton")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("저장", action: save)
                         .font(.whisperAction)
-                        .foregroundStyle(canSave ? Color.whisperTextOnAccent : Color.whisperTextSecondary)
-                        .padding(.horizontal, WhisperSpacing.medium)
-                        .frame(minWidth: 62, minHeight: 44)
-                        .background(canSave ? Color.whisperAccentText : Color.whisperSurfaceSubtle, in: Capsule())
-                        .buttonStyle(.plain)
+                        .tint(Color.whisperAccentText)
+                        .buttonStyle(.glassProminent)
                         .disabled(!canSave)
                         .accessibilityLabel("순간 저장")
                         .accessibilityIdentifier("record.saveButton")
                 }
+                .sharedBackgroundVisibility(.hidden)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 writingAccessories
@@ -140,25 +137,6 @@ struct QuickRecordView: View {
             Button("확인", role: .cancel) { photoLoader.dismissError() }
         } message: {
             Text(photoLoader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
-        }
-        .confirmationDialog(
-            "작성 중인 순간을 버릴까요?",
-            isPresented: $isDiscardConfirmationPresented,
-            titleVisibility: .visible
-        ) {
-            Button("초안 버리기", role: .destructive) {
-                guard draftStore.discard(id: draft.id) else {
-                    isDraftErrorPresented = true
-                    return
-                }
-                didFinish = true
-                photoLoader.replacePhoto(with: nil)
-                draft = RecordDraft()
-                dismiss()
-            }
-            Button("계속 작성", role: .cancel) {}
-        } message: {
-            Text("작성한 글·제목과 선택한 감정·사진이 삭제돼요.")
         }
     }
 
@@ -484,19 +462,6 @@ struct QuickRecordView: View {
             .accessibilityLabel("키보드 내리기")
             .accessibilityIdentifier("record.dismissKeyboardButton")
         }
-
-        Menu {
-            Button("초안 버리기", role: .destructive) { isDiscardConfirmationPresented = true }
-                .accessibilityIdentifier("record.discardDraftButton")
-        } label: {
-            Image(systemName: "ellipsis")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 20, height: 20)
-                .frame(width: 44, height: 44)
-        }
-        .accessibilityLabel("작성 옵션")
-        .accessibilityIdentifier("record.optionsButton")
     }
 
     @discardableResult
