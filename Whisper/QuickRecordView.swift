@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 import UIKit
 import WhisperDesignSystem
 
@@ -13,8 +14,10 @@ struct QuickRecordView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Binding var draft: RecordDraft
     @FocusState private var focusedField: WritingField?
+    @ScaledMetric(relativeTo: .body) private var minimumEditorLineHeight: CGFloat = 24
     @State private var isSaveErrorPresented = false
-    @State private var optionalSection: OptionalSection?
+    @State private var isTitleVisible: Bool
+    @State private var isPhotoPickerPresented = false
     @State private var isEmotionPickerPresented = false
     @State private var photoLoader: PhotoAttachmentLoader
     @State private var didFinish = false
@@ -24,13 +27,13 @@ struct QuickRecordView: View {
     let onSave: () -> Bool
 
     private enum WritingField: Hashable { case content, title }
-    private enum OptionalSection { case photo, title }
 
     init(draft: Binding<RecordDraft>, draftStore: WritingDraftStore,
          photoLoader: PhotoAttachmentLoader? = nil, onSave: @escaping () -> Bool) {
         _draft = draft
         self.onSave = onSave
         self.draftStore = draftStore
+        _isTitleVisible = State(initialValue: !draft.wrappedValue.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         _photoLoader = State(initialValue: photoLoader ?? PhotoAttachmentLoader(photoData: draft.wrappedValue.photoData))
     }
 
@@ -42,15 +45,18 @@ struct QuickRecordView: View {
                         ScrollView {
                             // Keep the editor's identity and cursor while the keyboard resizes
                             // the page. Very short viewports can scroll the header out of view.
-                            writingForm(editorHeight: max(64, geometry.size.height - writingHeaderHeight - 24))
+                            writingForm(editorHeight: max(64, minimumEditorLineHeight + 16,
+                                                          geometry.size.height - writingHeaderHeight - 24))
                         }
                         .scrollDismissesKeyboard(.interactively)
                         .scrollBounceBehavior(.basedOnSize)
                         .onChange(of: geometry.size.height) { _, _ in
                             if focusedField == .content { scrollProxy.scrollTo("record.contentArea", anchor: .top) }
+                            if focusedField == .title { scrollProxy.scrollTo("record.titleArea", anchor: .top) }
                         }
                         .onChange(of: focusedField) { _, field in
                             if field == .content { scrollProxy.scrollTo("record.contentArea", anchor: .top) }
+                            if field == .title { scrollProxy.scrollTo("record.titleArea", anchor: .top) }
                         }
                     }
                 } else {
@@ -88,7 +94,6 @@ struct QuickRecordView: View {
                         .accessibilityLabel("순간 저장")
                         .accessibilityIdentifier("record.saveButton")
                 }
-                .sharedBackgroundVisibility(.hidden)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 writingAccessories
@@ -96,13 +101,20 @@ struct QuickRecordView: View {
         }
         .task(id: selectedEmotion) {
             guard selectedEmotion != nil, !isEmotionPickerPresented,
-                  optionalSection != .photo, !didFinish else { return }
+                  !isPhotoPickerPresented, !didFinish else { return }
             await Task.yield()
             focusedField = .content
         }
         .sheet(isPresented: $isEmotionPickerPresented, onDismiss: { focusedField = .content }) {
             EmotionPickerView(selectedEmotion: $draft.emotion, allowsEmptySelection: false)
                 .presentationDetents([.medium, .large])
+        }
+        .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
+            get: { photoLoader.selectedItem },
+            set: { photoLoader.select($0) }
+        ), matching: .images)
+        .onChange(of: isPhotoPickerPresented) { _, isPresented in
+            if !isPresented && !didFinish { focusedField = .content }
         }
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
@@ -169,6 +181,7 @@ struct QuickRecordView: View {
                     WritingDraftErrorView(message: draftStore.errorMessage) { persistDraft() }
                 }
                 writingHeader
+                if isTitleVisible { titleField.id("record.titleArea") }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { writingHeaderHeight = $0 }
             writingSection(editorHeight: editorHeight).id("record.contentArea")
@@ -178,6 +191,23 @@ struct QuickRecordView: View {
         .padding(.bottom, WhisperSpacing.xxSmall)
         .frame(maxWidth: 700, alignment: .top)
         .frame(maxWidth: .infinity)
+    }
+
+    private var titleField: some View {
+        TextField("이 순간의 제목 · 선택 사항", text: $draft.title)
+            .font(.whisperBodyLarge)
+            .foregroundStyle(Color.whisperTextPrimary)
+            .tint(Color.whisperAccentText)
+            .focused($focusedField, equals: .title)
+            .submitLabel(.done)
+            .onSubmit { focusedField = .content }
+            .padding(.vertical, WhisperSpacing.xSmall)
+            .frame(minHeight: 44)
+            .overlay(alignment: .bottom) {
+                Color.whisperDivider.frame(height: 1)
+            }
+            .accessibilityLabel("순간 제목, 선택 사항")
+            .accessibilityIdentifier("record.titleField")
     }
 
     private var writingHeader: some View {
@@ -352,28 +382,11 @@ struct QuickRecordView: View {
     @ViewBuilder
     private var writingAccessories: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-            if selectedEmotion != nil {
-                if optionalSection == .photo {
-                    ScrollView {
-                        PhotoAttachmentEditor(loader: photoLoader, isCompact: true, showsErrorAlert: false)
-                    }
-                    .frame(height: dynamicTypeSize.isAccessibilitySize ? 100 : 76)
-                } else if optionalSection == .title {
-                    TextField("이 순간의 제목 · 선택 사항", text: $draft.title)
-                        .font(.whisperBodyLarge)
-                        .foregroundStyle(Color.whisperTextPrimary)
-                        .tint(Color.whisperAccentText)
-                        .focused($focusedField, equals: .title)
-                        .submitLabel(.done)
-                        .onSubmit { focusedField = .content }
-                        .padding(.vertical, WhisperSpacing.xSmall)
-                        .frame(minHeight: 44)
-                        .overlay(alignment: .bottom) {
-                            Color.whisperDivider.frame(height: 1)
-                        }
-                        .accessibilityLabel("순간 제목, 선택 사항")
-                        .accessibilityIdentifier("record.titleField")
+            if selectedEmotion != nil, photoLoader.photoData != nil {
+                ScrollView {
+                    PhotoAttachmentEditor(loader: photoLoader, isCompact: true, showsErrorAlert: false)
                 }
+                .frame(height: dynamicTypeSize.isAccessibilitySize ? 100 : 76)
             }
 
             ViewThatFits(in: .horizontal) {
@@ -407,8 +420,8 @@ struct QuickRecordView: View {
     private var optionalButtons: some View {
         if selectedEmotion != nil {
             Button {
-                optionalSection = optionalSection == .photo ? nil : .photo
-                focusedField = optionalSection == nil ? .content : nil
+                focusedField = nil
+                isPhotoPickerPresented = true
             } label: {
                 HStack(spacing: WhisperSpacing.xxSmall) {
                     if photoLoader.isLoading {
@@ -424,14 +437,15 @@ struct QuickRecordView: View {
                 .frame(minWidth: 44, minHeight: 44)
             }
             .fixedSize(horizontal: true, vertical: false)
+            .disabled(photoLoader.isLoading)
             .accessibilityLabel("사진")
             .accessibilityValue(photoLoader.isLoading ? "불러오는 중" : draft.photoData == nil ? "첨부 없음" : "1장 첨부됨")
-            .accessibilityHint(optionalSection == .photo ? "사진 영역을 접어요." : "사진을 추가하거나 바꿔요.")
+            .accessibilityHint("사진 보관함에서 사진을 선택해요.")
             .accessibilityIdentifier("record.photoButton")
 
             Button {
-                optionalSection = optionalSection == .title ? nil : .title
-                focusedField = optionalSection == .title ? .title : .content
+                isTitleVisible.toggle()
+                focusedField = isTitleVisible ? .title : .content
             } label: {
                 HStack(spacing: WhisperSpacing.xxSmall) {
                     Image(systemName: draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "textformat" : "textformat.alt")
@@ -444,7 +458,7 @@ struct QuickRecordView: View {
             }
             .fixedSize(horizontal: true, vertical: false)
             .accessibilityValue(draft.title.isEmpty ? "입력 없음" : draft.title)
-            .accessibilityHint(optionalSection == .title ? "제목 영역을 접어요." : "제목을 입력해요.")
+            .accessibilityHint(isTitleVisible ? "제목 영역을 접어요." : "본문 위에 제목을 입력해요.")
             .accessibilityIdentifier("record.titleButton")
         }
     }
