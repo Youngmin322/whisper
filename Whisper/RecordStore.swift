@@ -14,6 +14,19 @@ private struct LegacyWhisperRecord: Codable {
     let createdAt: Date
 }
 
+enum JournalDraftSaveFailure: Equatable {
+    case emptyBody, sourceDeleted, dayConflict, storageFailure
+
+    var message: String {
+        switch self {
+        case .emptyBody: "일기 내용을 입력해 주세요."
+        case .sourceDeleted: "원본 일기가 삭제되었어요. 초안은 남아 있으니 새 일기로 저장해 주세요."
+        case .dayConflict: "선택한 날짜에는 이미 일기가 있어요. 복구할 날짜를 바꿔 주세요. 초안과 기존 일기는 그대로 남아 있어요."
+        case .storageFailure: "작성한 내용은 이 화면에 남아 있어요. 임시 저장 상태를 확인하고 다시 시도해 주세요."
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class RecordStore {
@@ -27,6 +40,7 @@ final class RecordStore {
     private(set) var persistenceSupportCode: String?
     private(set) var persistenceDiagnosticSummary: String?
     private(set) var isPersistenceAvailable = true
+    private(set) var journalDraftSaveFailure: JournalDraftSaveFailure?
     let writingDraftStore: WritingDraftStore
 
     @ObservationIgnored private let modelContainer: ModelContainer?
@@ -166,13 +180,41 @@ final class RecordStore {
     }
 
     @discardableResult
-    func saveJournalDraft(_ draft: JournalWritingDraft) -> DailyJournal? {
-        guard !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              writingDraftStore.save(draft) else { return nil }
-        return saveJournal(on: draft.day, existingJournalID: draft.existingJournalID,
+    func saveJournalDraft(_ draft: JournalWritingDraft, recoveringDeletedJournalOn recoveryDay: JournalDay? = nil) -> DailyJournal? {
+        journalDraftSaveFailure = nil
+        guard !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            journalDraftSaveFailure = .emptyBody
+            return nil
+        }
+        guard writingDraftStore.save(draft) else {
+            journalDraftSaveFailure = .storageFailure
+            return nil
+        }
+        var targetDay = draft.day
+        var targetID = draft.existingJournalID
+        if let originalID = draft.existingJournalID, !journals.contains(where: { $0.id == originalID }) {
+            // A repeated recovery uses the draft UUID, so it cannot create a duplicate.
+            if journals.contains(where: { $0.id == draft.id }) {
+                targetID = draft.id
+            } else {
+                guard let recoveryDay else {
+                    journalDraftSaveFailure = .sourceDeleted
+                    return nil
+                }
+                guard !journals.contains(where: { $0.civilDayKey == recoveryDay.key || $0.dayKey == recoveryDay.key }) else {
+                    journalDraftSaveFailure = .dayConflict
+                    return nil
+                }
+                targetDay = recoveryDay
+                targetID = nil
+            }
+        }
+        let saved = saveJournal(on: targetDay, existingJournalID: targetID,
                            title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines), body: draft.body,
                            sourceRecordIDs: draft.sourceRecordIDs, emotion: draft.representativeEmotion,
                            writingDraftID: draft.id, document: draft.document)
+        if saved == nil { journalDraftSaveFailure = .storageFailure }
+        return saved
     }
 
     @discardableResult

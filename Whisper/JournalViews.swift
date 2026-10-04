@@ -12,6 +12,7 @@ struct JournalEditorView: View {
     @State private var didFinish = false
     @State private var isBodyFocused = false
     @State private var selectedPhoto: DiaryPhoto?
+    @State private var recoveryDate: Date
 
     init(date: Date, recordStore: RecordStore) {
         self.init(day: JournalDay(date: date), recordStore: recordStore)
@@ -23,6 +24,7 @@ struct JournalEditorView: View {
 
     init(day: JournalDay, recordStore: RecordStore, existing: DailyJournal? = nil) {
         self.recordStore = recordStore
+        _recoveryDate = State(initialValue: day.date)
         let journal = existing ?? recordStore.journal(on: day)
         let restored = recordStore.writingDraftStore.journalDraft(on: day, existingJournalID: journal?.id)
         let moments = recordStore.uncollectedMoments(on: day)
@@ -34,6 +36,7 @@ struct JournalEditorView: View {
 
     init(draft: JournalWritingDraft, recordStore: RecordStore) {
         self.recordStore = recordStore
+        _recoveryDate = State(initialValue: draft.day.date)
         let journal = recordStore.journals.first { $0.id == draft.existingJournalID }
         let moments = recordStore.uncollectedMoments(on: draft.day)
         let prepared = recordStore.prepareJournalDraft(draft, existing: journal)
@@ -67,6 +70,19 @@ struct JournalEditorView: View {
                     Rectangle().fill(Color.whisperDivider).frame(height: 1)
                 }
                 WritingDraftErrorView(message: recordStore.writingDraftStore.errorMessage) { persistDraft() }
+                if isOriginalDeleted {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("원본 일기가 삭제되었어요")
+                            .font(.whisperAction)
+                        Text("작성한 초안은 남아 있어요. 날짜를 선택해 새 일기로 저장할 수 있어요.")
+                            .font(.whisperBody)
+                        DatePicker("복구할 날짜", selection: $recoveryDate, displayedComponents: .date)
+                            .environment(\.calendar, draft.day.calendar)
+                            .environment(\.timeZone, draft.day.calendar.timeZone)
+                            .accessibilityIdentifier("journal.recoveryDatePicker")
+                    }
+                    .foregroundStyle(Color.whisperTextPrimary)
+                }
                 DiaryTextView(document: Binding(
                     get: { draft.document ?? DiaryDocument(text: draft.body) },
                     set: { draft.document = $0; draft.body = $0.text }
@@ -106,11 +122,11 @@ struct JournalEditorView: View {
                 .accessibilityIdentifier("journal.discardDraftButton")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("저장", action: save)
+                Button(isOriginalDeleted ? "새 일기로 저장" : "저장", action: save)
                     .font(.whisperAction)
                     .tint(Color.whisperAccentText)
                     .disabled(draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityLabel("일기 저장")
+                    .accessibilityLabel(isOriginalDeleted ? "새 일기로 저장" : "일기 저장")
                     .accessibilityIdentifier("journal.saveButton")
             }
 
@@ -141,15 +157,22 @@ struct JournalEditorView: View {
         .alert("일기를 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
             Button("확인", role: .cancel) {}
         } message: {
-            Text("작성한 내용은 이 화면에 남아 있어요. 잠시 후 다시 시도해 주세요.")
+            Text(recordStore.journalDraftSaveFailure?.message ?? JournalDraftSaveFailure.storageFailure.message)
         }
     }
 
     @discardableResult
     private func persistDraft() -> Bool { didFinish || recordStore.writingDraftStore.save(draft) }
 
+    private var isOriginalDeleted: Bool {
+        draft.existingJournalID.map { originalID in
+            !recordStore.journals.contains { $0.id == originalID }
+        } ?? false
+    }
+
     private func save() {
-        guard recordStore.saveJournalDraft(draft) != nil else {
+        let recoveryDay = isOriginalDeleted ? JournalDay(date: recoveryDate, calendar: draft.day.calendar) : nil
+        guard recordStore.saveJournalDraft(draft, recoveringDeletedJournalOn: recoveryDay) != nil else {
             isSaveErrorPresented = true
             return
         }
