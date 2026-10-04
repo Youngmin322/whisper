@@ -303,6 +303,7 @@ final class RecordStore {
             setUnavailablePersistenceError()
             return false
         }
+        guard stageLegacyJournalSnapshots(linkedTo: record.id) else { return false }
         record.title = title
         record.content = content
         record.emotion = emotion
@@ -318,6 +319,7 @@ final class RecordStore {
             setUnavailablePersistenceError()
             return false
         }
+        guard stageLegacyJournalSnapshots(linkedTo: record.id) else { return false }
         let relatedCommitments = commitments.filter { $0.sourceRecordID == record.id }
         let commitmentIDs = relatedCommitments.map(\.id)
         encounters
@@ -1578,10 +1580,10 @@ final class RecordStore {
     }
 
     func diaryDocument(for journal: DailyJournal) -> DiaryDocument {
-        if let document = storedDiaryDocument(kind: "journal", id: journal.id), document.text == journal.body {
-            return document
-        }
-        var document = legacyDiaryDocument(body: journal.body, sourceIDs: journal.sourceRecordIDs)
+        let stored = storedDiaryDocument(kind: "journal", id: journal.id)
+        var document: DiaryDocument
+        if let stored, stored.text == journal.body { document = stored }
+        else { document = legacyDiaryDocument(body: journal.body, sourceIDs: journal.sourceRecordIDs) }
         if !journal.reflection.isEmpty { document.append(DiaryDocument(text: journal.reflection)) }
         return document
     }
@@ -1593,12 +1595,26 @@ final class RecordStore {
             value.document = stored
         } else {
             value.document = legacyDiaryDocument(body: value.body, sourceIDs: value.sourceRecordIDs)
-            if let reflection = existing?.reflection, !reflection.isEmpty {
-                value.document?.append(DiaryDocument(text: reflection))
-            }
+        }
+        if let reflection = existing?.reflection, !reflection.isEmpty {
+            value.document?.append(DiaryDocument(text: reflection))
         }
         value.body = value.document?.text ?? value.body
         return value
+    }
+
+    /// Freeze legacy photos before their source changes, in the same transaction as that change.
+    private func stageLegacyJournalSnapshots(linkedTo recordID: UUID) -> Bool {
+        for journal in journals where journal.sourceRecordIDs.contains(recordID) {
+            if storedDiaryDocument(kind: "journal", id: journal.id)?.text == journal.body { continue }
+            let snapshot = legacyDiaryDocument(body: journal.body, sourceIDs: journal.sourceRecordIDs)
+            guard stageDiaryDocument(snapshot, kind: "journal", id: journal.id) else {
+                modelContext?.rollback()
+                reload()
+                return false
+            }
+        }
+        return true
     }
 
     private func legacyDiaryDocument(body: String, sourceIDs: [UUID]) -> DiaryDocument {
