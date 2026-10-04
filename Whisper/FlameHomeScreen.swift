@@ -196,14 +196,13 @@ private struct HomeActionButton: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 20, height: 24)
-                .foregroundStyle(Color.whisperTextOnAccent)
                 .accessibilityHidden(true)
         }
         .font(.system(size: 20, weight: .medium))
-        .buttonStyle(.glassProminent)
+        .buttonStyle(.automatic)
         .buttonBorderShape(.circle)
         .controlSize(.regular)
-        .tint(Color.whisperButtonBackground)
+        .tint(Color.whisperAccent)
         .accessibilityLabel(title)
     }
 }
