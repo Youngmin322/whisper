@@ -145,10 +145,7 @@ struct FlameHomeScreen: View {
                 isTimeProposalPresented = false
                 collect()
             }
-            .font(.whisperAction)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .background(Color.whisperAccent, in: RoundedRectangle(cornerRadius: 18))
+            .buttonStyle(.whisperPrimary)
             Button("나중에") { isTimeProposalPresented = false }
                 .font(.whisperControl)
                 .foregroundStyle(Color.whisperAccentText)
@@ -197,9 +194,8 @@ private struct HomeMomentButtonStyle: ButtonStyle {
             .font(.whisperControl)
             .foregroundStyle(Color.whisperTextOnAccent)
             .frame(width: 151, height: 44)
-            .background(Color.whisperAccent, in: Capsule())
+            .background(configuration.isPressed ? Color.whisperButtonPressedBackground : Color.whisperButtonBackground, in: Capsule())
             .contentShape(Capsule())
-            .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
 

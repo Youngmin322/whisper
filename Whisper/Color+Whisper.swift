@@ -8,6 +8,9 @@ import SwiftUI
 extension Color {
     static let whisperAccent = whisperColor(0xF4523B)
     static let whisperAccentText = whisperColor(0xB64F35)
+    // White control text: 5.05:1 normally, 6.82:1 while pressed.
+    static let whisperButtonBackground = whisperColor(0xB64F35)
+    static let whisperButtonPressedBackground = whisperColor(0x983F2A)
 
     static let whisperTextPrimary = whisperColor(0x3E3530)
     static let whisperTextSecondary = whisperColor(0x6E6156)

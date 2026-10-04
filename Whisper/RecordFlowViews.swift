@@ -307,11 +307,11 @@ struct CollectionView: View {
         .frame(minHeight: WhisperSize.controlCompact)
         .background(
             Capsule()
-                .fill(isActive ? Color.whisperAccent : Color.whisperSurfaceDefault)
+                .fill(isActive ? Color.whisperButtonBackground : Color.whisperSurfaceDefault)
                 .overlay {
                     Capsule()
                         .stroke(
-                            isActive ? Color.whisperAccent : Color.whisperBorderSubtle,
+                            isActive ? Color.whisperButtonBackground : Color.whisperBorderSubtle,
                             lineWidth: 1
                         )
                 }

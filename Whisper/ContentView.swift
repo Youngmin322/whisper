@@ -623,7 +623,7 @@ private struct FocusFilterGuideView: View {
                 .font(.whisperControl)
                 .foregroundStyle(Color.white)
                 .frame(width: 30, height: 30)
-                .background(Color.whisperAccent, in: Circle())
+                .background(Color.whisperButtonBackground, in: Circle())
             
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
