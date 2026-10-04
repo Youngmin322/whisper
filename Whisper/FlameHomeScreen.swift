@@ -59,26 +59,18 @@ struct FlameHomeScreen: View {
             ToolbarSpacer(.flexible, placement: .bottomBar)
 
             ToolbarItem(placement: .bottomBar) {
-                Button("병에 담기", action: collect)
-                    .font(.whisperControl)
-                    .tint(Color.whisperTextPrimary)
+                HomeActionButton(title: "병에 담기", image: Image("BottleLineIcon"), action: collect)
                     .disabled(records.isEmpty || collectionStartedAt != nil)
                     .accessibilityIdentifier("home.journalButton")
+                    .accessibilityHint("오늘 남긴 순간을 모아 일기를 작성해요.")
             }
 
             ToolbarSpacer(.fixed, placement: .bottomBar)
 
             ToolbarItem(placement: .bottomBar) {
-                Button(action: onAddMoment) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .medium))
-                }
-                .buttonStyle(.glassProminent)
-                .buttonBorderShape(.circle)
-                .tint(Color.whisperButtonBackground)
-                .accessibilityLabel("순간 남기기")
-                .accessibilityIdentifier("home.recordButton")
-                .disabled(collectionStartedAt != nil)
+                HomeActionButton(title: "순간 남기기", image: Image(systemName: "plus"), action: onAddMoment)
+                    .accessibilityIdentifier("home.recordButton")
+                    .disabled(collectionStartedAt != nil)
             }
         }
         .navigationDestination(isPresented: $isRecordPresented) {
@@ -189,5 +181,29 @@ struct FlameHomeScreen: View {
             guard !Task.isCancelled else { return }
             isJournalPresented = true
         }
+    }
+}
+
+private struct HomeActionButton: View {
+    let title: String
+    let image: Image
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            image
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 24)
+                .foregroundStyle(Color.whisperTextOnAccent)
+                .accessibilityHidden(true)
+        }
+        .font(.system(size: 20, weight: .medium))
+        .buttonStyle(.glassProminent)
+        .buttonBorderShape(.circle)
+        .controlSize(.regular)
+        .tint(Color.whisperButtonBackground)
+        .accessibilityLabel(title)
     }
 }
