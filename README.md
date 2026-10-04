@@ -26,7 +26,6 @@ xcodebuild archive \
   -destination 'generic/platform=iOS' \
   -derivedDataPath /tmp/whisper-release \
   -archivePath /tmp/Whisper.xcarchive \
-  SYMROOT=/tmp/whisper-release/Build/Products \
   CODE_SIGNING_ALLOWED=NO
 ```
 

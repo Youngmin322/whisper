@@ -26,7 +26,7 @@ public extension Color {
     static let whisperBorderSubtle = Color("BorderSubtle", bundle: .module)
     static let whisperDivider = Color("Divider", bundle: .module)
     static let whisperScrim = Color("Scrim", bundle: .module)
-    
+
     static let whisperFlameOuter = Color("FlameOuter", bundle: .module)
     static let whisperFlameInner = Color("FlameInner", bundle: .module)
 }
