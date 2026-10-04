@@ -56,6 +56,8 @@ struct FlameHomeScreen: View {
         .background(Color.whisperBackground.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .toolbar {
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+
             ToolbarItem(placement: .bottomBar) {
                 Button("병에 담기", action: collect)
                     .font(.whisperControl)
@@ -64,18 +66,20 @@ struct FlameHomeScreen: View {
                     .accessibilityIdentifier("home.journalButton")
             }
 
-            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarSpacer(.fixed, placement: .bottomBar)
 
             ToolbarItem(placement: .bottomBar) {
                 Button(action: onAddMoment) {
                     Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .medium))
                 }
-                .buttonStyle(HomeMomentButtonStyle())
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .tint(Color.whisperButtonBackground)
                 .accessibilityLabel("순간 남기기")
                 .accessibilityIdentifier("home.recordButton")
                 .disabled(collectionStartedAt != nil)
             }
-            .sharedBackgroundVisibility(.hidden)
         }
         .navigationDestination(isPresented: $isRecordPresented) {
             if let selectedRecordID,
@@ -185,17 +189,5 @@ struct FlameHomeScreen: View {
             guard !Task.isCancelled else { return }
             isJournalPresented = true
         }
-    }
-}
-
-private struct HomeMomentButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 24, weight: .medium))
-            .foregroundStyle(Color.whisperTextOnAccent)
-            .frame(width: 56, height: 56)
-            .background(Color.whisperButtonBackground, in: Circle())
-            .contentShape(Circle())
-            .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
