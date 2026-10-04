@@ -218,7 +218,11 @@ final class RecordStore {
     }
 
     @discardableResult
-    func saveMomentDraft(_ draft: RecordDraft) -> WhisperRecord? {
+    func saveMomentDraft(_ draft: RecordDraft, recoveringDeletedMoment: Bool = false) -> WhisperRecord? {
+        if let originalID = draft.existingRecordID {
+            if record(withID: originalID) != nil { return saveMomentEditDraft(draft) }
+            guard recoveringDeletedMoment else { return nil }
+        }
         guard draft.canSaveNewMoment, let modelContext, writingDraftStore.save(draft) else { return nil }
         if record(withID: draft.id) == nil {
             modelContext.insert(WhisperRecord(id: draft.id, title: draft.titleForSaving,
@@ -231,6 +235,15 @@ final class RecordStore {
         guard saveChanges(reloadAfterSave: true) else { return nil }
         writingDraftStore.didComplete(id: draft.id)
         return record(withID: draft.id)
+    }
+
+    @discardableResult
+    func saveMomentEditDraft(_ draft: RecordDraft) -> WhisperRecord? {
+        guard draft.canSave, let originalID = draft.existingRecordID,
+              let original = record(withID: originalID), writingDraftStore.save(draft) else { return nil }
+        guard update(original, title: draft.titleForSaving, content: draft.content, emotion: draft.emotion,
+                     photoData: draft.photoData, document: draft.diaryDocument, writingDraftID: draft.id) else { return nil }
+        return record(withID: originalID)
     }
 
     @discardableResult
@@ -297,7 +310,8 @@ final class RecordStore {
         content: String,
         emotion: String?,
         photoData: Data?,
-        document: DiaryDocument? = nil
+        document: DiaryDocument? = nil,
+        writingDraftID: UUID? = nil
     ) -> Bool {
         guard modelContext != nil else {
             setUnavailablePersistenceError()
@@ -310,7 +324,10 @@ final class RecordStore {
         record.photoData = photoData
         record.updatedAt = .now
         if let document, !stageDiaryDocument(document.withoutPhotoData, kind: "moment", id: record.id) { return false }
-        return saveChanges()
+        if let writingDraftID { writingDraftStore.stageCompletion(of: writingDraftID) }
+        guard saveChanges(reloadAfterSave: writingDraftID != nil) else { return false }
+        if let writingDraftID { writingDraftStore.didComplete(id: writingDraftID) }
+        return true
     }
 
     @discardableResult

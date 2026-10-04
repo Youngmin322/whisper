@@ -46,6 +46,18 @@ struct WritingDraftListView: View {
                         .swipeActions { discardButton(id: moment.id) }
                     }
                 }
+                if !draftStore.momentEditDrafts.isEmpty {
+                    Section("수정 중인 순간") {
+                        ForEach(draftStore.momentEditDrafts) { moment in
+                            Button { onOpenMoment(moment) } label: {
+                                draftLabel(title: moment.title.isEmpty ? "수정 중인 순간" : moment.title,
+                                           subtitle: moment.content)
+                            }
+                            .accessibilityIdentifier("draft.resumeMomentEditButton")
+                            .swipeActions { discardButton(id: moment.id) }
+                        }
+                    }
+                }
                 if !draftStore.journalDrafts.isEmpty {
                     Section("일기") {
                         ForEach(draftStore.journalDrafts) { journal in

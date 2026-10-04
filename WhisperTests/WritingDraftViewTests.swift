@@ -77,6 +77,45 @@ struct WritingDraftViewTests {
         #expect(store.journals.first?.body == "원래 본문")
     }
 
+    @Test("기존 순간 수정 화면은 변경한 본문을 닫을 때 보관하고 이어 쓰며 원본을 유지한다")
+    func momentEditAutosavesAndReopens() async throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let record = try #require(store.addAndReturn(title: "원래 제목", content: "원래 본문", emotion: "평온", photoData: Data([1, 2])))
+        let initial = RecordDraft(title: record.title, content: record.content, emotion: record.emotion,
+            photoData: record.photoData, document: store.diaryDocument(for: record).withoutPhotoData, existingRecordID: record.id)
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 393, height: 852)
+        let host = UIHostingController(rootView: AnyView(NavigationStack {
+            RecordDetailView(record: record, recordStore: store, editingDraft: initial)
+        }))
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true; window.rootViewController = nil }
+        try await settle()
+        #expect(store.writingDraftStore.count == 0)
+        let textView = try #require(textViews(in: host.view).first { $0.accessibilityIdentifier == "record.editContentField" })
+        textView.text = "쓰다가 닫은 순간 수정"
+        textView.delegate?.textViewDidChange?(textView)
+        try await settle()
+        let edit = try #require(store.writingDraftStore.momentEditDraft(for: record.id))
+        #expect(edit.content == "쓰다가 닫은 순간 수정")
+        #expect(edit.emotion == "평온")
+        #expect(edit.photoData == Data([1, 2]))
+        #expect(record.content == "원래 본문")
+        host.rootView = AnyView(EmptyView())
+        try await settle()
+        #expect(store.refreshPersistentState())
+        let restored = try #require(store.writingDraftStore.momentEditDraft(for: record.id))
+        host.rootView = AnyView(NavigationStack {
+            RecordDetailView(record: record, recordStore: store, editingDraft: restored)
+        })
+        try await settle()
+        #expect(textViews(in: host.view).contains { $0.text == "쓰다가 닫은 순간 수정" })
+        #expect(store.writingDraftStore.momentDraft == nil)
+        #expect(store.records.first?.content == "원래 본문")
+    }
+
     private func settle() async throws {
         try await Task.sleep(for: .milliseconds(200))
     }

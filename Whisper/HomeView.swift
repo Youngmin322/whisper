@@ -24,6 +24,8 @@ struct HomeView: View {
     @State private var pendingJournalDraft: JournalWritingDraft?
     @State private var resumedJournalDraft: JournalWritingDraft?
     @State private var isResumedJournalPresented = false
+    @State private var resumedMomentDraft: RecordDraft?
+    @State private var isResumedMomentPresented = false
 
     var body: some View {
         FlameHomeScreen(
@@ -88,6 +90,12 @@ struct HomeView: View {
         .navigationDestination(isPresented: $isResumedJournalPresented) {
             if let resumedJournalDraft { JournalEditorView(draft: resumedJournalDraft, recordStore: recordStore) }
         }
+        .navigationDestination(isPresented: $isResumedMomentPresented) {
+            if let resumedMomentDraft, let id = resumedMomentDraft.existingRecordID,
+               let record = recordStore.record(withID: id) {
+                RecordDetailView(record: record, recordStore: recordStore, editingDraft: resumedMomentDraft)
+            }
+        }
         .sheet(isPresented: $isCandidatePresented, onDismiss: dismissCandidate) {
             if let candidate = presentedCommitmentCandidate {
                 candidateCard(candidate)
@@ -118,8 +126,13 @@ struct HomeView: View {
             isResumedJournalPresented = true
         } else if let moment = pendingMomentDraft {
             pendingMomentDraft = nil
-            recordDraft = moment
-            isQuickRecordPresented = true
+            if let id = moment.existingRecordID, recordStore.record(withID: id) != nil {
+                resumedMomentDraft = moment
+                isResumedMomentPresented = true
+            } else {
+                recordDraft = moment
+                isQuickRecordPresented = true
+            }
         }
     }
 
@@ -167,7 +180,7 @@ struct HomeView: View {
         let content = recordDraft.contentForSaving
         let existingCommitments = recordStore.activeCommitmentSnapshots
 
-        guard let savedRecord = recordStore.saveMomentDraft(recordDraft) else {
+        guard let savedRecord = recordStore.saveMomentDraft(recordDraft, recoveringDeletedMoment: recordDraft.existingRecordID != nil) else {
             return false
         }
 

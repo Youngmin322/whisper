@@ -22,6 +22,11 @@ struct RecordDraft: Codable, Equatable, Identifiable {
     var emotion: String?
     var photoData: Data?
     var document: DiaryDocument? = nil
+    var existingRecordID: UUID? = nil
+
+    var storageKey: String {
+        existingRecordID.map { "moment:edit:\($0.uuidString)" } ?? "moment"
+    }
 
     var titleForSaving: String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -41,6 +46,6 @@ struct RecordDraft: Codable, Equatable, Identifiable {
     }
 
     var hasChanges: Bool {
-        !title.isEmpty || !content.isEmpty || emotion != nil || photoData != nil
+        existingRecordID != nil || !title.isEmpty || !content.isEmpty || emotion != nil || photoData != nil
     }
 }

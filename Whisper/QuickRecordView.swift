@@ -80,7 +80,7 @@ struct QuickRecordView: View {
             }
             .scrollIndicators(.hidden)
             .background(Color.whisperBackground)
-            .navigationTitle("순간 남기기")
+            .navigationTitle(draft.existingRecordID == nil ? "순간 남기기" : "순간 복구")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -97,7 +97,7 @@ struct QuickRecordView: View {
                     .accessibilityIdentifier("record.closeButton")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("저장", action: save)
+                    Button(draft.existingRecordID == nil ? "저장" : "새 순간으로 저장", action: save)
                         .font(.whisperAction)
                         .tint(Color.whisperAccentText)
                         .buttonStyle(.glassProminent)
@@ -166,6 +166,7 @@ struct QuickRecordView: View {
     private var moodForm: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
             WritingDraftErrorView(message: draftStore.errorMessage) { persistDraft() }
+            recoveryNotice
             Text(Date.now.whisperFullDayDescription)
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperTextSecondary)
@@ -188,6 +189,7 @@ struct QuickRecordView: View {
     private func writingForm(editorHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.small) {
             VStack(alignment: .leading, spacing: WhisperSpacing.small) {
+                recoveryNotice
                 if draftStore.errorMessage != nil {
                     WritingDraftErrorView(message: draftStore.errorMessage) { persistDraft() }
                 }
@@ -202,6 +204,16 @@ struct QuickRecordView: View {
         .padding(.bottom, WhisperSpacing.xxSmall)
         .frame(maxWidth: 700, alignment: .top)
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var recoveryNotice: some View {
+        if draft.existingRecordID != nil {
+            Text("원본 순간이 삭제되었어요. 보관한 수정 초안은 오늘의 새 순간으로 저장할 수 있어요.")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextPrimary)
+                .accessibilityIdentifier("record.deletedSourceNotice")
+        }
     }
 
     private var titleField: some View {
