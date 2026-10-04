@@ -124,7 +124,7 @@ struct JournalEditorView: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button(isOriginalDeleted ? "새 일기로 저장" : "저장", action: save)
                     .font(.whisperAction)
-                    .tint(Color.whisperAccentText)
+                    .tint(Color.whisperAccent)
                     .disabled(draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityLabel(isOriginalDeleted ? "새 일기로 저장" : "일기 저장")
                     .accessibilityIdentifier("journal.saveButton")

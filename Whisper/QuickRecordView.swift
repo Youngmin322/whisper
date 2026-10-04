@@ -99,7 +99,7 @@ struct QuickRecordView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(draft.existingRecordID == nil ? "저장" : "새 순간으로 저장", action: save)
                         .font(.whisperAction)
-                        .tint(Color.whisperAccentText)
+                        .tint(Color.whisperAccent)
                         .buttonStyle(.glassProminent)
                         .disabled(!canSave)
                         .accessibilityLabel("순간 저장")

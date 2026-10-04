@@ -194,8 +194,9 @@ private struct HomeMomentButtonStyle: ButtonStyle {
             .font(.whisperControl)
             .foregroundStyle(Color.whisperTextOnAccent)
             .frame(width: 151, height: 44)
-            .background(configuration.isPressed ? Color.whisperButtonPressedBackground : Color.whisperButtonBackground, in: Capsule())
+            .background(Color.whisperButtonBackground, in: Capsule())
             .contentShape(Capsule())
+            .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
 

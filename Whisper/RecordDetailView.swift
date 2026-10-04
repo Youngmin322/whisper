@@ -97,9 +97,6 @@ struct RecordDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                if isEditing { Button("닫기", action: closeEditing).accessibilityHint("수정 중인 초안을 보관해요.") }
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 if isEditing {
                     Button("초안 버리기", systemImage: "trash", role: .destructive) {
@@ -111,6 +108,7 @@ struct RecordDetailView: View {
             ToolbarItem(placement: .confirmationAction) {
                 if isEditing {
                     Button("저장", action: saveChanges)
+                        .tint(Color.whisperAccent)
                         .disabled(!draft.canSave || photoLoader.isLoading)
                         .accessibilityIdentifier("record.saveEditButton")
                 } else {
@@ -688,13 +686,6 @@ struct RecordDetailView: View {
             return recordStore.writingDraftStore.discard(id: draft.id)
         }
         return recordStore.writingDraftStore.save(draft)
-    }
-
-    private func closeEditing() {
-        guard persistDraft() else { isDraftErrorPresented = true; return }
-        isBodyFocused = false
-        isEditing = false
-        photoLoader.cancelLoading()
     }
 
     private func deleteRecord() {
