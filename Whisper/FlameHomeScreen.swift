@@ -52,12 +52,7 @@ struct FlameHomeScreen: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            HStack(spacing: 4) {
-                Button("+ 순간 남기기", action: onAddMoment)
-                    .buttonStyle(HomeMomentButtonStyle())
-                    .accessibilityIdentifier("home.recordButton")
-                    .disabled(collectionStartedAt != nil)
-
+            HStack {
                 Button(action: collect) {
                     HStack(spacing: 4) {
                         Image("BottleLineIcon")
@@ -71,7 +66,18 @@ struct FlameHomeScreen: View {
                 .buttonStyle(HomeCollectButtonStyle())
                 .disabled(records.isEmpty || collectionStartedAt != nil)
                 .accessibilityIdentifier("home.journalButton")
+
+                Spacer()
+
+                Button(action: onAddMoment) {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(HomeMomentButtonStyle())
+                .accessibilityLabel("순간 남기기")
+                .accessibilityIdentifier("home.recordButton")
+                .disabled(collectionStartedAt != nil)
             }
+            .padding(.horizontal, 24)
             .padding(.bottom, 26)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -191,11 +197,11 @@ struct FlameHomeScreen: View {
 private struct HomeMomentButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.whisperControl)
+            .font(.system(size: 24, weight: .medium))
             .foregroundStyle(Color.whisperTextOnAccent)
-            .frame(width: 151, height: 44)
-            .background(Color.whisperButtonBackground, in: Capsule())
-            .contentShape(Capsule())
+            .frame(width: 56, height: 56)
+            .background(Color.whisperButtonBackground, in: Circle())
+            .contentShape(Circle())
             .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
