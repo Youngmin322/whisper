@@ -51,24 +51,22 @@ struct FlameHomeScreen: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.whisperBackground.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                Button("병에 담기", action: collect)
+                    .font(.whisperControl)
+                    .tint(Color.whisperTextPrimary)
+                    .disabled(records.isEmpty || collectionStartedAt != nil)
+                    .accessibilityIdentifier("home.journalButton")
+            }
 
-            HStack {
-                Button(action: collect) {
-                    HStack(spacing: 4) {
-                        Image("BottleLineIcon")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 19, height: 23)
-                            .accessibilityHidden(true)
-                        Text("병에 담기")
-                    }
-                }
-                .buttonStyle(HomeCollectButtonStyle())
-                .disabled(records.isEmpty || collectionStartedAt != nil)
-                .accessibilityIdentifier("home.journalButton")
+            ToolbarSpacer(.flexible, placement: .bottomBar)
 
-                Spacer()
-
+            ToolbarItem(placement: .bottomBar) {
                 Button(action: onAddMoment) {
                     Image(systemName: "plus")
                 }
@@ -77,12 +75,8 @@ struct FlameHomeScreen: View {
                 .accessibilityIdentifier("home.recordButton")
                 .disabled(collectionStartedAt != nil)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 26)
+            .sharedBackgroundVisibility(.hidden)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.whisperBackground.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $isRecordPresented) {
             if let selectedRecordID,
                let record = recordStore.record(withID: selectedRecordID) {
@@ -203,18 +197,5 @@ private struct HomeMomentButtonStyle: ButtonStyle {
             .background(Color.whisperButtonBackground, in: Circle())
             .contentShape(Circle())
             .opacity(configuration.isPressed ? 0.82 : 1)
-    }
-}
-
-private struct HomeCollectButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.whisperControl)
-            .foregroundStyle(Color.whisperTextSecondary)
-            .frame(minWidth: 116, minHeight: 44)
-            .contentShape(Rectangle())
-            .opacity(!isEnabled ? 0.45 : configuration.isPressed ? 0.6 : 1)
     }
 }
