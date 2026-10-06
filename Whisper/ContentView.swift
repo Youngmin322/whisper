@@ -75,20 +75,37 @@ private struct MainTabView: View {
     let recordStore: RecordStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var homePath = NavigationPath()
+    @State private var iPadNotificationRoute: NotificationRecordRoute?
     
     var body: some View {
-        NavigationStack(path: $homePath) {
-            HomeView(recordStore: recordStore) {
-                homePath.append(MainRoute.collection)
-            }
-            .navigationDestination(for: MainRoute.self) { route in
-                switch route {
-                case .collection:
-                    JournalShelfView(recordStore: recordStore)
+        Group {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                IPadWorkspaceView(recordStore: recordStore)
+                    .sheet(item: $iPadNotificationRoute) { route in
+                        NavigationStack {
+                            NotificationRecordDestination(route: route, recordStore: recordStore)
+                                .toolbar {
+                                    ToolbarItem(placement: .cancellationAction) {
+                                        Button("닫기") { iPadNotificationRoute = nil }
+                                    }
+                                }
+                        }
+                    }
+            } else {
+                NavigationStack(path: $homePath) {
+                    HomeView(recordStore: recordStore) {
+                        homePath.append(MainRoute.collection)
+                    }
+                    .navigationDestination(for: MainRoute.self) { route in
+                        switch route {
+                        case .collection:
+                            JournalShelfView(recordStore: recordStore)
+                        }
+                    }
+                    .navigationDestination(for: NotificationRecordRoute.self) { route in
+                        NotificationRecordDestination(route: route, recordStore: recordStore)
+                    }
                 }
-            }
-            .navigationDestination(for: NotificationRecordRoute.self) { route in
-                NotificationRecordDestination(route: route, recordStore: recordStore)
             }
         }
         .task {
@@ -121,15 +138,18 @@ private struct MainTabView: View {
         guard CommitmentReminderFeature.isEnabled else { return }
 
         if let recordID {
-            homePath = NavigationPath()
-            homePath.append(
-                NotificationRecordRoute(
+            let route = NotificationRecordRoute(
                     recordID: recordID,
                     commitmentID: commitmentID,
                     encounterID: encounterID,
                     requestIdentifier: requestIdentifier
                 )
-            )
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                iPadNotificationRoute = route
+            } else {
+                homePath = NavigationPath()
+                homePath.append(route)
+            }
         }
 
         // 알림 열기는 탐색만 담당합니다. 일정 변경은 명시적인 쉬기/놓아주기에서만 해요.
@@ -145,11 +165,12 @@ private enum MainRoute: Hashable {
     case collection
 }
 
-private struct NotificationRecordRoute: Hashable {
+private struct NotificationRecordRoute: Hashable, Identifiable {
     let recordID: UUID
     let commitmentID: UUID?
     let encounterID: UUID?
     let requestIdentifier: String?
+    var id: UUID { recordID }
 }
 
 private struct NotificationRecordDestination: View {
