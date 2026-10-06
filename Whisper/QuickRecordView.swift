@@ -360,32 +360,21 @@ struct QuickRecordView: View {
 
     private func writingSection(editorHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-            ZStack(alignment: .topLeading) {
-                DiaryTextView(document: Binding(
-                    get: { draft.diaryDocument },
-                    set: { value in
-                        draft.setDiaryDocument(value)
-                        if photoLoader.photoData != draft.photoData { photoLoader.replacePhoto(with: draft.photoData) }
-                    }
-                ), isFocused: Binding(
-                    get: { focusedField == .content },
-                    set: { isBodyFocused = $0 }
-                ), fillsHeight: true, minimumHeight: 64,
-                   accessibilityIdentifier: "record.contentField",
-                   onSelectionChange: { photoInsertionOffset = $0 },
-                   onPhotoTap: { selectedPhoto = $0 })
-
-                if draft.content.isEmpty {
-                    Text("기억하고 싶은 순간을 적어보세요.")
-                        .font(.whisperBodyLarge)
-                        .lineSpacing(8)
-                        .foregroundStyle(Color.whisperTextSecondary)
-                        .padding(.top, 8)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+            DiaryTextView(document: Binding(
+                get: { draft.diaryDocument },
+                set: { value in
+                    draft.setDiaryDocument(value)
+                    if photoLoader.photoData != draft.photoData { photoLoader.replacePhoto(with: draft.photoData) }
                 }
-            }
-            .frame(height: editorHeight)
+            ), isFocused: Binding(
+                get: { focusedField == .content },
+                set: { isBodyFocused = $0 }
+            ), fillsHeight: true, minimumHeight: 64,
+               placeholder: "기억하고 싶은 순간을 적어보세요.",
+               accessibilityIdentifier: "record.contentField",
+               onSelectionChange: { photoInsertionOffset = $0 },
+               onPhotoTap: { selectedPhoto = $0 })
+                .frame(height: editorHeight)
 
             if draft.content.count >= RecordDraft.contentLimit - 100 {
                 Text("\(draft.content.count) / \(RecordDraft.contentLimit.formatted())")

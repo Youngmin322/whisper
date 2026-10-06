@@ -87,16 +87,9 @@ struct JournalEditorView: View {
                     get: { draft.document ?? DiaryDocument(text: draft.body) },
                     set: { draft.document = $0; draft.body = $0.text }
                 ), isFocused: $isBodyFocused, minimumHeight: 260, showsRules: true,
+                   placeholder: "오늘을 돌아보며 적어보세요.",
                    accessibilityIdentifier: "journal.bodyField",
                    onPhotoTap: { selectedPhoto = $0 })
-                    .overlay(alignment: .topLeading) {
-                        if draft.body.isEmpty, draft.document?.photos.isEmpty != false {
-                            Text("오늘을 돌아보며 적어보세요.")
-                                .font(.whisperBodyLarge)
-                                .foregroundStyle(Color.whisperTextSecondary)
-                                .allowsHitTesting(false)
-                        }
-                    }
                 DiarySourcesView(ids: draft.sourceRecordIDs, recordStore: recordStore)
                     .padding(.top, 18)
             }

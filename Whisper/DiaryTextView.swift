@@ -142,6 +142,52 @@ private final class DiaryLayoutManager: NSLayoutManager {
     }
 }
 
+private final class DiaryEditorTextView: UITextView {
+    private let placeholderView: UITextView = {
+        let storage = NSTextStorage()
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(size: .zero)
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        let view = UITextView(frame: .zero, textContainer: container)
+        view.backgroundColor = .clear
+        view.isEditable = false
+        view.isSelectable = false
+        view.isScrollEnabled = false
+        view.isUserInteractionEnabled = false
+        view.isAccessibilityElement = false
+        view.accessibilityElementsHidden = true
+        view.contentInsetAdjustmentBehavior = .never
+        return view
+    }()
+
+    override init(frame: CGRect, textContainer: NSTextContainer?) {
+        super.init(frame: frame, textContainer: textContainer)
+        addSubview(placeholderView)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func updatePlaceholder(_ placeholder: String?, font: UIFont) {
+        var attributes = DiaryTextFormatter.attributes(font: font)
+        attributes[.foregroundColor] = UIColor(Color.whisperTextSecondary)
+        placeholderView.attributedText = NSAttributedString(string: placeholder ?? "", attributes: attributes)
+        updatePlaceholderVisibility()
+    }
+
+    func updatePlaceholderVisibility() {
+        placeholderView.isHidden = !isEditable || textStorage.length > 0 || placeholderView.text.isEmpty
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Use the editor's TextKit layout, font and insets for the hint as well.
+        placeholderView.textContainerInset = textContainerInset
+        placeholderView.textContainer.lineFragmentPadding = textContainer.lineFragmentPadding
+        placeholderView.frame = CGRect(origin: .zero, size: bounds.size)
+    }
+}
+
 struct DiaryTextView: UIViewRepresentable {
     @Binding var document: DiaryDocument
     @Binding var isFocused: Bool
@@ -150,6 +196,7 @@ struct DiaryTextView: UIViewRepresentable {
     var fillsHeight = false
     var minimumHeight: CGFloat = 100
     var showsRules = false
+    var placeholder: String? = nil
     var accessibilityIdentifier = "diary.body"
     var onSelectionChange: (Int) -> Void = { _ in }
     var onPhotoTap: (DiaryPhoto) -> Void = { _ in }
@@ -162,7 +209,7 @@ struct DiaryTextView: UIViewRepresentable {
         let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         storage.addLayoutManager(layout)
         layout.addTextContainer(container)
-        let view = UITextView(frame: .zero, textContainer: container)
+        let view = DiaryEditorTextView(frame: .zero, textContainer: container)
         view.delegate = context.coordinator
         if isEditable, !fillsHeight {
             let toolbar = UIToolbar()
@@ -194,6 +241,7 @@ struct DiaryTextView: UIViewRepresentable {
         view.accessibilityLabel = isEditable ? "일기 본문" : "일기 내용"
         (view.layoutManager as? DiaryLayoutManager)?.showsRules = showsRules
         context.coordinator.render(in: view, width: max(1, view.bounds.width))
+        (view as? DiaryEditorTextView)?.updatePlaceholder(placeholder, font: font)
         if isEditable, isFocused, !view.isFirstResponder {
             DispatchQueue.main.async { view.becomeFirstResponder() }
         } else if !isFocused, view.isFirstResponder { view.resignFirstResponder() }
@@ -233,6 +281,7 @@ struct DiaryTextView: UIViewRepresentable {
             let selection = view.selectedRange
             let offset = DiaryTextFormatter.plainOffset(selection.location, in: view.attributedText ?? NSAttributedString())
             isRendering = true
+            view.font = font
             view.attributedText = DiaryTextFormatter.attributed(owner.document, width: width, font: font)
             let photoCount = owner.document.photos.filter { $0.offset <= offset && $0.data.flatMap { UIImage(data: $0) } != nil }.count
             let location = min(lastDocument == owner.document ? selection.location : offset + photoCount, view.attributedText.length)
@@ -246,6 +295,7 @@ struct DiaryTextView: UIViewRepresentable {
 
         func textViewDidChange(_ view: UITextView) {
             guard !isRendering else { return }
+            (view as? DiaryEditorTextView)?.updatePlaceholderVisibility()
             var value = DiaryTextFormatter.document(from: view.attributedText)
             // Preserve legacy unreadable photo data; it is not a visible attachment.
             value.photos += (lastDocument?.photos ?? []).filter { $0.data.flatMap { UIImage(data: $0) } == nil }
