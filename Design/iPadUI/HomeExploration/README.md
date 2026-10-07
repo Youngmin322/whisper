@@ -69,6 +69,18 @@ Figma 데스크톱에 동기화 대기 안내가 있어 원격 반영은 확인�
 - 검증 기록은 `Whisper-iPad-home-bottom-pair-state.json`, 재현 스크립트는 `revise-bottom-action-pair.js`입니다. 이전 날짜 아래 배치 시안은 별도 PNG·JSON에 보존합니다.
 - 앱 소스는 수정하지 않은 검토용 디자인입니다. 실제 iPadOS 버튼 렌더링은 아직 검증하지 않았습니다.
 
+Apple 공식 UI 키트 버튼:
+
+- 사용자가 직접 그린 버튼 대신 iPadOS 에셋을 가져와 수정하도록 요청했습니다. Figma 에셋 패널에 기본 제공되는 Apple의 `iOS and iPadOS 27` → `Buttons` → `Button - Content Area`를 사용했습니다.
+- 공식 출처: https://developer.apple.com/design/resources/ 및 https://www.figma.com/community/file/1651309003795292092/ios-and-ipados-27
+- `Whisper-iPad-home-apple-buttons.png`가 현재 시안입니다. 이전 커스텀 버튼은 숨겨 보존하고 원격 컴포넌트 연결을 유지한 인스턴스로 교체했습니다. 컴포넌트를 분리하거나 버튼의 모서리·패딩·폰트·색을 직접 재정의하지 않았습니다.
+- `병에 담기`는 Large / Bordered / Title only, `순간 남기기`는 Large / Bordered - Prominent / Title and Icon입니다. Label과 Symbol 속성만 앱 문구 및 `+`로 변경했습니다. 병 그림은 하단 버튼에서 제거했습니다.
+- 키트 기본 색상은 회색 배경·파란 글자의 보조 버튼과 파란 배경·흰 글자의 강조 버튼입니다. Large의 높이 50pt와 SF Pro 17pt를 유지했습니다. 글자 길이에 따라 너비는 각각 106pt와 136pt이며, 그룹은 간격 12pt로 하단 중앙에 놓았습니다.
+- 활성 인스턴스는 `10619:2329`와 `10619:2326`입니다. 출처 컴포넌트 키·변형 속성·검증 결과는 `Whisper-iPad-home-apple-buttons-state.json`에 기록했습니다.
+- 활동 범위와 불꽃 위치를 유지했습니다. `Whisper-iPad-home-latest.fig`는 최신 로컬 사본입니다. Figma 클라우드 동기화는 대기 중입니다.
+- 재현하려면 에셋 패널에서 해당 Apple 버튼 인스턴스를 가져온 뒤 `revise-apple-kit-buttons.js`를 실행합니다. 현재 파일에서는 기존 인스턴스를 재사용합니다.
+- Figma 공식 키트에 기반한 시안이며 실제 SwiftUI 런타임 렌더링 결과는 아닙니다. 앱 소스는 수정하지 않았습니다.
+
 탐색 흐름 결정:
 
 - 사용자가 중요하게 보는 흐름은 **홈에서 기록하다가 필요할 때 보관함 열기**입니다.
