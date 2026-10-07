@@ -64,6 +64,7 @@ struct IPadMomentEditor: View {
                     }
                     .scrollDismissesKeyboard(.interactively)
                     .scrollBounceBehavior(.basedOnSize)
+                    .safeAreaInset(edge: .bottom, spacing: 0) { accessories }
                 }
             }
             .background(Color.whisperBackground)
@@ -84,7 +85,6 @@ struct IPadMomentEditor: View {
                         .accessibilityIdentifier("record.saveButton")
                 }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) { accessories }
         }
         .tint(Color.whisperAccent)
         .task(id: draft.emotion) {

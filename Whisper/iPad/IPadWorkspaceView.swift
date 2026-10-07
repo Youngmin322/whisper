@@ -41,6 +41,7 @@ struct IPadWorkspaceView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selection: IPadSection? = .today
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var preferredCompactColumn: NavigationSplitViewColumn = .detail
     @State private var editor: IPadEditorSession?
     @State private var isDraftListPresented = false
     @State private var pendingEditor: IPadEditorSession?
@@ -51,7 +52,7 @@ struct IPadWorkspaceView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            NavigationSplitView(columnVisibility: $columnVisibility) {
+            NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredCompactColumn) {
                 sidebar
                     .navigationSplitViewColumnWidth(min: 200, ideal: 224, max: 280)
             } detail: {
