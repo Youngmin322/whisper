@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import Observation
 
 enum IPadSection: String, CaseIterable, Identifiable {
     case today, archive, search, settings
@@ -26,143 +28,122 @@ enum IPadEditorSession: Identifiable {
     }
 }
 
-/// The device gate lives in ContentView, so a narrow iPad window remains in the
-/// iPad workspace instead of switching to the iPhone screen and losing its state.
+@Observable
+final class IPadWorkspacePresentation {
+    var selectedMoment: IPadEntry?
+    var editor: IPadEditorSession?
+    var pendingEditor: IPadEditorSession?
+
+    func editSelectedMoment(_ session: IPadEditorSession) {
+        pendingEditor = session
+        selectedMoment = nil
+    }
+
+    func openPendingEditor() {
+        guard let pendingEditor else { return }
+        editor = pendingEditor
+        self.pendingEditor = nil
+    }
+}
+
+/// iPadOS owns the tab bar, sidebar, and their adaptation to the window size.
 struct IPadWorkspaceView: View {
     let recordStore: RecordStore
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var selection: IPadSection? = .today
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var preferredCompactColumn: NavigationSplitViewColumn = .detail
-    @State private var editor: IPadEditorSession?
+    @State private var selection: IPadSection = .today
     @State private var isDraftListPresented = false
-    @State private var pendingEditor: IPadEditorSession?
     @State private var archiveNavigation = IPadArchiveNavigation()
     @State private var searchNavigation = IPadSearchNavigation()
-    @State private var selectedMomentID: UUID?
-    @State private var isInspectorPresented = false
+    @State private var presentation: IPadWorkspacePresentation
+
+    init(recordStore: RecordStore, presentation: IPadWorkspacePresentation = IPadWorkspacePresentation()) {
+        self.recordStore = recordStore
+        _presentation = State(initialValue: presentation)
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredCompactColumn) {
-                sidebar
-                    .navigationSplitViewColumnWidth(min: 200, ideal: 224, max: 280)
-            } detail: {
-                destination
+        TabView(selection: $selection) {
+            Tab(value: IPadSection.today) {
+                destination(.today)
+            } label: {
+                Label {
+                    Text(IPadSection.today.title)
+                } icon: {
+                    Image(uiImage: Self.homeTabImage).renderingMode(.original)
+                }
             }
-            .navigationSplitViewStyle(.balanced)
-            .onChange(of: geometry.size.width, initial: true) { _, width in
-                columnVisibility = width >= 1_000 && !dynamicTypeSize.isAccessibilitySize ? .all : .detailOnly
+            Tab(value: IPadSection.archive) {
+                destination(.archive)
+            } label: {
+                Label {
+                    Text(IPadSection.archive.title)
+                } icon: {
+                    Image("BottleLineIcon").renderingMode(.original)
+                }
             }
-            .onChange(of: dynamicTypeSize) { _, size in
-                columnVisibility = geometry.size.width >= 1_000 && !size.isAccessibilitySize ? .all : .detailOnly
+            Tab("기억 찾기", systemImage: "magnifyingglass", value: IPadSection.search, role: .search) {
+                destination(.search)
+            }
+            Tab("설정", systemImage: "gearshape", value: IPadSection.settings) {
+                destination(.settings)
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
+        .defaultAdaptableTabBarPlacement(.tabBar)
+        .tabViewSidebarFooter {
+            Button("작성 중인 기록 · \(recordStore.writingDraftStore.count)") { isDraftListPresented = true }
+                .accessibilityIdentifier("home.resumeDraftsButton")
+        }
         .tint(Color.whisperTextSecondary)
-        // Attach the inspector to the workspace, outside the detail stack, so
-        // the home stack retains its own native navigation bar and actions.
-        .inspector(isPresented: $isInspectorPresented) {
-            if let selectedMomentID, recordStore.record(withID: selectedMomentID) != nil {
-                NavigationStack {
-                    IPadEntryReader(entry: .moment(selectedMomentID), recordStore: recordStore, onEdit: {
-                        closeSelection()
-                        editor = $0
-                    }, onDelete: closeSelection)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(action: closeSelection) { Image(systemName: "xmark") }
-                                .accessibilityLabel("선택한 순간 닫기")
-                        }
+        .sheet(item: $presentation.selectedMoment, onDismiss: presentation.openPendingEditor) { entry in
+            NavigationStack {
+                IPadEntryReader(entry: entry, recordStore: recordStore,
+                                onEdit: presentation.editSelectedMoment, onDelete: closeSelection)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("닫기", action: closeSelection)
+                            .accessibilityLabel("선택한 순간 닫기")
                     }
                 }
-                .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
             }
+            .presentationSizing(.page)
+            .presentationDragIndicator(.visible)
         }
         .onChange(of: selection) { _, _ in closeSelection() }
         .onChange(of: recordStore.records.map(\.id)) { _, ids in
-            if let selectedMomentID, !ids.contains(selectedMomentID) { closeSelection() }
+            if case .moment(let id) = presentation.selectedMoment, !ids.contains(id) { closeSelection() }
         }
-        .fullScreenCover(item: $editor) { session in
+        .fullScreenCover(item: $presentation.editor) { session in
             editorView(session)
                 .interactiveDismissDisabled(recordStore.writingDraftStore.errorMessage != nil)
         }
-        .sheet(isPresented: $isDraftListPresented, onDismiss: openPendingEditor) {
+        .sheet(isPresented: $isDraftListPresented, onDismiss: presentation.openPendingEditor) {
             WritingDraftListView(draftStore: recordStore.writingDraftStore, onOpenMoment: {
-                pendingEditor = .moment($0)
+                presentation.pendingEditor = .moment($0)
                 isDraftListPresented = false
             }, onOpenJournal: {
-                pendingEditor = .journal($0)
+                presentation.pendingEditor = .journal($0)
                 isDraftListPresented = false
             })
         }
     }
 
-    private var sidebar: some View {
-        List(selection: $selection) {
-            Section {
-                ForEach(IPadSection.allCases.filter { $0 != .settings }) { section in
-                    NavigationLink(value: section) {
-                        sidebarLabel(section.title, section: section)
-                            .font(.whisperControl)
-                            .padding(.vertical, WhisperSpacing.xSmall)
-                    }
-                    .accessibilityIdentifier("ipad.sidebar.\(section.rawValue)")
-                }
-            }
-            Section {
-                Button { isDraftListPresented = true } label: {
-                    sidebarLabel("작성 중인 기록 · \(recordStore.writingDraftStore.count)")
-                        .font(.whisperControl)
-                        .padding(.vertical, WhisperSpacing.xSmall)
-                }
-                .accessibilityIdentifier("home.resumeDraftsButton")
-                NavigationLink(value: IPadSection.settings) {
-                    sidebarLabel("설정").font(.whisperControl)
-                }
-                .accessibilityIdentifier("ipad.sidebar.settings")
-            }
-        }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
-        .background(Color.whisperSurfaceFocus)
-        .tint(Color.whisperSurfaceHighlight)
-        .navigationTitle("Whisper")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func sidebarLabel(_ title: String, section: IPadSection? = nil) -> some View {
-        HStack(spacing: WhisperSpacing.small) {
-            Group {
-                if section == .today { FlameCharacter(emotion: "기쁨", size: 23) }
-                else if section == .archive { IPadBottleIcon() }
-                else { Color.clear.frame(width: 23, height: 25) }
-            }
-            .frame(width: 28)
-            .accessibilityHidden(true)
-            Text(title)
-        }
-        .foregroundStyle(Color.whisperTextPrimary)
-        .accessibilityElement(children: .combine)
-    }
-
     @ViewBuilder
-    private var destination: some View {
-        switch selection ?? .today {
+    private func destination(_ section: IPadSection) -> some View {
+        switch section {
         case .today:
             NavigationStack {
                 IPadHomeView(recordStore: recordStore, onAddMoment: {
-                    editor = .moment(recordStore.writingDraftStore.momentDraft ?? RecordDraft())
+                    presentation.editor = .moment(recordStore.writingDraftStore.momentDraft ?? RecordDraft())
                 }, onCollect: { day in
-                    editor = .journal(journalDraft(on: day))
+                    presentation.editor = .journal(journalDraft(on: day))
                 }, onResumeDrafts: { isDraftListPresented = true }, onSelectMoment: {
-                    selectedMomentID = $0
-                    isInspectorPresented = true
-                }, onCloseSelection: closeSelection, isInspecting: isInspectorPresented)
+                    presentation.selectedMoment = .moment($0)
+                }, onCloseSelection: closeSelection, isInspecting: presentation.selectedMoment != nil)
             }
         case .archive:
-            IPadArchiveView(recordStore: recordStore, navigation: archiveNavigation, onEdit: { editor = $0 })
+            IPadArchiveView(recordStore: recordStore, navigation: archiveNavigation, onEdit: { presentation.editor = $0 })
         case .search:
-            IPadSearchView(recordStore: recordStore, navigation: searchNavigation, onEdit: { editor = $0 })
+            IPadSearchView(recordStore: recordStore, navigation: searchNavigation, onEdit: { presentation.editor = $0 })
         case .settings:
             NavigationStack { SettingsView(recordStore: recordStore) }
         }
@@ -182,13 +163,21 @@ struct IPadWorkspaceView: View {
         IPadDraftPreparation.journal(on: day, store: recordStore)
     }
 
-    private func openPendingEditor() {
-        editor = pendingEditor
-        pendingEditor = nil
+    private func closeSelection() {
+        presentation.selectedMoment = nil
     }
 
-    private func closeSelection() {
-        isInspectorPresented = false
-        selectedMomentID = nil
-    }
+    // Native tab items use the image's intrinsic size rather than a SwiftUI frame.
+    // Keep the existing character, rendered at the size of a navigation icon.
+    private static let homeTabImage: UIImage = {
+        guard let source = UIImage(named: FlameCharacter.assetName(for: "기쁨")) else { return UIImage() }
+        let canvas = CGSize(width: 24, height: 26)
+        let scale = min(canvas.width / source.size.width, canvas.height / source.size.height)
+        let size = CGSize(width: source.size.width * scale, height: source.size.height * scale)
+        return UIGraphicsImageRenderer(size: canvas).image { _ in
+            source.draw(in: CGRect(x: (canvas.width - size.width) / 2,
+                                  y: (canvas.height - size.height) / 2,
+                                  width: size.width, height: size.height))
+        }.withRenderingMode(.alwaysOriginal)
+    }()
 }

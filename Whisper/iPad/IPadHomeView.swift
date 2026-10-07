@@ -21,40 +21,15 @@ struct IPadHomeView: View {
     private var moments: [WhisperRecord] { recordStore.uncollectedMoments(on: today) }
 
     var body: some View {
-        GeometryReader { geometry in
-            // A collapsed split view can own the navigation bar. Keep the
-            // date and actions in the home content in a narrow window.
-            let usesInlineControls = geometry.size.width < 700
-            homeContent
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    if usesInlineControls {
-                        dateLabel.padding(.vertical, WhisperSpacing.small)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if usesInlineControls {
-                        HStack(spacing: WhisperSpacing.small) {
-                            Spacer()
-                            collectButton
-                            recordButton
-                        }
-                        .buttonStyle(.glass)
-                        .controlSize(.large)
-                        .padding(WhisperSpacing.medium)
-                    }
-                }
-                .navigationTitle(usesInlineControls ? "" : "오늘의 불꽃")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    if !usesInlineControls {
-                        ToolbarItem(placement: .principal) { dateLabel }
-                        ToolbarSpacer(.flexible, placement: .bottomBar)
-                        ToolbarItem(placement: .bottomBar) { collectButton }
-                        ToolbarSpacer(.fixed, placement: .bottomBar)
-                        ToolbarItem(placement: .bottomBar) { recordButton }
-                    }
-                }
+        homeContent
+        .navigationTitle("오늘의 불꽃")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { dateLabel }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarItem(placement: .bottomBar) { collectButton }
+            ToolbarSpacer(.fixed, placement: .bottomBar)
+            ToolbarItem(placement: .bottomBar) { recordButton }
         }
         .background(Color.whisperBackground)
         .task(id: today) {

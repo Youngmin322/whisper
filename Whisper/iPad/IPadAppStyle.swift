@@ -21,13 +21,3 @@ struct IPadEmptyState: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
-struct IPadBottleIcon: View {
-    var body: some View {
-        Image("BottleLineIcon")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 19, height: 23)
-            .accessibilityHidden(true)
-    }
-}

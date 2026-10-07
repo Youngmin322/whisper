@@ -52,6 +52,44 @@ struct IPadNavigationViewTests {
         #expect(!textViews(in: host.view).contains { $0.text == record.content })
     }
 
+    @Test("홈 상세는 시트로 열리고 닫힌 뒤 편집기로 전환한다", .enabled(if: UIDevice.current.userInterfaceIdiom == .pad))
+    func homeSheetDismissesBeforeEditing() async throws {
+        let store = RecordStore(isStoredInMemoryOnly: true)
+        let record = try #require(store.addAndReturn(title: "바람을 따라 걷던 오후", content: "천천히 걸으니 마음이 가벼워졌다.", emotion: "평온"))
+        let presentation = IPadWorkspacePresentation()
+        let (window, host) = try makeHost(IPadWorkspaceView(recordStore: store, presentation: presentation))
+        defer { close(window) }
+        window.makeKeyAndVisible()
+        try await settle()
+        #expect(presentedController(in: host) == nil)
+
+        presentation.selectedMoment = .moment(record.id)
+        try await settle()
+        let reader = try #require(presentedController(in: host))
+        #expect(textViews(in: reader.view).contains { !$0.isEditable && $0.text == record.content })
+        try await capture(window, host, "12-home-moment-sheet")
+
+        presentation.selectedMoment = nil
+        try await waitForDismissal(in: host)
+        #expect(presentedController(in: host) == nil)
+        #expect(!textViews(in: host.view).contains { $0.text == record.content })
+
+        presentation.selectedMoment = .moment(record.id)
+        try await settle()
+        presentation.editSelectedMoment(.moment(IPadDraftPreparation.moment(record, store: store)))
+        try await settle()
+        try await settle()
+        let editor = try #require(presentedController(in: host))
+        #expect(presentation.selectedMoment == nil)
+        #expect(presentation.pendingEditor == nil)
+        #expect(presentation.editor != nil)
+        #expect(textViews(in: editor.view).contains { $0.isEditable && $0.text == record.content })
+        presentation.editor = nil
+        try await waitForDismissal(in: host)
+        #expect(presentedController(in: host) == nil)
+        #expect(record.content == "천천히 걸으니 마음이 가벼워졌다.")
+    }
+
     @Test("가로·세로·좁은 창·큰 글자 화면을 네이티브 렌더로 검토한다", .enabled(if: UIDevice.current.userInterfaceIdiom == .pad))
     func captureResponsiveScreens() async throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
@@ -115,12 +153,28 @@ struct IPadNavigationViewTests {
     private func themed<V: View>(_ view: V) -> AnyView {
         AnyView(view.environment(\.locale, Locale(identifier: "ko_KR")).tint(Color.whisperAccent))
     }
-    private func close(_ window: UIWindow) { window.isHidden = true; window.rootViewController = nil }
+    private func close(_ window: UIWindow) {
+        let wasKey = window.isKeyWindow
+        let scene = window.windowScene
+        window.isHidden = true
+        window.rootViewController = nil
+        if wasKey { scene?.windows.first { !$0.isHidden }?.makeKey() }
+    }
     private func settle() async throws { try await Task.sleep(for: .milliseconds(500)) }
     private func textViews(in view: UIView) -> [UITextView] {
         (view as? UITextView).map { [$0] } ?? view.subviews.flatMap { textViews(in: $0) }
     }
+    private func presentedController(in controller: UIViewController) -> UIViewController? {
+        controller.presentedViewController ?? controller.children.compactMap { presentedController(in: $0) }.first
+    }
+    private func waitForDismissal(in controller: UIViewController) async throws {
+        for _ in 0..<30 {
+            if presentedController(in: controller) == nil { return }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+    }
     private func capture(_ window: UIWindow, _ host: UIHostingController<AnyView>, _ name: String) async throws {
+        window.makeKeyAndVisible()
         try await settle()
         window.endEditing(true)
         try await settle()
