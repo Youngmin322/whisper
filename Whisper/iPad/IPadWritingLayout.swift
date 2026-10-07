@@ -51,41 +51,51 @@ enum IPadDraftPreparation {
 
 struct IPadEmotionChoices: View {
     @Binding var emotion: String?
+    var isSidebar = true
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: WhisperSpacing.large) {
-                Text("지금의 마음은?")
-                    .font(.whisperHandwriting(28))
-                Text("가장 가까운 감정 하나를 골라보세요.")
-                    .font(.whisperBody)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 95), spacing: WhisperSpacing.small)], spacing: WhisperSpacing.small) {
-                    ForEach(WhisperEmotion.selectableCases) { value in
-                        Button { emotion = value.rawValue } label: {
-                            VStack(spacing: WhisperSpacing.small) {
-                                FlameCharacter(emotion: value.rawValue, size: 48)
-                                    .accessibilityHidden(true)
-                                Text(value.rawValue).font(.whisperControl)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 112)
-                            .background(emotion == value.rawValue ? Color.whisperSurfaceHighlight : Color.whisperSurfaceDefault,
-                                        in: RoundedRectangle(cornerRadius: WhisperRadius.small))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: WhisperRadius.small)
-                                    .stroke(emotion == value.rawValue ? Color.whisperAccentText : Color.whisperBorderSubtle, lineWidth: 1)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(value.rawValue)
-                        .accessibilityAddTraits(emotion == value.rawValue ? .isSelected : [])
-                        .accessibilityIdentifier("record.emotion.\(value.id)")
-                    }
-                }
-            }
-            .padding(WhisperSpacing.large)
-            .foregroundStyle(Color.whisperTextPrimary)
+        Group {
+            if isSidebar { ScrollView { choices } }
+            else { choices }
         }
         .background(Color.whisperSurfaceFocus)
+    }
+
+    private var choices: some View {
+        VStack(alignment: .leading, spacing: WhisperSpacing.large) {
+            Text("지금 내 마음은 어떤가요?")
+                .font(.whisperHandwriting(28))
+            Text("가장 가까운 감정 하나를 골라보세요.")
+                .font(.whisperBody)
+                .foregroundStyle(Color.whisperTextSecondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: WhisperSpacing.small),
+                                     count: isSidebar || dynamicTypeSize.isAccessibilitySize ? 2 : 3), spacing: WhisperSpacing.small) {
+                ForEach(WhisperEmotion.selectableCases) { value in
+                    Button { emotion = value.rawValue } label: {
+                        VStack(spacing: WhisperSpacing.xSmall) {
+                            FlameCharacter(emotion: value.rawValue, size: 53)
+                                .frame(height: 64)
+                                .accessibilityHidden(true)
+                            Text(value.rawValue).font(.whisperControl)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: dynamicTypeSize.isAccessibilitySize ? 154 : 129)
+                        .background(emotion == value.rawValue ? Color.whisperSurfaceHighlight : Color.whisperSurfaceDefault,
+                                    in: RoundedRectangle(cornerRadius: WhisperRadius.medium))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: WhisperRadius.medium)
+                                .stroke(Color.whisperBorderSubtle, lineWidth: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(value.rawValue)
+                    .accessibilityAddTraits(emotion == value.rawValue ? .isSelected : [])
+                    .accessibilityIdentifier("record.emotion.\(value.id)")
+                }
+            }
+        }
+        .padding(WhisperSpacing.large)
+        .foregroundStyle(Color.whisperTextPrimary)
     }
 }

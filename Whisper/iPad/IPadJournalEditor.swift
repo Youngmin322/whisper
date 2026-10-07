@@ -77,6 +77,7 @@ struct IPadJournalEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isOriginalDeleted ? "새 일기로 저장" : "저장", action: save)
                         .buttonStyle(.borderedProminent)
+                        .tint(Color.whisperAccent)
                         .disabled(draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .keyboardShortcut("s", modifiers: .command)
                         .accessibilityIdentifier("journal.saveButton")
@@ -88,7 +89,7 @@ struct IPadJournalEditor: View {
                 }
             }
         }
-        .tint(Color.whisperAccent)
+        .tint(Color.whisperTextSecondary)
         .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
@@ -148,11 +149,6 @@ struct IPadJournalEditor: View {
 
     private var sourceColumn: some View {
         List {
-            Section {
-                Text("원본을 참고하며 한 편의 일기를 써보세요.")
-                    .font(.whisperBody)
-                    .foregroundStyle(Color.whisperTextSecondary)
-            }
             Section("담아 둔 순간 · \(draft.sourceRecordIDs.count)개") {
                 ForEach(draft.sourceRecordIDs, id: \.self) { id in
                     if let record = recordStore.record(withID: id) {
@@ -170,7 +166,7 @@ struct IPadJournalEditor: View {
                         }
                         .accessibilityIdentifier("ipad.journal.source.\(id)")
                     } else {
-                        Label("삭제된 순간", systemImage: "minus.circle").font(.whisperControl)
+                        Text("삭제된 순간").font(.whisperControl)
                     }
                 }
             }

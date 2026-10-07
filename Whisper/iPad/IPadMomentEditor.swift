@@ -52,8 +52,7 @@ struct IPadMomentEditor: View {
                     ScrollView {
                         VStack(spacing: WhisperSpacing.large) {
                             if !showsContext && draft.emotion == nil {
-                                IPadEmotionChoices(emotion: $draft.emotion)
-                                    .frame(minHeight: 430)
+                                IPadEmotionChoices(emotion: $draft.emotion, isSidebar: false)
                             }
                             IPadPaper {
                                 writingContent(showsEmotionMenu: !showsContext)
@@ -80,13 +79,14 @@ struct IPadMomentEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isRecovering ? "새 순간으로 저장" : "저장", action: save)
                         .buttonStyle(.borderedProminent)
+                        .tint(Color.whisperAccent)
                         .disabled(!canSave)
                         .keyboardShortcut("s", modifiers: .command)
                         .accessibilityIdentifier("record.saveButton")
                 }
             }
         }
-        .tint(Color.whisperAccent)
+        .tint(Color.whisperTextSecondary)
         .task(id: draft.emotion) {
             guard draft.emotion != nil, !didFinish else { return }
             await Task.yield()

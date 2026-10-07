@@ -121,9 +121,7 @@ struct IPadArchiveView: View {
             IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection, presentsNavigationTitle: false)
                 .id(entry)
         } else {
-            ContentUnavailableView {
-                Label("기록을 펼쳐보세요", systemImage: "book.closed")
-            } description: { Text("날짜를 고르고 읽을 일기나 순간을 선택해 주세요.") }
+            IPadEmptyState(title: navigation.day == nil ? "날짜를 골라보세요" : "읽을 기록을 선택해 주세요")
             .accessibilityIdentifier("ipad.archive.emptySelection")
         }
     }
@@ -158,9 +156,7 @@ struct IPadSearchView: View {
                                 IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection, presentsNavigationTitle: false)
                                     .id(entry)
                             } else {
-                                ContentUnavailableView {
-                                    Label("어떤 기억을 찾고 있나요?", systemImage: "magnifyingglass")
-                                } description: { Text("결과를 선택하면 이곳에서 읽을 수 있어요.") }
+                                IPadEmptyState(title: "읽을 기록을 선택해 주세요")
                                 .accessibilityIdentifier("ipad.search.emptySelection")
                             }
                         }
@@ -191,7 +187,10 @@ struct IPadSearchView: View {
     @ViewBuilder
     private func resultList(showsReader: Bool) -> some View {
         if results.isEmpty {
-            ContentUnavailableView.search(text: navigation.query)
+            IPadEmptyState(title: navigation.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                           ? "어떤 기억을 찾고 있나요?" : "찾는 기록이 없어요",
+                           message: navigation.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                           ? "기억나는 말을 적어보세요" : "다른 말로 찾아보세요")
         } else {
             List(results) { result in
                 Button {
@@ -297,8 +296,8 @@ private struct IPadCalendar: View {
     }
 
     @ViewBuilder private var legend: some View {
-        Label("담긴 하루", systemImage: "book.closed")
-        Label("미보관 순간", systemImage: "flame")
+        HStack(spacing: 5) { FlameBottle(emotion: nil, width: 13); Text("담긴 하루") }
+        HStack(spacing: 5) { FlameCharacter(emotion: "기쁨", size: 18); Text("미보관 순간") }
     }
 
     private func cell(_ date: Date) -> some View {

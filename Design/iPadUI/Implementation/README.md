@@ -13,6 +13,14 @@
 - 작성 화면은 닫거나 앱이 비활성화될 때 초안을 보관한다. 저장은 기존 RecordStore의 트랜잭션을 사용하며, 순간 원본·일기 사진 스냅샷·초안 복구 규칙을 유지한다.
 - 저장은 상단 네이티브 툴바에 둔다. 외부 키보드의 Command-N과 Command-S를 지원한다.
 
+## 기존 앱과 같은 표현
+
+홈은 iPhone의 손글씨 날짜와 밑줄, 하단 병·추가 버튼을 사용한다. 사이드바의 홈과 보관함에는 기존 불꽃 캐릭터와 `BottleLineIcon`을 사용하고, 나머지는 글자로 표시한다. 보관함 범례도 기존 병과 불꽃 그림을 사용한다.
+
+좁은 창에서는 날짜와 하단 버튼을 홈의 안전 영역 안에 배치한다. 시스템 분할 화면이 접힌 뒤에도 조작이 사라지지 않으며, 버튼에는 네이티브 glass 스타일을 사용한다.
+
+빈 화면은 iPhone 홈처럼 손글씨 제목과 짧은 안내만 표시한다. 해·달력·책·담기 등의 장식용 시스템 심볼과 홈의 추가 문구를 제거했다. 닫기·뒤로 가기·사진·키보드 같은 조작에는 기존 iPhone 화면과 같은 시스템 컨트롤을 유지한다. 읽기 화면의 수정·삭제는 기존 앱처럼 메뉴에 모았다.
+
 ## iPhone과의 분리
 
 `ContentView.swift`의 기기 분기에서 iPad에만 `IPadWorkspaceView`를 연결한다. iPhone의 기존 HomeView, QuickRecordView, JournalEditorView, 보관함·검색 화면은 이번 구현에서 수정하지 않았다. 기존에 수정 중이던 글꼴·편집기·프로젝트 설정 변경도 이번 커밋에 포함하지 않았다.
@@ -45,6 +53,7 @@
 | 08-moment-accessibility.png | 큰 글자의 순간 작성 |
 | 09-home-portrait.png | 세로 홈 |
 | 10-home-narrow.png | 좁은 창의 홈 |
+| 11-emotion-portrait.png | 세로 화면에서 기존 앱과 같은 두 줄의 감정 선택 |
 
 ```sh
 WHISPER_SIMULATOR_ID=<iPad 시뮬레이터 UUID> bash Scripts/test-ios.sh \

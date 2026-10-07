@@ -21,67 +21,42 @@ struct IPadHomeView: View {
     private var moments: [WhisperRecord] { recordStore.uncollectedMoments(on: today) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-                Text(today.date.whisperDayDescription)
-                    .font(.whisperHandwriting(34))
-                    .foregroundStyle(Color.whisperTextPrimary)
-                Text("오늘 남긴 순간 \(moments.count)개")
-                    .font(.whisperMetadata)
-                    .foregroundStyle(Color.whisperTextSecondary)
-            }
-            .padding(WhisperSpacing.xxLarge)
-
-            if recordStore.writingDraftStore.count > 0 || recordStore.writingDraftStore.errorMessage != nil {
-                Button(action: onResumeDrafts) {
-                    Label("작성 중인 기록 이어 쓰기", systemImage: "square.and.pencil")
-                        .font(.whisperControl)
+        GeometryReader { geometry in
+            // A collapsed split view can own the navigation bar. Keep the
+            // date and actions in the home content in a narrow window.
+            let usesInlineControls = geometry.size.width < 700
+            homeContent
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if usesInlineControls {
+                        dateLabel.padding(.vertical, WhisperSpacing.small)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
-                .accessibilityIdentifier("ipad.home.resumeDraftsButton")
-                .padding(.horizontal, WhisperSpacing.xxLarge)
-                .padding(.bottom, WhisperSpacing.small)
-            }
-
-            if moments.isEmpty {
-                ContentUnavailableView {
-                    Label(recordStore.journal(on: today) == nil ? "아직 오늘의 불꽃이 없어요" : "오늘의 불꽃을 병에 담았어요", systemImage: "flame")
-                        .font(.whisperHandwriting(28))
-                } description: {
-                    Text("떠오른 순간 하나를 남겨보세요.")
-                } actions: {
-                    Button("순간 남기기", action: onAddMoment)
-                        .buttonStyle(.borderedProminent)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if usesInlineControls {
+                        HStack(spacing: WhisperSpacing.small) {
+                            Spacer()
+                            collectButton
+                            recordButton
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
+                        .padding(WhisperSpacing.medium)
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                TodayFlameField(records: moments, collectionStartedAt: collectionStartedAt, onSelect: {
-                    onSelectMoment($0)
-                })
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                Text("불꽃 하나에, 순간 하나")
-                    .font(.whisperHandwriting(24))
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, WhisperSpacing.xxLarge)
-            }
+                .navigationTitle(usesInlineControls ? "" : "오늘의 불꽃")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    if !usesInlineControls {
+                        ToolbarItem(placement: .principal) { dateLabel }
+                        ToolbarSpacer(.flexible, placement: .bottomBar)
+                        ToolbarItem(placement: .bottomBar) { collectButton }
+                        ToolbarSpacer(.fixed, placement: .bottomBar)
+                        ToolbarItem(placement: .bottomBar) { recordButton }
+                    }
+                }
         }
         .background(Color.whisperBackground)
-        .navigationTitle("오늘의 불꽃")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button(action: collect) {
-                    Label("병에 담기", systemImage: "tray.and.arrow.down")
-                }
-                .disabled(moments.isEmpty || collectionStartedAt != nil)
-                .accessibilityIdentifier("home.journalButton")
-                Button(action: onAddMoment) { Label("순간 남기기", systemImage: "plus") }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut("n", modifiers: .command)
-                    .disabled(collectionStartedAt != nil)
-                    .accessibilityIdentifier("home.recordButton")
-            }
-        }
         .task(id: today) {
             while !Task.isCancelled {
                 proposeCollectionIfNeeded()
@@ -104,6 +79,69 @@ struct IPadHomeView: View {
             collectionTask?.cancel()
             collectionStartedAt = nil
         }
+    }
+
+    private var homeContent: some View {
+        VStack(spacing: 0) {
+            if recordStore.writingDraftStore.count > 0 || recordStore.writingDraftStore.errorMessage != nil {
+                Button(action: onResumeDrafts) {
+                    Text("작성 중인 기록 이어 쓰기")
+                        .font(.whisperControl)
+                }
+                .accessibilityIdentifier("ipad.home.resumeDraftsButton")
+                .padding(.horizontal, WhisperSpacing.xxLarge)
+                .padding(.bottom, WhisperSpacing.small)
+            }
+
+            if moments.isEmpty {
+                IPadEmptyState(title: recordStore.journal(on: today) == nil
+                               ? "아직 오늘의 불꽃이 없어요" : "오늘의 불꽃을 병에 담았어요",
+                               message: recordStore.journal(on: today) == nil
+                               ? "떠오른 순간 하나를 남겨보세요" : "새로운 순간이 떠오르면 또 남겨보세요")
+            } else {
+                TodayFlameField(records: moments, collectionStartedAt: collectionStartedAt, onSelect: {
+                    onSelectMoment($0)
+                })
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    private var dateLabel: some View {
+        Text(today.shortDescription)
+            .font(.whisperHandwriting(27))
+            .foregroundStyle(Color.whisperTextPrimary)
+            .padding(.horizontal, 6)
+            .background(alignment: .bottom) {
+                Capsule().fill(Color.whisperSurfaceHighlight).frame(height: 7).offset(y: 2)
+            }
+            .accessibilityLabel("\(today.fullDescription), 오늘 남긴 순간 \(moments.count)개")
+            .accessibilityIdentifier("home.dateLabel")
+    }
+
+    private var collectButton: some View {
+        Button(action: collect) {
+            Image("BottleLineIcon")
+                .renderingMode(.template)
+                .resizable().scaledToFit()
+                .frame(width: 20, height: 24)
+        }
+        .buttonBorderShape(.circle)
+        .tint(Color.whisperAccent)
+        .disabled(moments.isEmpty || collectionStartedAt != nil)
+        .accessibilityLabel("병에 담기")
+        .accessibilityHint("오늘 남긴 순간을 모아 일기를 작성해요.")
+        .accessibilityIdentifier("home.journalButton")
+    }
+
+    private var recordButton: some View {
+        Button(action: onAddMoment) { Image(systemName: "plus").font(.system(size: 20, weight: .medium)) }
+            .buttonBorderShape(.circle)
+            .tint(Color.whisperAccent)
+            .keyboardShortcut("n", modifiers: .command)
+            .disabled(collectionStartedAt != nil)
+            .accessibilityLabel("순간 남기기")
+            .accessibilityIdentifier("home.recordButton")
     }
 
     private func refreshDay() {

@@ -12,14 +12,6 @@ enum IPadSection: String, CaseIterable, Identifiable {
         case .settings: "설정"
         }
     }
-    var symbol: String {
-        switch self {
-        case .today: "sun.max"
-        case .archive: "calendar"
-        case .search: "magnifyingglass"
-        case .settings: "gearshape"
-        }
-    }
 }
 
 enum IPadEditorSession: Identifiable {
@@ -66,7 +58,7 @@ struct IPadWorkspaceView: View {
                 columnVisibility = geometry.size.width >= 1_000 && !size.isAccessibilitySize ? .all : .detailOnly
             }
         }
-        .tint(Color.whisperAccent)
+        .tint(Color.whisperTextSecondary)
         // Attach the inspector to the workspace, outside the detail stack, so
         // the home stack retains its own native navigation bar and actions.
         .inspector(isPresented: $isInspectorPresented) {
@@ -110,7 +102,7 @@ struct IPadWorkspaceView: View {
             Section {
                 ForEach(IPadSection.allCases.filter { $0 != .settings }) { section in
                     NavigationLink(value: section) {
-                        Label(section.title, systemImage: section.symbol)
+                        sidebarLabel(section.title, section: section)
                             .font(.whisperControl)
                             .padding(.vertical, WhisperSpacing.xSmall)
                     }
@@ -119,13 +111,13 @@ struct IPadWorkspaceView: View {
             }
             Section {
                 Button { isDraftListPresented = true } label: {
-                    Label("작성 중인 기록 · \(recordStore.writingDraftStore.count)", systemImage: "square.and.pencil")
+                    sidebarLabel("작성 중인 기록 · \(recordStore.writingDraftStore.count)")
                         .font(.whisperControl)
                         .padding(.vertical, WhisperSpacing.xSmall)
                 }
                 .accessibilityIdentifier("home.resumeDraftsButton")
                 NavigationLink(value: IPadSection.settings) {
-                    Label("설정", systemImage: "gearshape").font(.whisperControl)
+                    sidebarLabel("설정").font(.whisperControl)
                 }
                 .accessibilityIdentifier("ipad.sidebar.settings")
             }
@@ -133,8 +125,24 @@ struct IPadWorkspaceView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(Color.whisperSurfaceFocus)
+        .tint(Color.whisperSurfaceHighlight)
         .navigationTitle("Whisper")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func sidebarLabel(_ title: String, section: IPadSection? = nil) -> some View {
+        HStack(spacing: WhisperSpacing.small) {
+            Group {
+                if section == .today { FlameCharacter(emotion: "기쁨", size: 23) }
+                else if section == .archive { IPadBottleIcon() }
+                else { Color.clear.frame(width: 23, height: 25) }
+            }
+            .frame(width: 28)
+            .accessibilityHidden(true)
+            Text(title)
+        }
+        .foregroundStyle(Color.whisperTextPrimary)
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

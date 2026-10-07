@@ -97,6 +97,9 @@ struct IPadNavigationViewTests {
         try await capture(window, host, "09-home-portrait")
         window.frame.size = CGSize(width: 600, height: 834)
         try await capture(window, host, "10-home-narrow")
+        host.rootView = themed(IPadMomentEditor(draft: RecordDraft(), recordStore: store))
+        window.frame.size = CGSize(width: 834, height: 1194)
+        try await capture(window, host, "11-emotion-portrait")
     }
 
     private func makeHost<V: View>(_ root: V) throws -> (UIWindow, UIHostingController<AnyView>) {

@@ -51,23 +51,27 @@ struct IPadEntryReader: View {
                     .frame(maxWidth: .infinity)
                 }
             } else {
-                ContentUnavailableView("기록을 찾을 수 없어요", systemImage: "book.closed")
+                IPadEmptyState(title: "기록을 찾을 수 없어요")
             }
         }
         .background(Color.whisperBackground)
         .modifier(IPadReaderTitle(isPresented: presentsNavigationTitle, title: journal != nil ? "나의 하루" : "남긴 순간"))
         .toolbar {
             if moment != nil || journal != nil {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("수정", systemImage: "pencil", action: edit)
-                        .accessibilityIdentifier("ipad.reader.editButton")
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button("수정", systemImage: "pencil", action: edit)
+                            .accessibilityIdentifier("ipad.reader.editButton")
                         Button("삭제", systemImage: "trash", role: .destructive) { isDeleteConfirmationPresented = true }
-                    } label: { Image(systemName: "ellipsis") }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Color.whisperTextPrimary)
+                    }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("기록 메뉴")
                 }
+                .sharedBackgroundVisibility(.hidden)
             }
         }
         .accessibilityIdentifier("ipad.reader")
