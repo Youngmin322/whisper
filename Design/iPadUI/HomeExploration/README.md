@@ -81,6 +81,16 @@ Apple 공식 UI 키트 버튼:
 - 재현하려면 에셋 패널에서 해당 Apple 버튼 인스턴스를 가져온 뒤 `revise-apple-kit-buttons.js`를 실행합니다. 현재 파일에서는 기존 인스턴스를 재사용합니다.
 - Figma 공식 키트에 기반한 시안이며 실제 SwiftUI 런타임 렌더링 결과는 아닙니다. 앱 소스는 수정하지 않았습니다.
 
+Liquid Glass와 앱 색상 수정 준비안 (적용 미확인):
+
+- 사용자는 앱 색상에 맞추기를 요청했으며 Liquid Glass를 생각하고 있었다고 밝혔습니다. 하단에 떠 있는 조작부라는 맥락에서 Liquid Glass를 추천합니다.
+- Apple 공식 `Button - Liquid Glass - Text` 인스턴스 `10619:2457`를 에셋 패널에서 가져왔습니다. 목표는 `병에 담기` Large / Glass, `순간 남기기` Large / Glass Prominent입니다.
+- 준비한 스크립트는 기록 버튼의 공식 Tint 레이어를 기존 `whisperAccent` 변수 `1388:10242` (`#F4523B`)에, 보조 버튼 글자를 `whisperTextPrimary` 변수 `1388:10244` (`#3E3530`)에 연결합니다. 글로벌 변수 값은 변경하지 않습니다.
+- 공식 재질·그림자·원격 컴포넌트 연결을 유지하고, 불꽃 활동 범위와 위치가 보존됐는지 확인한 뒤 PNG와 검증 JSON을 내보내도록 작성했습니다.
+- `revise-liquid-glass-buttons.js`의 JavaScript 구문 검사만 통과했습니다. Figma 창 제어가 응답하지 않고, Figma MCP도 Starter 사용 한도에 도달해 적용·색상 바인딩·재질 보존·PNG 내보내기를 확인하지 못했습니다. Liquid Glass PNG·검증 JSON은 아직 생성되지 않았습니다.
+- 확인된 최신 비교안은 여전히 `Whisper-iPad-home-apple-buttons.png`입니다. `Whisper-iPad-home-latest.fig`도 이전 Content Area 버튼 버전입니다. 앱 소스는 수정하지 않았습니다.
+- 참고: Apple [Materials](https://developer.apple.com/design/human-interface-guidelines/materials), [Meet Liquid Glass](https://developer.apple.com/videos/play/wwdc2025/219/) — 콘텐츠 위의 조작 계층에 사용하고, 색은 주된 동작을 강조하는 데 제한합니다.
+
 탐색 흐름 결정:
 
 - 사용자가 중요하게 보는 흐름은 **홈에서 기록하다가 필요할 때 보관함 열기**입니다.
