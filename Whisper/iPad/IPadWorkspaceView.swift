@@ -44,6 +44,10 @@ struct IPadWorkspaceView: View {
     @State private var editor: IPadEditorSession?
     @State private var isDraftListPresented = false
     @State private var pendingEditor: IPadEditorSession?
+    @State private var archiveNavigation = IPadArchiveNavigation()
+    @State private var searchNavigation = IPadSearchNavigation()
+    @State private var selectedMomentID: UUID?
+    @State private var isInspectorPresented = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -51,9 +55,7 @@ struct IPadWorkspaceView: View {
                 sidebar
                     .navigationSplitViewColumnWidth(min: 200, ideal: 224, max: 280)
             } detail: {
-                NavigationStack {
-                    destination
-                }
+                destination
             }
             .navigationSplitViewStyle(.balanced)
             .onChange(of: geometry.size.width, initial: true) { _, width in
@@ -64,6 +66,29 @@ struct IPadWorkspaceView: View {
             }
         }
         .tint(Color.whisperAccent)
+        // Attach the inspector to the workspace, outside the detail stack, so
+        // the home stack retains its own native navigation bar and actions.
+        .inspector(isPresented: $isInspectorPresented) {
+            if let selectedMomentID, recordStore.record(withID: selectedMomentID) != nil {
+                NavigationStack {
+                    IPadEntryReader(entry: .moment(selectedMomentID), recordStore: recordStore, onEdit: {
+                        closeSelection()
+                        editor = $0
+                    }, onDelete: closeSelection)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(action: closeSelection) { Image(systemName: "xmark") }
+                                .accessibilityLabel("선택한 순간 닫기")
+                        }
+                    }
+                }
+                .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
+            }
+        }
+        .onChange(of: selection) { _, _ in closeSelection() }
+        .onChange(of: recordStore.records.map(\.id)) { _, ids in
+            if let selectedMomentID, !ids.contains(selectedMomentID) { closeSelection() }
+        }
         .fullScreenCover(item: $editor) { session in
             editorView(session)
                 .interactiveDismissDisabled(recordStore.writingDraftStore.errorMessage != nil)
@@ -115,17 +140,22 @@ struct IPadWorkspaceView: View {
     private var destination: some View {
         switch selection ?? .today {
         case .today:
-            IPadHomeView(recordStore: recordStore, onAddMoment: {
-                editor = .moment(recordStore.writingDraftStore.momentDraft ?? RecordDraft())
-            }, onCollect: { day in
-                editor = .journal(journalDraft(on: day))
-            }, onResumeDrafts: { isDraftListPresented = true })
+            NavigationStack {
+                IPadHomeView(recordStore: recordStore, onAddMoment: {
+                    editor = .moment(recordStore.writingDraftStore.momentDraft ?? RecordDraft())
+                }, onCollect: { day in
+                    editor = .journal(journalDraft(on: day))
+                }, onResumeDrafts: { isDraftListPresented = true }, onSelectMoment: {
+                    selectedMomentID = $0
+                    isInspectorPresented = true
+                }, onCloseSelection: closeSelection, isInspecting: isInspectorPresented)
+            }
         case .archive:
-            JournalShelfView(recordStore: recordStore)
+            IPadArchiveView(recordStore: recordStore, navigation: archiveNavigation, onEdit: { editor = $0 })
         case .search:
-            JournalMemorySearchView(recordStore: recordStore)
+            IPadSearchView(recordStore: recordStore, navigation: searchNavigation, onEdit: { editor = $0 })
         case .settings:
-            SettingsView(recordStore: recordStore)
+            NavigationStack { SettingsView(recordStore: recordStore) }
         }
     }
 
@@ -133,50 +163,23 @@ struct IPadWorkspaceView: View {
     private func editorView(_ session: IPadEditorSession) -> some View {
         switch session {
         case .moment(let initial):
-            if let id = initial.existingRecordID, let record = recordStore.record(withID: id) {
-                NavigationStack {
-                    RecordDetailView(record: record, recordStore: recordStore, editingDraft: initial)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) { Button("닫기") { editor = nil } }
-                        }
-                }
-            } else {
-                IPadMomentSheet(initial: initial, recordStore: recordStore)
-            }
+            IPadMomentEditor(draft: initial, recordStore: recordStore)
         case .journal(let draft):
-            NavigationStack {
-                JournalEditorView(draft: draft, recordStore: recordStore)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("닫기") { editor = nil } }
-                    }
-            }
+            IPadJournalEditor(draft: draft, recordStore: recordStore)
         }
     }
 
     private func journalDraft(on day: JournalDay) -> JournalWritingDraft {
-        let existing = recordStore.journal(on: day)
-        return recordStore.writingDraftStore.journalDraft(on: day, existingJournalID: existing?.id)
-            ?? JournalWritingDraft(day: day, existing: existing, records: existing == nil ? recordStore.uncollectedMoments(on: day) : [])
+        IPadDraftPreparation.journal(on: day, store: recordStore)
     }
 
     private func openPendingEditor() {
         editor = pendingEditor
         pendingEditor = nil
     }
-}
 
-private struct IPadMomentSheet: View {
-    let recordStore: RecordStore
-    @State private var draft: RecordDraft
-
-    init(initial: RecordDraft, recordStore: RecordStore) {
-        self.recordStore = recordStore
-        _draft = State(initialValue: initial)
-    }
-
-    var body: some View {
-        QuickRecordView(draft: $draft, draftStore: recordStore.writingDraftStore, onSave: {
-            recordStore.saveMomentDraft(draft, recoveringDeletedMoment: draft.existingRecordID != nil) != nil
-        })
+    private func closeSelection() {
+        isInspectorPresented = false
+        selectedMomentID = nil
     }
 }

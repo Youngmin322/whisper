@@ -6,14 +6,17 @@ struct IPadHomeView: View {
     let onAddMoment: () -> Void
     let onCollect: (JournalDay) -> Void
     let onResumeDrafts: () -> Void
+    let onSelectMoment: (UUID) -> Void
+    let onCloseSelection: () -> Void
+    var isInspecting = false
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("lastJournalCollectionProposalDay") private var lastProposalDay = ""
     @State private var today = JournalDay(date: .now)
-    @State private var selectedRecordID: UUID?
-    @State private var isInspectorPresented = false
     @State private var collectionStartedAt: Date?
     @State private var collectionTask: Task<Void, Never>?
+    @State private var isTimeProposalPresented = false
 
     private var moments: [WhisperRecord] { recordStore.uncollectedMoments(on: today) }
 
@@ -52,8 +55,7 @@ struct IPadHomeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 TodayFlameField(records: moments, collectionStartedAt: collectionStartedAt, onSelect: {
-                    selectedRecordID = $0
-                    isInspectorPresented = true
+                    onSelectMoment($0)
                 })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Text("불꽃 하나에, 순간 하나")
@@ -80,33 +82,24 @@ struct IPadHomeView: View {
                     .accessibilityIdentifier("home.recordButton")
             }
         }
-        .inspector(isPresented: $isInspectorPresented) {
-            NavigationStack {
-                if let selectedRecordID, let record = recordStore.record(withID: selectedRecordID) {
-                    RecordDetailView(record: record, recordStore: recordStore)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button { isInspectorPresented = false } label: { Image(systemName: "xmark") }
-                                    .accessibilityLabel("선택한 순간 닫기")
-                            }
-                        }
-                }
-            }
-            .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
-        }
         .task(id: today) {
-            do {
-                try await Task.sleep(for: .seconds(max(0.01, today.nextBoundary.timeIntervalSinceNow)))
+            while !Task.isCancelled {
+                proposeCollectionIfNeeded()
+                do {
+                    try await Task.sleep(for: .seconds(min(60, max(0.01, today.nextBoundary.timeIntervalSinceNow))))
+                } catch { return }
                 refreshDay()
-            } catch {}
+            }
         }
         .onChange(of: scenePhase) { _, phase in if phase == .active { refreshDay() } }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in refreshDay() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in refreshDay() }
         .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in refreshDay() }
-        .onChange(of: recordStore.records.map(\.id)) { _, ids in
-            if let selectedRecordID, !ids.contains(selectedRecordID) { isInspectorPresented = false }
-        }
+        .onChange(of: recordStore.records.map(\.id)) { _, _ in proposeCollectionIfNeeded() }
+        .alert("오늘의 순간을 일기로 모아볼까요?", isPresented: $isTimeProposalPresented) {
+            Button("병에 담고 일기 쓰기", action: collect)
+            Button("나중에", role: .cancel) {}
+        } message: { Text("오늘을 돌아볼 시간이에요. 나중에 해도 기록은 그대로 남아요.") }
         .onDisappear {
             collectionTask?.cancel()
             collectionStartedAt = nil
@@ -118,7 +111,7 @@ struct IPadHomeView: View {
         if day != today {
             collectionTask?.cancel()
             collectionStartedAt = nil
-            isInspectorPresented = false
+            onCloseSelection()
             today = day
         }
     }
@@ -126,7 +119,7 @@ struct IPadHomeView: View {
     private func collect() {
         guard !moments.isEmpty, collectionStartedAt == nil else { return }
         let day = today
-        isInspectorPresented = false
+        onCloseSelection()
         collectionStartedAt = .now
         collectionTask = Task { @MainActor in
             do {
@@ -136,5 +129,14 @@ struct IPadHomeView: View {
             collectionStartedAt = nil
             onCollect(day)
         }
+    }
+
+    private func proposeCollectionIfNeeded() {
+        guard scenePhase == .active, collectionStartedAt == nil,
+              !isInspecting, Calendar.current.component(.hour, from: .now) >= 22,
+              !moments.isEmpty, recordStore.journal(on: today) == nil,
+              lastProposalDay != today.key else { return }
+        lastProposalDay = today.key
+        isTimeProposalPresented = true
     }
 }
