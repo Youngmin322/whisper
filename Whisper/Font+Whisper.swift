@@ -25,6 +25,7 @@ extension Font {
     static let whisperMetadata = noto(13, weight: .medium)
     static let whisperCaption = noto(12)
     static let whisperLabel = noto(11, weight: .medium)
+    static let whisperDiaryBody = whisperHandwriting(18)
 
     static func whisperHandwriting(_ size: CGFloat, bold: Bool = false) -> Font {
         .custom(bold ? "Gaegu-Bold" : "Gaegu-Regular", size: size, relativeTo: .body)

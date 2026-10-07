@@ -55,15 +55,18 @@ enum WhisperEmotion: String, CaseIterable, Identifiable {
 struct EmotionPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedEmotion: String?
+    var allowsEmptySelection = true
 
     var body: some View {
         NavigationStack {
             List {
-                Button {
-                    selectedEmotion = nil
-                    dismiss()
-                } label: {
-                    emotionRow(title: "선택 안 함", systemImage: "circle.dashed")
+                if allowsEmptySelection {
+                    Button {
+                        selectedEmotion = nil
+                        dismiss()
+                    } label: {
+                        emotionRow(title: "선택 안 함", systemImage: "circle.dashed")
+                    }
                 }
 
                 ForEach(WhisperEmotion.selectableCases) { emotion in

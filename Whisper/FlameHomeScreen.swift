@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FlameHomeScreen: View {
+    let day: JournalDay
     let records: [WhisperRecord]
     let recordStore: RecordStore
     let isRecording: Bool
@@ -15,47 +16,27 @@ struct FlameHomeScreen: View {
     @State private var isJournalPresented = false
     @State private var isSettingsPresented = false
     @State private var collectionStartedAt: Date?
+    @State private var collectionDay: JournalDay?
+    @State private var collectionTask: Task<Void, Never>?
     @State private var isTimeProposalPresented = false
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Menu {
-                    Button("보관함", systemImage: "archivebox", action: onOpenCollection)
-                    Button("설정", systemImage: "gearshape") { isSettingsPresented = true }
-                } label: {
-                    Image("HanddrawnMenu")
-                        .resizable()
-                        .frame(width: 30, height: 27)
-                        .frame(width: 48, height: 48, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("메뉴")
-                .accessibilityIdentifier("home.menuButton")
-                Spacer()
-            }
-            .padding(.horizontal, 21)
-            .padding(.top, 8)
-
-            Text(Date.now.formatted(Date.FormatStyle().locale(Locale(identifier: "ko_KR")).month(.wide).day()))
-                .font(.whisperHandwriting(27, bold: true))
-                .foregroundStyle(Color.whisperTextPrimary)
-                .padding(.horizontal, 6)
-                .background(alignment: .bottom) {
-                    Capsule()
-                        .fill(Color.whisperSurfaceHighlight)
-                        .frame(height: 7)
-                        .offset(y: 2)
-                }
-                .padding(.top, 12)
+            HomeToolbarView(day: day, onOpenSettings: { isSettingsPresented = true },
+                            onOpenCollection: onOpenCollection)
+                .disabled(collectionStartedAt != nil)
 
             if records.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
-                    Text("아직 오늘의 불꽃이 없어요")
+                    Text(recordStore.journal(on: day) == nil
+                         ? "아직 오늘의 불꽃이 없어요"
+                         : "오늘의 불꽃을 병에 담았어요")
                         .font(.whisperHandwriting(24))
                         .foregroundStyle(Color.whisperTextPrimary)
-                    Text("떠오른 순간 하나를 남겨보세요")
+                    Text(recordStore.journal(on: day) == nil
+                         ? "떠오른 순간 하나를 남겨보세요"
+                         : "새로운 순간이 떠오르면 또 남겨보세요")
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                     Spacer()
@@ -65,35 +46,33 @@ struct FlameHomeScreen: View {
                 TodayFlameField(
                     records: records,
                     collectionStartedAt: collectionStartedAt,
-                    onSelect: openRecord
+                    onSelect: openRecord,
+                    isPaused: isRecording
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            HStack(spacing: 4) {
-                Button("+ 순간 남기기", action: onAddMoment)
-                    .buttonStyle(HomeMomentButtonStyle())
-                    .accessibilityIdentifier("home.recordButton")
-
-                Button(action: collect) {
-                    HStack(spacing: 4) {
-                        Image("BottleLineIcon")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 19, height: 23)
-                            .accessibilityHidden(true)
-                        Text("병에 담기")
-                    }
-                }
-                .buttonStyle(HomeCollectButtonStyle())
-                .disabled(records.isEmpty || collectionStartedAt != nil)
-                .accessibilityIdentifier("home.journalButton")
-            }
-            .padding(.bottom, 26)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.whisperBackground.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+
+            ToolbarItem(placement: .bottomBar) {
+                HomeActionButton(title: "병에 담기", image: Image("BottleLineIcon"), action: collect)
+                    .disabled(records.isEmpty || collectionStartedAt != nil)
+                    .accessibilityIdentifier("home.journalButton")
+                    .accessibilityHint("오늘 남긴 순간을 모아 일기를 작성해요.")
+            }
+
+            ToolbarSpacer(.fixed, placement: .bottomBar)
+
+            ToolbarItem(placement: .bottomBar) {
+                HomeActionButton(title: "순간 남기기", image: Image(systemName: "plus"), action: onAddMoment)
+                    .accessibilityIdentifier("home.recordButton")
+                    .disabled(collectionStartedAt != nil)
+            }
+        }
         .navigationDestination(isPresented: $isRecordPresented) {
             if let selectedRecordID,
                let record = recordStore.record(withID: selectedRecordID) {
@@ -101,7 +80,9 @@ struct FlameHomeScreen: View {
             }
         }
         .navigationDestination(isPresented: $isJournalPresented) {
-            JournalEditorView(date: .now, recordStore: recordStore)
+            if let collectionDay {
+                JournalEditorView(day: collectionDay, recordStore: recordStore)
+            }
         }
         .navigationDestination(isPresented: $isSettingsPresented) {
             SettingsView(recordStore: recordStore)
@@ -114,15 +95,29 @@ struct FlameHomeScreen: View {
         .task {
             while !Task.isCancelled {
                 proposeCollectionIfNeeded()
-                try? await Task.sleep(for: .seconds(60))
+                do { try await Task.sleep(for: .seconds(60)) } catch { return }
             }
         }
         .onChange(of: records.count) { _, _ in proposeCollectionIfNeeded() }
+        .onChange(of: isJournalPresented) { _, presented in
+            if !presented {
+                collectionStartedAt = nil
+                collectionDay = nil
+            }
+        }
         .onChange(of: isRecording) { _, recording in
             if !recording { proposeCollectionIfNeeded() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { proposeCollectionIfNeeded() }
+        }
+        .onChange(of: day) { _, _ in proposeCollectionIfNeeded() }
+        .onDisappear {
+            if !isJournalPresented {
+                collectionTask?.cancel()
+                collectionStartedAt = nil
+                collectionDay = nil
+            }
         }
     }
 
@@ -146,10 +141,7 @@ struct FlameHomeScreen: View {
                 isTimeProposalPresented = false
                 collect()
             }
-            .font(.whisperAction)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .background(Color.whisperAccent, in: RoundedRectangle(cornerRadius: 18))
+            .buttonStyle(.whisperPrimary)
             Button("나중에") { isTimeProposalPresented = false }
                 .font(.whisperControl)
                 .foregroundStyle(Color.whisperAccentText)
@@ -161,55 +153,56 @@ struct FlameHomeScreen: View {
 
     private func proposeCollectionIfNeeded() {
         guard !isRecording,
+              collectionStartedAt == nil,
               Calendar.current.component(.hour, from: .now) >= 22,
               !records.isEmpty,
-              recordStore.journal(on: .now) == nil
+              recordStore.journal(on: day) == nil
         else { return }
-        let today = JournalDayKey.make(for: .now)
+        let today = day.key
         guard lastProposalDay != today else { return }
         lastProposalDay = today
         isTimeProposalPresented = true
     }
 
     private func openRecord(_ id: UUID) {
+        guard collectionStartedAt == nil else { return }
         selectedRecordID = id
         isRecordPresented = true
     }
 
     private func collect() {
         guard !records.isEmpty, collectionStartedAt == nil else { return }
+        collectionDay = day
         collectionStartedAt = .now
-        Task { @MainActor in
-            if !reduceMotion {
-                try? await Task.sleep(for: .milliseconds(820))
-            }
+        collectionTask = Task { @MainActor in
+            do {
+                if !reduceMotion { try await Task.sleep(for: .milliseconds(820)) }
+            } catch { return }
+            guard !Task.isCancelled else { return }
             isJournalPresented = true
-            collectionStartedAt = nil
         }
     }
 }
 
-private struct HomeMomentButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.whisperControl)
-            .foregroundStyle(Color.whisperTextOnAccent)
-            .frame(width: 151, height: 44)
-            .background(Color.whisperAccent, in: Capsule())
-            .contentShape(Capsule())
-            .opacity(configuration.isPressed ? 0.82 : 1)
-    }
-}
+private struct HomeActionButton: View {
+    let title: String
+    let image: Image
+    let action: () -> Void
 
-private struct HomeCollectButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.whisperControl)
-            .foregroundStyle(Color.whisperTextSecondary)
-            .frame(minWidth: 116, minHeight: 44)
-            .contentShape(Rectangle())
-            .opacity(!isEnabled ? 0.45 : configuration.isPressed ? 0.6 : 1)
+    var body: some View {
+        Button(action: action) {
+            image
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 24)
+                .accessibilityHidden(true)
+        }
+        .font(.system(size: 20, weight: .medium))
+        .buttonStyle(.automatic)
+        .buttonBorderShape(.circle)
+        .controlSize(.regular)
+        .tint(Color.whisperAccent)
+        .accessibilityLabel(title)
     }
 }

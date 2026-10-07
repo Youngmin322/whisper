@@ -13,13 +13,20 @@ enum RecordWritingCopy {
     static let contentExample = "기억하고 싶은 일을 적어보세요."
 }
 
-struct RecordDraft {
+struct RecordDraft: Codable, Equatable, Identifiable {
     static let contentLimit = 1_000
 
+    var id = UUID()
     var title = ""
     var content = ""
     var emotion: String?
     var photoData: Data?
+    var document: DiaryDocument? = nil
+    var existingRecordID: UUID? = nil
+
+    var storageKey: String {
+        existingRecordID.map { "moment:edit:\($0.uuidString)" } ?? "moment"
+    }
 
     var titleForSaving: String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -39,6 +46,6 @@ struct RecordDraft {
     }
 
     var hasChanges: Bool {
-        !title.isEmpty || !content.isEmpty || emotion != nil || photoData != nil
+        existingRecordID != nil || !title.isEmpty || !content.isEmpty || emotion != nil || photoData != nil
     }
 }

@@ -4,11 +4,24 @@ struct TodayFlameField: View {
     let records: [WhisperRecord]
     let collectionStartedAt: Date?
     let onSelect: (UUID) -> Void
+    var reduceMotionOverride: Bool? = nil
+    var isPaused = false
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var motion = FlameFieldMotion()
+    @State private var isVisible = false
+
+    private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
+
+    private var participants: [FlameMotionParticipant] {
+        records.map { FlameMotionParticipant(id: $0.id, kind: FlameMotionKind.resolve($0.emotion),
+                                            createdAt: $0.createdAt.timeIntervalSinceReferenceDate) }
+    }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                paused: reduceMotion || isPaused || !isVisible || scenePhase != .active)) { timeline in
             GeometryReader { geometry in
                 let now = timeline.date.timeIntervalSinceReferenceDate
                 let motionTime = collectionStartedAt?.timeIntervalSinceReferenceDate ?? now
@@ -17,38 +30,34 @@ struct TodayFlameField: View {
 
                 ZStack {
                     ForEach(records) { record in
-                        let pose = FlameHopMotion.sample(
-                            seed: FlameHopMotion.seed(for: record.id),
-                            time: motionTime,
-                            size: geometry.size,
-                            reduceMotion: reduceMotion,
-                            emotion: record.emotion
-                        )
-                        let point = CGPoint(
-                            x: pose.groundPosition.x + (jarPoint.x - pose.groundPosition.x) * progress,
-                            y: pose.groundPosition.y + (jarPoint.y - pose.groundPosition.y) * progress
-                        )
+                        if let pose = motion.pose(for: record.id, at: motionTime,
+                                                  size: geometry.size, reduceMotion: reduceMotion) {
+                            let point = CGPoint(
+                                x: pose.groundPosition.x + (jarPoint.x - pose.groundPosition.x) * progress,
+                                y: pose.groundPosition.y + (jarPoint.y - pose.groundPosition.y) * progress
+                            )
 
-                        if !reduceMotion && progress == 0 && pose.dustOpacity > 0 {
-                            landingDust(pose)
-                                .position(
-                                    x: point.x - pose.facing * 15,
-                                    y: point.y + 24
-                                )
-                        }
+                            if !reduceMotion && progress == 0 && pose.dustOpacity > 0 {
+                                landingDust(pose)
+                                    .position(
+                                        x: point.x - pose.facing * 15,
+                                        y: point.y + 24
+                                    )
+                            }
 
-                        Button { onSelect(record.id) } label: {
-                            AnimatedFlameCharacter(emotion: record.emotion, pose: pose)
-                                .scaleEffect(1 - progress * 0.4)
+                            Button { onSelect(record.id) } label: {
+                                AnimatedFlameCharacter(emotion: record.emotion, pose: pose)
+                                    .scaleEffect(1 - progress * 0.4)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: 72, height: 72)
+                            .contentShape(Rectangle())
+                            .position(point)
+                            .opacity(progress > 0.84 ? (1 - progress) / 0.16 : 1)
+                            .disabled(progress > 0)
+                            .accessibilityLabel("\(record.emotion ?? "감정 미선택") 불꽃, \(record.content), 순간 열기")
+                            .accessibilityIdentifier("home.flame.\(record.id.uuidString)")
                         }
-                        .buttonStyle(.plain)
-                        .frame(width: 72, height: 72)
-                        .contentShape(Rectangle())
-                        .position(point)
-                        .opacity(progress > 0.84 ? (1 - progress) / 0.16 : 1)
-                        .disabled(progress > 0)
-                        .accessibilityLabel("\(record.emotion ?? "감정 미선택") 불꽃, \(record.content), 순간 열기")
-                        .accessibilityIdentifier("home.flame.\(record.id.uuidString)")
                     }
 
                     if collectionStartedAt != nil {
@@ -58,7 +67,39 @@ struct TodayFlameField: View {
                     }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
+                .onChange(of: timeline.date) { _, date in
+                    let time = date.timeIntervalSinceReferenceDate
+                    if collectionStartedAt == nil, let nextEvent = motion.nextEventAt, nextEvent <= time {
+                        motion.advance(to: time, size: geometry.size)
+                    }
+                }
+                .onChange(of: participants, initial: true) { _, participants in
+                    motion.updateParticipants(participants, at: Date.now.timeIntervalSinceReferenceDate,
+                                              size: geometry.size)
+                    updatePlayback()
+                }
+                .onAppear {
+                    isVisible = true
+                    updatePlayback()
+                }
+                .onDisappear {
+                    isVisible = false
+                    updatePlayback()
+                }
             }
+        }
+        .onChange(of: reduceMotion) { _, _ in updatePlayback() }
+        .onChange(of: isPaused) { _, _ in updatePlayback() }
+        .onChange(of: scenePhase) { _, _ in updatePlayback() }
+        .onChange(of: collectionStartedAt) { _, _ in updatePlayback() }
+    }
+
+    private func updatePlayback() {
+        let time = Date.now.timeIntervalSinceReferenceDate
+        if isVisible && !isPaused && !reduceMotion && scenePhase == .active && collectionStartedAt == nil {
+            motion.resume(at: time)
+        } else {
+            motion.pause(at: collectionStartedAt?.timeIntervalSinceReferenceDate ?? time)
         }
     }
 

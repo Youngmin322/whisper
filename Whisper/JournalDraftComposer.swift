@@ -14,8 +14,12 @@ enum JournalDraftComposer {
         existing: DailyJournal?,
         calendar: Calendar = .current
     ) -> JournalDraft {
+        compose(on: JournalDay(date: date, calendar: calendar), records: records, existing: existing)
+    }
+
+    static func compose(on day: JournalDay, records: [WhisperRecord], existing: DailyJournal?) -> JournalDraft {
         let moments = records
-            .filter { calendar.isDate($0.createdAt, inSameDayAs: date) }
+            .filter { day.contains($0.createdAt) }
             .sorted { $0.createdAt < $1.createdAt }
         let existingIDs = existing?.sourceRecordIDs ?? []
         let knownIDs = Set(existingIDs)
@@ -29,7 +33,7 @@ enum JournalDraftComposer {
             title: existing?.title ?? "",
             body: body,
             sourceRecordIDs: existingIDs + newlyAdded.map(\.id),
-            representativeEmotion: representativeEmotion(in: moments) ?? existing?.emotion
+            representativeEmotion: existing == nil ? representativeEmotion(in: moments) : existing?.emotion
         )
     }
 

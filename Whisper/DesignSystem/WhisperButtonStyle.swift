@@ -45,7 +45,7 @@ struct WhisperPrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: size.height)
             .background {
                 RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
-                    .fill(Color.whisperAccent)
+                    .fill(Color.whisperButtonBackground)
             }
             .opacity(opacity(isPressed: configuration.isPressed))
             .contentShape(.rect)
