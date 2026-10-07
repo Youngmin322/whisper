@@ -143,6 +143,7 @@ private final class DiaryLayoutManager: NSLayoutManager {
 }
 
 private final class DiaryEditorTextView: UITextView {
+    var onWindowAttachment: ((UITextView) -> Void)?
     private let placeholderView: UITextView = {
         let storage = NSTextStorage()
         let layout = NSLayoutManager()
@@ -167,6 +168,11 @@ private final class DiaryEditorTextView: UITextView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { onWindowAttachment?(self) }
+    }
 
     func updatePlaceholder(_ placeholder: String?, font: UIFont) {
         var attributes = DiaryTextFormatter.attributes(font: font)
@@ -211,6 +217,9 @@ struct DiaryTextView: UIViewRepresentable {
         layout.addTextContainer(container)
         let view = DiaryEditorTextView(frame: .zero, textContainer: container)
         view.delegate = context.coordinator
+        view.onWindowAttachment = { [weak coordinator = context.coordinator] view in
+            coordinator?.updateFocus(in: view)
+        }
         if isEditable, !fillsHeight {
             let toolbar = UIToolbar()
             toolbar.sizeToFit()
@@ -242,9 +251,7 @@ struct DiaryTextView: UIViewRepresentable {
         (view.layoutManager as? DiaryLayoutManager)?.showsRules = showsRules
         context.coordinator.render(in: view, width: max(1, view.bounds.width))
         (view as? DiaryEditorTextView)?.updatePlaceholder(placeholder, font: font)
-        if isEditable, isFocused, !view.isFirstResponder {
-            DispatchQueue.main.async { view.becomeFirstResponder() }
-        } else if !isFocused, view.isFirstResponder { view.resignFirstResponder() }
+        context.coordinator.updateFocus(in: view)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
@@ -272,7 +279,26 @@ struct DiaryTextView: UIViewRepresentable {
         private var lastWidth: CGFloat = 0
         private var lastFontSize: CGFloat = 0
         private var isRendering = false
+        private var isFocusUpdateScheduled = false
         init(_ owner: DiaryTextView) { self.owner = owner }
+
+        func updateFocus(in view: UITextView) {
+            guard !isFocusUpdateScheduled,
+                  view.isFirstResponder != (owner.isEditable && owner.isFocused) else { return }
+            isFocusUpdateScheduled = true
+            // Resigning during updateUIView re-enters SwiftUI through the keyboard
+            // and delegate callbacks. Apply the latest request after this update.
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self else { return }
+                self.isFocusUpdateScheduled = false
+                guard let view, view.window != nil else { return }
+                if self.owner.isEditable && self.owner.isFocused {
+                    if !view.isFirstResponder { view.becomeFirstResponder() }
+                } else if view.isFirstResponder {
+                    view.resignFirstResponder()
+                }
+            }
+        }
 
         func render(in view: UITextView, width: CGFloat) {
             guard view.markedTextRange == nil else { return }
@@ -306,8 +332,12 @@ struct DiaryTextView: UIViewRepresentable {
             keepCursorVisible(view)
         }
 
-        func textViewDidBeginEditing(_ view: UITextView) { owner.isFocused = true }
-        func textViewDidEndEditing(_ view: UITextView) { owner.isFocused = false }
+        func textViewDidBeginEditing(_ view: UITextView) {
+            if !owner.isFocused { owner.isFocused = true }
+        }
+        func textViewDidEndEditing(_ view: UITextView) {
+            if owner.isFocused { owner.isFocused = false }
+        }
         func textViewDidChangeSelection(_ view: UITextView) {
             guard !isRendering else { return }
             view.typingAttributes = DiaryTextFormatter.attributes(font: owner.font)
