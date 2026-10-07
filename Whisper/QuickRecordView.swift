@@ -21,6 +21,7 @@ struct QuickRecordView: View {
     @State private var isPhotoPickerPresented = false
     @State private var isEmotionPickerPresented = false
     @State private var photoLoader: PhotoAttachmentLoader
+    @State private var appliedPhotoImportID: UUID?
     @State private var didFinish = false
     @State private var isDraftErrorPresented = false
     @State private var writingHeaderHeight: CGFloat = 44
@@ -45,7 +46,7 @@ struct QuickRecordView: View {
         self.onSave = onSave
         self.draftStore = draftStore
         _isTitleVisible = State(initialValue: !draft.wrappedValue.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        _photoLoader = State(initialValue: photoLoader ?? PhotoAttachmentLoader(photoData: draft.wrappedValue.photoData))
+        _photoLoader = State(initialValue: photoLoader ?? PhotoAttachmentLoader())
     }
 
     var body: some View {
@@ -120,19 +121,19 @@ struct QuickRecordView: View {
             EmotionPickerView(selectedEmotion: $draft.emotion, allowsEmptySelection: false)
                 .presentationDetents([.medium, .large])
         }
-        .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
+        .sheet(item: $selectedPhoto) { photo in
+            DiaryPhotoViewer(photo: photo, onDelete: { draft.removePhoto(id: photo.id) })
+        }
         .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
-            get: { photoLoader.selectedItem },
+            get: { photoLoader.selectedItems },
             set: { photoLoader.select($0) }
-        ), matching: .images)
+        ), selectionBehavior: .ordered, matching: .images)
         .onChange(of: isPhotoPickerPresented) { _, isPresented in
             if !isPresented && !didFinish { focusedField = .content }
         }
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
-        .onChange(of: photoLoader.photoData) { _, data in
-            if !didFinish { draft.attachPhoto(data, at: photoInsertionOffset) }
-        }
+        .onChange(of: photoLoader.completedImport) { _, _ in applyPendingPhotos() }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { persistDraft() }
         }
@@ -364,7 +365,6 @@ struct QuickRecordView: View {
                 get: { draft.diaryDocument },
                 set: { value in
                     draft.setDiaryDocument(value)
-                    if photoLoader.photoData != draft.photoData { photoLoader.replacePhoto(with: draft.photoData) }
                 }
             ), isFocused: Binding(
                 get: { focusedField == .content },
@@ -439,28 +439,12 @@ struct QuickRecordView: View {
     @ViewBuilder
     private var optionalButtons: some View {
         if selectedEmotion != nil {
-            Group {
-                if draft.photoData != nil {
-                    Menu {
-                        Button("사진 보기", systemImage: "arrow.up.left.and.arrow.down.right") {
-                            selectedPhoto = draft.diaryDocument.photos.first
-                        }
-                        Button("사진 바꾸기", systemImage: "photo") {
-                            focusedField = nil
-                            isPhotoPickerPresented = true
-                        }
-                        Button("사진 삭제", systemImage: "trash", role: .destructive) {
-                            photoLoader.replacePhoto(with: nil)
-                        }
-                    } label: { photoButtonLabel }
-                } else {
-                    Button { focusedField = nil; isPhotoPickerPresented = true } label: { photoButtonLabel }
-                }
-            }
+            Button { focusedField = nil; isPhotoPickerPresented = true } label: { photoButtonLabel }
             .fixedSize(horizontal: true, vertical: false)
             .disabled(photoLoader.isLoading)
             .accessibilityLabel("사진")
-            .accessibilityValue(photoLoader.isLoading ? "불러오는 중" : draft.photoData == nil ? "첨부 없음" : "1장 첨부됨")
+            .accessibilityValue(photoLoader.isLoading ? "불러오는 중" : draft.diaryDocument.photos.isEmpty ? "첨부 없음" : "\(draft.diaryDocument.photos.count)장 첨부됨")
+            .accessibilityHint("여러 장의 사진을 선택해 본문에 추가해요.")
             .accessibilityIdentifier("record.photoButton")
 
             Button {
@@ -501,8 +485,14 @@ struct QuickRecordView: View {
     @discardableResult
     private func persistDraft() -> Bool {
         guard !didFinish else { return true }
-        if draft.photoData != photoLoader.photoData { draft.attachPhoto(photoLoader.photoData, at: photoInsertionOffset) }
+        applyPendingPhotos()
         return draftStore.save(draft)
+    }
+
+    private func applyPendingPhotos() {
+        guard !didFinish, let result = photoLoader.completedImport, result.id != appliedPhotoImportID else { return }
+        appliedPhotoImportID = result.id
+        draft.appendPhotos(result.images, at: photoInsertionOffset)
     }
 
     private func close() {
@@ -513,7 +503,7 @@ struct QuickRecordView: View {
 
     private func save() {
         guard draft.canSaveNewMoment && !photoLoader.isLoading else { return }
-        if draft.photoData != photoLoader.photoData { draft.attachPhoto(photoLoader.photoData, at: photoInsertionOffset) }
+        applyPendingPhotos()
         didFinish = true
         if onSave() {
             dismiss()

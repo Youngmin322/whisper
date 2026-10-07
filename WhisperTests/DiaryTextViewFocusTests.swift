@@ -11,7 +11,7 @@ private final class DiaryFocusState {
     var document = DiaryDocument(text: "사진을 고르기 전 쓰던 문장")
     var isFocused = true
     var isPhotoPickerPresented = false
-    var selectedItem: PhotosPickerItem?
+    var selectedItems: [PhotosPickerItem] = []
 }
 
 @MainActor
@@ -44,7 +44,9 @@ struct DiaryTextViewFocusTests {
         try await settle()
         #expect(!editor.isFirstResponder)
         #expect(!state.isFocused)
-        #expect(viewControllers(in: host).contains { $0 is PHPickerViewController })
+        let picker = try #require(viewControllers(in: host).compactMap { $0 as? PHPickerViewController }.first)
+        #expect(picker.configuration.selectionLimit == 0)
+        #expect(picker.configuration.selection == .ordered)
         #expect(state.document == document)
         #expect(editor.selectedRange == selection)
 
@@ -133,7 +135,8 @@ private struct DiaryPhotoPickerFixture: View {
         NavigationStack {
             DiaryTextView(document: $state.document, isFocused: $state.isFocused, fillsHeight: true)
         }
-        .photosPicker(isPresented: $state.isPhotoPickerPresented, selection: $state.selectedItem, matching: .images)
+        .photosPicker(isPresented: $state.isPhotoPickerPresented, selection: $state.selectedItems,
+            selectionBehavior: .ordered, matching: .images)
         .onChange(of: state.isPhotoPickerPresented) { _, isPresented in
             if !isPresented { state.isFocused = true }
         }

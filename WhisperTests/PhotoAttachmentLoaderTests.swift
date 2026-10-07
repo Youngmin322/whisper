@@ -26,6 +26,63 @@ private actor PhotoTransferGate {
 @MainActor
 @Suite("사진 첨부의 로딩 수명과 저장 상태", .serialized)
 struct PhotoAttachmentLoaderTests {
+    @Test("여러 사진은 모두 처리한 뒤 선택 순서대로 한 번에 첨부한다")
+    func completesBatchInSelectionOrder() async throws {
+        let loader = PhotoAttachmentLoader()
+        let first = PhotoTransferGate()
+        let second = PhotoTransferGate()
+        let request = loader.loadBatch(transfers: [
+            { await first.transfer() }, { await second.transfer() }, { Data([3]) }
+        ], process: { $0 })
+        #expect(loader.isLoading)
+        #expect(loader.completedImport == nil)
+        await second.complete(with: Data([2]))
+        #expect(loader.completedImport == nil)
+        await first.complete(with: Data([1]))
+        await request.value
+        #expect(!loader.isLoading)
+        let result = try #require(loader.completedImport)
+        #expect(result.images == [Data([1]), Data([2]), Data([3])])
+
+        let repeated = loader.loadBatch(transfers: [{ Data([1]) }, { Data([2]) }, { Data([3]) }], process: { $0 })
+        await repeated.value
+        #expect(loader.completedImport?.images == result.images)
+        #expect(loader.completedImport?.id != result.id)
+    }
+
+    @Test("여러 사진 중 하나가 실패하면 부분 첨부 없이 재시도할 수 있다")
+    func batchFailureDoesNotPublishPartialImages() async {
+        let loader = PhotoAttachmentLoader(photoData: Data([9]))
+        let failed = loader.loadBatch(transfers: [{ Data([1]) }, { nil }], process: { $0 })
+        await failed.value
+        #expect(!loader.isLoading)
+        #expect(loader.completedImport == nil)
+        #expect(loader.photoData == Data([9]))
+        #expect(loader.errorMessage != nil)
+        let retry = loader.loadBatch(transfers: [{ Data([1]) }, { Data([2]) }], process: { $0 })
+        await retry.value
+        #expect(loader.completedImport?.images == [Data([1]), Data([2])])
+        #expect(loader.errorMessage == nil)
+    }
+
+    @Test("취소하거나 다른 사진을 고른 뒤 늦게 완료된 묶음은 첨부하지 않는다", arguments: [false, true])
+    func rejectsCancelledBatch(reselect: Bool) async {
+        let loader = PhotoAttachmentLoader()
+        let gate = PhotoTransferGate()
+        let previous = loader.loadBatch(transfers: [{ await gate.transfer() }, { Data([2]) }], process: { $0 })
+        if reselect {
+            let latest = loader.loadBatch(transfers: [{ Data([3]) }, { Data([4]) }], process: { $0 })
+            await latest.value
+        } else {
+            loader.cancelLoading()
+        }
+        await gate.complete(with: Data([1]))
+        await previous.value
+        #expect(loader.completedImport?.images == (reselect ? [Data([3]), Data([4])] : nil))
+        #expect(!loader.isLoading)
+        #expect(loader.errorMessage == nil)
+    }
+
     @Test("선택 직후부터 저장을 막고 완료 후 새 사진을 저장한다")
     func pendingReplacementBlocksSaving() async throws {
         let store = RecordStore(isStoredInMemoryOnly: true)

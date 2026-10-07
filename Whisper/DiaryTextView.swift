@@ -376,6 +376,7 @@ struct DiaryTextView: UIViewRepresentable {
 
 struct DiaryPhotoViewer: View {
     let photo: DiaryPhoto
+    var onDelete: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
@@ -387,7 +388,15 @@ struct DiaryPhotoViewer: View {
             .background(Color.whisperBackground)
             .navigationTitle(photo.caption ?? "사진")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
+                if let onDelete {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("사진 삭제", role: .destructive) { onDelete(); dismiss() }
+                            .accessibilityIdentifier("photo.deleteButton")
+                    }
+                }
+            }
         }
     }
 }

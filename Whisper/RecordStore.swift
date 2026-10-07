@@ -230,7 +230,7 @@ final class RecordStore {
                                              emotion: draft.emotion, photoData: draft.photoData))
         }
         if draft.document != nil,
-           !stageDiaryDocument(draft.diaryDocument.withoutPhotoData, kind: "moment", id: draft.id) { return nil }
+           !stageDiaryDocument(draft.diaryDocument, kind: "moment", id: draft.id) { return nil }
         writingDraftStore.stageCompletion(of: draft.id)
         guard saveChanges(reloadAfterSave: true) else { return nil }
         writingDraftStore.didComplete(id: draft.id)
@@ -318,12 +318,24 @@ final class RecordStore {
             return false
         }
         guard stageLegacyJournalSnapshots(linkedTo: record.id) else { return false }
+        let shouldStoreDocument = document != nil || storedDiaryDocument(kind: "moment", id: record.id) != nil
+        var value = document ?? diaryDocument(for: record)
+        value.text = content
+        if let photoData {
+            if value.photos.isEmpty { value.photos = [DiaryPhoto(offset: content.utf16.count, data: photoData)] }
+            value.photos[0].data = photoData
+            value.photos = value.photos.map { photo in
+                var photo = photo
+                photo.offset = value.validOffset(photo.offset)
+                return photo
+            }
+        } else { value.photos = [] }
         record.title = title
         record.content = content
         record.emotion = emotion
         record.photoData = photoData
         record.updatedAt = .now
-        if let document, !stageDiaryDocument(document.withoutPhotoData, kind: "moment", id: record.id) { return false }
+        if shouldStoreDocument, !stageDiaryDocument(value, kind: "moment", id: record.id) { return false }
         if let writingDraftID { writingDraftStore.stageCompletion(of: writingDraftID) }
         guard saveChanges(reloadAfterSave: writingDraftID != nil) else { return false }
         if let writingDraftID { writingDraftStore.didComplete(id: writingDraftID) }
@@ -1588,9 +1600,9 @@ final class RecordStore {
         var document = storedDiaryDocument(kind: "moment", id: record.id)
         if document?.text != record.content { document = nil }
         var value = document ?? .moment(text: record.content, photoData: record.photoData, caption: record.title)
+        if document == nil, !value.photos.isEmpty { value.photos[0].id = record.id }
         if let photo = record.photoData {
             if value.photos.isEmpty { value.photos = [DiaryPhoto(offset: value.text.utf16.count, data: photo)] }
-            value.photos = Array(value.photos.prefix(1))
             value.photos[0].data = photo
         } else { value.photos = [] }
         return value

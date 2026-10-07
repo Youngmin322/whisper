@@ -25,6 +25,16 @@ struct DiaryDocument: Codable, Equatable {
         return copy
     }
 
+    var photoSnapshot: Self {
+        Self(text: "", photos: photos.map { photo in
+            var snapshot = photo
+            snapshot.offset = 0
+            snapshot.caption = nil
+            snapshot.sourceRecordID = nil
+            return snapshot
+        })
+    }
+
     func restoringPhotos(from snapshot: Self) -> Self {
         var copy = self
         let data = Dictionary(snapshot.photos.map { ($0.id, $0.data) }, uniquingKeysWith: { first, _ in first })
@@ -56,12 +66,16 @@ struct DiaryDocument: Codable, Equatable {
 extension RecordDraft {
     var diaryDocument: DiaryDocument {
         var value = document ?? .moment(text: content, photoData: photoData)
+        if document == nil, !value.photos.isEmpty { value.photos[0].id = id }
         value.text = content
         if let photoData {
             if value.photos.isEmpty { value.photos = [DiaryPhoto(offset: content.utf16.count, data: photoData)] }
-            value.photos = Array(value.photos.prefix(1))
             value.photos[0].data = photoData
-            value.photos[0].caption = title.isEmpty ? nil : title
+            value.photos = value.photos.map { photo in
+                var photo = photo
+                photo.caption = title.isEmpty ? nil : title
+                return photo
+            }
         } else { value.photos = [] }
         return value
     }
@@ -79,6 +93,27 @@ extension RecordDraft {
     mutating func setDiaryDocument(_ value: DiaryDocument) {
         content = value.text
         photoData = value.photos.first?.data
-        document = value.withoutPhotoData
+        document = value
+    }
+
+    mutating func appendPhotos(_ images: [Data], at offset: Int) {
+        guard !images.isEmpty else { return }
+        var value = diaryDocument
+        let position = value.validOffset(offset)
+        value.photos += images.map { DiaryPhoto(offset: position, data: $0) }
+        value.photos.sort { $0.offset < $1.offset }
+        setDiaryDocument(value)
+    }
+
+    mutating func removePhoto(id: UUID) {
+        var value = diaryDocument
+        value.photos.removeAll { $0.id == id }
+        setDiaryDocument(value)
+    }
+
+    mutating func removeAllPhotos() {
+        var value = diaryDocument
+        value.photos.removeAll()
+        setDiaryDocument(value)
     }
 }

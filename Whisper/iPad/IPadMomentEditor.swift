@@ -10,6 +10,7 @@ struct IPadMomentEditor: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var draft: RecordDraft
     @State private var photoLoader: PhotoAttachmentLoader
+    @State private var appliedPhotoImportID: UUID?
     @State private var isBodyFocused = false
     @FocusState private var isTitleFocused: Bool
     @State private var isPhotoPickerPresented = false
@@ -24,11 +25,11 @@ struct IPadMomentEditor: View {
     init(draft: RecordDraft, recordStore: RecordStore) {
         self.recordStore = recordStore
         _draft = State(initialValue: draft)
-        _photoLoader = State(initialValue: PhotoAttachmentLoader(photoData: draft.photoData))
+        _photoLoader = State(initialValue: PhotoAttachmentLoader())
         _photoInsertionOffset = State(initialValue: draft.content.utf16.count)
         if let id = draft.existingRecordID, let record = recordStore.record(withID: id) {
             original = RecordDraft(title: record.title, content: record.content, emotion: record.emotion,
-                                   photoData: record.photoData, document: recordStore.diaryDocument(for: record).withoutPhotoData,
+                                   photoData: record.photoData, document: recordStore.diaryDocument(for: record),
                                    existingRecordID: record.id)
         } else { original = nil }
     }
@@ -96,15 +97,15 @@ struct IPadMomentEditor: View {
             EmotionPickerView(selectedEmotion: $draft.emotion, allowsEmptySelection: false)
                 .presentationDetents([.medium, .large])
         }
-        .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
+        .sheet(item: $selectedPhoto) { photo in
+            DiaryPhotoViewer(photo: photo, onDelete: { draft.removePhoto(id: photo.id) })
+        }
         .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
-            get: { photoLoader.selectedItem }, set: { photoLoader.select($0) }
-        ), matching: .images)
+            get: { photoLoader.selectedItems }, set: { photoLoader.select($0) }
+        ), selectionBehavior: .ordered, matching: .images)
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
-        .onChange(of: photoLoader.photoData) { _, data in
-            if !didFinish { draft.attachPhoto(data, at: photoInsertionOffset) }
-        }
+        .onChange(of: photoLoader.completedImport) { _, _ in applyPendingPhotos() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { persistDraft() } }
         .onDisappear {
             persistDraft()
@@ -156,7 +157,6 @@ struct IPadMomentEditor: View {
             Divider()
             DiaryTextView(document: Binding(get: { draft.diaryDocument }, set: {
                 draft.setDiaryDocument($0)
-                if photoLoader.photoData != draft.photoData { photoLoader.replacePhoto(with: draft.photoData) }
             }), isFocused: $isBodyFocused, minimumHeight: 300,
                 placeholder: "기억하고 싶은 순간을 적어보세요.", accessibilityIdentifier: "record.contentField",
                 onSelectionChange: { photoInsertionOffset = $0 }, onPhotoTap: { selectedPhoto = $0 })
@@ -182,12 +182,13 @@ struct IPadMomentEditor: View {
                 isPhotoPickerPresented = true
             } label: {
                 if photoLoader.isLoading { ProgressView() }
-                else { Label(draft.photoData == nil ? "사진 붙이기" : "사진 바꾸기", systemImage: "photo") }
+                else { Label("사진 추가", systemImage: "photo") }
             }
             .disabled(draft.emotion == nil || photoLoader.isLoading)
             .accessibilityIdentifier("record.photoButton")
+            .accessibilityValue("\(draft.diaryDocument.photos.count)장 첨부됨")
             if draft.photoData != nil {
-                Button("사진 삭제", systemImage: "trash", role: .destructive) { photoLoader.replacePhoto(with: nil) }
+                Button("사진 모두 삭제", systemImage: "trash", role: .destructive) { draft.removeAllPhotos() }
                     .labelStyle(.iconOnly)
             }
             Spacer(minLength: 0)
@@ -211,14 +212,21 @@ struct IPadMomentEditor: View {
     @discardableResult
     private func persistDraft() -> Bool {
         guard !didFinish else { return true }
+        applyPendingPhotos()
         if let original, let originalID = original.existingRecordID,
            draft.title == original.title, draft.content == original.content,
            draft.emotion == original.emotion, draft.photoData == original.photoData,
-           draft.diaryDocument.photos.map(\.offset) == original.diaryDocument.photos.map(\.offset) {
+           draft.diaryDocument.photos == original.diaryDocument.photos {
             if recordStore.writingDraftStore.momentEditDraft(for: originalID) == nil { return true }
             return recordStore.writingDraftStore.discard(id: draft.id)
         }
         return recordStore.writingDraftStore.save(draft)
+    }
+
+    private func applyPendingPhotos() {
+        guard !didFinish, let result = photoLoader.completedImport, result.id != appliedPhotoImportID else { return }
+        appliedPhotoImportID = result.id
+        draft.appendPhotos(result.images, at: photoInsertionOffset)
     }
 
     private func close() {
@@ -229,6 +237,7 @@ struct IPadMomentEditor: View {
 
     private func save() {
         guard canSave else { return }
+        applyPendingPhotos()
         // Mark completion before publishing, so the draft's onDisappear cannot
         // recreate the row removed by the store's atomic save transaction.
         didFinish = true

@@ -26,6 +26,7 @@ struct RecordDetailView: View {
     @State private var isDiscardDraftConfirmationPresented = false
     @State private var originalDraft: RecordDraft
     @State private var photoLoader: PhotoAttachmentLoader
+    @State private var appliedPhotoImportID: UUID?
     @State private var isEmotionPickerPresented = false
     @State private var isPhotoPickerPresented = false
     @State private var selectedPhoto: DiaryPhoto?
@@ -57,14 +58,14 @@ struct RecordDetailView: View {
         self.reminderCommitmentID = reminderCommitmentID
         self.reminderRequestIdentifier = reminderRequestIdentifier
         let original = RecordDraft(title: record.title, content: record.content, emotion: record.emotion,
-            photoData: record.photoData, document: recordStore.diaryDocument(for: record).withoutPhotoData,
+            photoData: record.photoData, document: recordStore.diaryDocument(for: record),
             existingRecordID: record.id)
         let value = editingDraft ?? recordStore.writingDraftStore.momentEditDraft(for: record.id) ?? original
         _draft = State(initialValue: value)
         _originalDraft = State(initialValue: original)
         _isEditing = State(initialValue: editingDraft != nil)
         _photoInsertionOffset = State(initialValue: value.content.utf16.count)
-        _photoLoader = State(initialValue: PhotoAttachmentLoader(photoData: value.photoData))
+        _photoLoader = State(initialValue: PhotoAttachmentLoader())
     }
 
     private var detailContent: some View {
@@ -211,13 +212,13 @@ struct RecordDetailView: View {
             pauseDatePicker
                 .presentationDetents([.large])
         }
-        .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
-        .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
-            get: { photoLoader.selectedItem }, set: { photoLoader.select($0) }
-        ), matching: .images)
-        .onChange(of: photoLoader.photoData) { _, data in
-            if isEditing { draft.attachPhoto(data, at: photoInsertionOffset) }
+        .sheet(item: $selectedPhoto) { photo in
+            DiaryPhotoViewer(photo: photo, onDelete: isEditing ? { draft.removePhoto(id: photo.id) } : nil)
         }
+        .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
+            get: { photoLoader.selectedItems }, set: { photoLoader.select($0) }
+        ), selectionBehavior: .ordered, matching: .images)
+        .onChange(of: photoLoader.completedImport) { _, _ in applyPendingPhotos() }
         .alert("사진을 불러올 수 없어요", isPresented: Binding<Bool>(
             get: { photoLoader.errorMessage != nil },
             set: { if !$0 { photoLoader.dismissError() } }
@@ -315,7 +316,6 @@ struct RecordDetailView: View {
                 get: { draft.diaryDocument },
                 set: { value in
                     draft.setDiaryDocument(value)
-                    if photoLoader.photoData != draft.photoData { photoLoader.replacePhoto(with: draft.photoData) }
                 }
             ), isFocused: $isBodyFocused, minimumHeight: 260,
                accessibilityIdentifier: "record.editContentField",
@@ -329,11 +329,13 @@ struct RecordDetailView: View {
             HStack {
                 Button { isBodyFocused = false; isPhotoPickerPresented = true } label: {
                     if photoLoader.isLoading { ProgressView() }
-                    else { Label(draft.photoData == nil ? "사진 붙이기" : "사진 바꾸기", systemImage: "photo") }
+                    else { Label("사진 추가", systemImage: "photo") }
                 }
                 .disabled(photoLoader.isLoading)
+                .accessibilityValue("\(draft.diaryDocument.photos.count)장 첨부됨")
+                .accessibilityIdentifier("record.photoButton")
                 if draft.photoData != nil {
-                    Button("사진 삭제", role: .destructive) { photoLoader.replacePhoto(with: nil) }
+                    Button("사진 모두 삭제", role: .destructive) { draft.removeAllPhotos() }
                 }
                 Spacer(minLength: 0)
                 if isBodyFocused {
@@ -646,7 +648,7 @@ struct RecordDetailView: View {
         resetDraft()
         if let restored = recordStore.writingDraftStore.momentEditDraft(for: record.id) {
             draft = restored
-            photoLoader.replacePhoto(with: restored.photoData)
+            photoLoader.cancelLoading()
             photoInsertionOffset = restored.content.utf16.count
         }
         isEditing = true
@@ -655,14 +657,15 @@ struct RecordDetailView: View {
 
     private func resetDraft() {
         draft = RecordDraft(title: record.title, content: record.content, emotion: record.emotion, photoData: record.photoData,
-                            document: recordStore.diaryDocument(for: record).withoutPhotoData, existingRecordID: record.id)
+                            document: recordStore.diaryDocument(for: record), existingRecordID: record.id)
         originalDraft = draft
         photoInsertionOffset = record.content.utf16.count
-        photoLoader.replacePhoto(with: record.photoData)
+        photoLoader.cancelLoading()
     }
 
     private func saveChanges() {
         guard draft.canSave, !photoLoader.isLoading else { return }
+        applyPendingPhotos()
         let didSave = recordStore.saveMomentEditDraft(draft) != nil
 
         if didSave {
@@ -677,8 +680,9 @@ struct RecordDetailView: View {
     @discardableResult
     private func persistDraft() -> Bool {
         guard isEditing else { return true }
+        applyPendingPhotos()
         // Entering edit mode alone should not create a draft. Photo positions count as edits.
-        let samePhotos = draft.diaryDocument.photos.map(\.offset) == originalDraft.diaryDocument.photos.map(\.offset)
+        let samePhotos = draft.diaryDocument.photos == originalDraft.diaryDocument.photos
         let unchanged = draft.title == originalDraft.title && draft.content == originalDraft.content
             && draft.emotion == originalDraft.emotion && draft.photoData == originalDraft.photoData && samePhotos
         if unchanged {
@@ -686,6 +690,12 @@ struct RecordDetailView: View {
             return recordStore.writingDraftStore.discard(id: draft.id)
         }
         return recordStore.writingDraftStore.save(draft)
+    }
+
+    private func applyPendingPhotos() {
+        guard isEditing, let result = photoLoader.completedImport, result.id != appliedPhotoImportID else { return }
+        appliedPhotoImportID = result.id
+        draft.appendPhotos(result.images, at: photoInsertionOffset)
     }
 
     private func deleteRecord() {

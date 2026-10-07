@@ -44,7 +44,7 @@ enum IPadDraftPreparation {
     static func moment(_ record: WhisperRecord, store: RecordStore) -> RecordDraft {
         store.writingDraftStore.momentEditDraft(for: record.id)
             ?? RecordDraft(title: record.title, content: record.content, emotion: record.emotion,
-                           photoData: record.photoData, document: store.diaryDocument(for: record).withoutPhotoData,
+                           photoData: record.photoData, document: store.diaryDocument(for: record),
                            existingRecordID: record.id)
     }
 }

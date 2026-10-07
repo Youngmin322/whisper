@@ -49,9 +49,15 @@ final class WritingDraftStore {
         }
         var text = draft
         text.photoData = nil
+        text.document = draft.document?.withoutPhotoData
+        // Full documents store all image bytes externally. Older drafts still
+        // use a raw first-photo blob and remain readable without conversion.
+        let photos = draft.document?.photos.contains { $0.data != nil } == true
+            ? draft.diaryDocument.photoSnapshot.encoded()
+            : draft.photoData
         return write {
             if draft.hasChanges {
-                try upsert(id: draft.id, key: draft.storageKey, payload: JSONEncoder().encode(text), photoData: draft.photoData)
+                try upsert(id: draft.id, key: draft.storageKey, payload: JSONEncoder().encode(text), photoData: photos)
             } else {
                 stageCompletion(of: draft.id)
             }
@@ -69,15 +75,7 @@ final class WritingDraftStore {
         metadata.document = draft.document?.withoutPhotoData
         return write {
             try upsert(id: draft.id, key: draft.storageKey, payload: JSONEncoder().encode(metadata),
-                       photoData: draft.document.map { document in
-                DiaryDocument(text: "", photos: document.photos.map { photo in
-                    var snapshot = photo
-                    snapshot.offset = 0
-                    snapshot.caption = nil
-                    snapshot.sourceRecordID = nil
-                    return snapshot
-                }).encoded()
-            } ?? nil)
+                       photoData: draft.document?.photoSnapshot.encoded())
         } onSuccess: {
             pendingJournals.removeValue(forKey: draft.storageKey)
         }
@@ -129,7 +127,12 @@ final class WritingDraftStore {
             for row in rows {
                 if row.storageKey == "moment" || row.storageKey.hasPrefix("moment:edit:") {
                     var decoded = try JSONDecoder().decode(RecordDraft.self, from: row.payload)
-                    decoded.photoData = row.photoData
+                    if let snapshot = DiaryDocument.decode(row.photoData) {
+                        decoded.document = decoded.document?.restoringPhotos(from: snapshot)
+                        decoded.photoData = decoded.document?.photos.first?.data
+                    } else {
+                        decoded.photoData = row.photoData
+                    }
                     if row.storageKey == "moment" { moment = decoded }
                     else { edits.append(decoded) }
                 } else if row.storageKey.hasPrefix("journal:") {
