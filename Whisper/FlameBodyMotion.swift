@@ -30,7 +30,7 @@ struct FlameMotionProfile {
     let stepDuration: Double
     let stepsPerBurst: Int
     let pauseDuration: Double
-    let pathDuration: Double
+    let stepDistance: CGFloat
     let lift: CGFloat
     let lead: CGFloat
     let tipBend: CGFloat
@@ -42,27 +42,27 @@ struct FlameMotionProfile {
     static func forKind(_ kind: FlameMotionKind) -> Self {
         switch kind {
         case .joy:
-            .init(stepDuration: 0.66, stepsPerBurst: 3, pauseDuration: 0.28, pathDuration: 44,
+            .init(stepDuration: 0.66, stepsPerBurst: 2, pauseDuration: 6, stepDistance: 12,
                   lift: 5.4, lead: 3.5, tipBend: 0, rotation: 0,
                   footPush: 0.045, compression: 0.09, dust: 0.24)
         case .calm:
-            .init(stepDuration: 2.1, stepsPerBurst: 2, pauseDuration: 0.35, pathDuration: 76,
+            .init(stepDuration: 2.1, stepsPerBurst: 1, pauseDuration: 8, stepDistance: 18,
                   lift: 3.1, lead: 0.8, tipBend: 0.035, rotation: 2,
                   footPush: 0, compression: 0, dust: 0)
         case .anxiety:
-            .init(stepDuration: 0.48, stepsPerBurst: 2, pauseDuration: 0.65, pathDuration: 62,
+            .init(stepDuration: 0.48, stepsPerBurst: 2, pauseDuration: 8.5, stepDistance: 8,
                   lift: 1.7, lead: 2.1, tipBend: 0.07, rotation: 5,
                   footPush: 0.035, compression: 0.035, dust: 0.06)
         case .depression:
-            .init(stepDuration: 1.45, stepsPerBurst: 1, pauseDuration: 1.05, pathDuration: 120,
+            .init(stepDuration: 1.45, stepsPerBurst: 1, pauseDuration: 11, stepDistance: 10,
                   lift: 0.8, lead: 0.7, tipBend: 0.025, rotation: 1,
                   footPush: 0, compression: 0.055, dust: 0)
         case .anger:
-            .init(stepDuration: 0.45, stepsPerBurst: 2, pauseDuration: 0.34, pathDuration: 39,
+            .init(stepDuration: 0.45, stepsPerBurst: 2, pauseDuration: 6.5, stepDistance: 14,
                   lift: 6.5, lead: 4.5, tipBend: 0.13, rotation: 13,
                   footPush: 0.07, compression: 0.11, dust: 0.28)
         case .sadness:
-            .init(stepDuration: 1.6, stepsPerBurst: 1, pauseDuration: 0.75, pathDuration: 105,
+            .init(stepDuration: 1.6, stepsPerBurst: 1, pauseDuration: 9, stepDistance: 12,
                   lift: 1.3, lead: 0.8, tipBend: 0.075, rotation: 2.5,
                   footPush: 0.006, compression: 0.02, dust: 0)
         }

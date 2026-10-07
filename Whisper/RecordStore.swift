@@ -14,6 +14,19 @@ private struct LegacyWhisperRecord: Codable {
     let createdAt: Date
 }
 
+enum JournalDraftSaveFailure: Equatable {
+    case emptyBody, sourceDeleted, dayConflict, storageFailure
+
+    var message: String {
+        switch self {
+        case .emptyBody: "일기 내용을 입력해 주세요."
+        case .sourceDeleted: "원본 일기가 삭제되었어요. 초안은 남아 있으니 새 일기로 저장해 주세요."
+        case .dayConflict: "선택한 날짜에는 이미 일기가 있어요. 복구할 날짜를 바꿔 주세요. 초안과 기존 일기는 그대로 남아 있어요."
+        case .storageFailure: "작성한 내용은 이 화면에 남아 있어요. 임시 저장 상태를 확인하고 다시 시도해 주세요."
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class RecordStore {
@@ -22,32 +35,40 @@ final class RecordStore {
     private(set) var encounters: [ReminderEncounter] = []
     private(set) var notificationSlots: [NotificationDaySlot] = []
     private(set) var journals: [DailyJournal] = []
+    private var diaryPages: [DiaryPage] = []
     private(set) var persistenceError: String?
     private(set) var persistenceSupportCode: String?
     private(set) var persistenceDiagnosticSummary: String?
     private(set) var isPersistenceAvailable = true
+    private(set) var journalDraftSaveFailure: JournalDraftSaveFailure?
+    let writingDraftStore: WritingDraftStore
 
     @ObservationIgnored private let modelContainer: ModelContainer?
     @ObservationIgnored private let modelContext: ModelContext?
+    @ObservationIgnored private let persist: (ModelContext) throws -> Void
     @ObservationIgnored private let legacyStorageKey = "whisper.records"
 
-    init(isStoredInMemoryOnly: Bool = false) {
-        let configuration = ModelConfiguration(
+    init(isStoredInMemoryOnly: Bool = false, configuration: ModelConfiguration? = nil,
+         persist: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+        self.persist = persist
+        let storageConfiguration = configuration ?? ModelConfiguration(
             isStoredInMemoryOnly: isStoredInMemoryOnly
         )
 
         do {
-            let schema = Schema(versionedSchema: WhisperSchemaV5.self)
+            let schema = Schema(versionedSchema: WhisperSchemaV7.self)
             let container = try ModelContainer(
                 for: schema,
                 migrationPlan: WhisperMigrationPlan.self,
-                configurations: configuration
+                configurations: storageConfiguration
             )
             modelContainer = container
             modelContext = container.mainContext
+            writingDraftStore = WritingDraftStore(context: container.mainContext, persist: persist)
         } catch {
             modelContainer = nil
             modelContext = nil
+            writingDraftStore = WritingDraftStore(context: nil)
             isPersistenceAvailable = false
             recordPersistenceError(error, operation: "model-container-initialization")
             return
@@ -55,7 +76,7 @@ final class RecordStore {
 
         reload()
 
-        if !isStoredInMemoryOnly {
+        if !isStoredInMemoryOnly && configuration == nil {
             migrateLegacyRecordsIfNeeded()
         }
     }
@@ -65,7 +86,26 @@ final class RecordStore {
     }
 
     func journal(on date: Date, calendar: Calendar = .current) -> DailyJournal? {
-        journals.first { calendar.isDate($0.date, inSameDayAs: date) }
+        journal(on: JournalDay(date: date, calendar: calendar))
+    }
+
+    func journal(on day: JournalDay) -> DailyJournal? {
+        let matches = journals.filter { $0.civilDayKey == day.key }
+        return matches.count == 1 ? matches.first : nil
+    }
+
+    func uncollectedMoments(on date: Date, calendar: Calendar = .current) -> [WhisperRecord] {
+        uncollectedMoments(on: JournalDay(date: date, calendar: calendar))
+    }
+
+    func uncollectedMoments(on day: JournalDay) -> [WhisperRecord] {
+        let collectedIDs = Set(journals.flatMap(\.sourceRecordIDs))
+        return records
+            .filter {
+                day.contains($0.createdAt)
+                    && !collectedIDs.contains($0.id)
+            }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     @discardableResult
@@ -77,31 +117,133 @@ final class RecordStore {
         emotion: String? = nil,
         calendar: Calendar = .current
     ) -> DailyJournal? {
+        saveJournal(
+            on: JournalDay(date: date, calendar: calendar), title: title, body: body,
+            sourceRecordIDs: sourceRecordIDs, emotion: emotion
+        )
+    }
+
+    @discardableResult
+    func saveJournal(
+        on day: JournalDay,
+        existingJournalID: UUID? = nil,
+        title: String,
+        body: String,
+        sourceRecordIDs: [UUID],
+        emotion: String? = nil,
+        writingDraftID: UUID? = nil,
+        document: DiaryDocument? = nil
+    ) -> DailyJournal? {
         guard let modelContext else {
             setUnavailablePersistenceError()
             return nil
         }
-        let day = calendar.startOfDay(for: date)
-        let key = JournalDayKey.make(for: date, calendar: calendar)
+        let matches = journals.filter { $0.civilDayKey == day.key }
+        let existing: DailyJournal?
+        if let existingJournalID {
+            guard let journal = journals.first(where: { $0.id == existingJournalID }) else { return nil }
+            existing = journal
+        } else {
+            // Never let SwiftData's unique-key upsert replace an unrelated or ambiguous legacy journal.
+            guard matches.count <= 1,
+                  !journals.contains(where: { $0.dayKey == day.key && $0.civilDayKey != day.key })
+            else { return nil }
+            existing = matches.first
+        }
         var seenIDs = Set<UUID>()
         let ids = sourceRecordIDs.filter { seenIDs.insert($0).inserted }
-        let existing = journals.first { $0.dayKey == key }
+        let savedID: UUID
         if let existing {
+            savedID = existing.id
             existing.update(title: title, body: body, sourceRecordIDs: ids)
             if let emotion { existing.emotion = emotion }
+            if document != nil { existing.reflection = "" }
         } else {
-            modelContext.insert(DailyJournal(
-                dayKey: key,
-                date: day,
+            let journal = DailyJournal(
+                id: writingDraftID ?? UUID(),
+                dayKey: day.key,
+                date: day.date,
                 title: title,
                 body: body,
                 reflection: "",
                 emotion: emotion,
                 sourceRecordIDs: ids
-            ))
+            )
+            savedID = journal.id
+            modelContext.insert(journal)
         }
+        if let document, !stageDiaryDocument(document, kind: "journal", id: savedID) { return nil }
+        if let writingDraftID { writingDraftStore.stageCompletion(of: writingDraftID) }
         guard saveChanges(reloadAfterSave: true) else { return nil }
-        return journals.first { $0.dayKey == key }
+        if let writingDraftID { writingDraftStore.didComplete(id: writingDraftID) }
+        return journals.first { $0.id == savedID }
+    }
+
+    @discardableResult
+    func saveJournalDraft(_ draft: JournalWritingDraft, recoveringDeletedJournalOn recoveryDay: JournalDay? = nil) -> DailyJournal? {
+        journalDraftSaveFailure = nil
+        guard !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            journalDraftSaveFailure = .emptyBody
+            return nil
+        }
+        guard writingDraftStore.save(draft) else {
+            journalDraftSaveFailure = .storageFailure
+            return nil
+        }
+        var targetDay = draft.day
+        var targetID = draft.existingJournalID
+        if let originalID = draft.existingJournalID, !journals.contains(where: { $0.id == originalID }) {
+            // A repeated recovery uses the draft UUID, so it cannot create a duplicate.
+            if journals.contains(where: { $0.id == draft.id }) {
+                targetID = draft.id
+            } else {
+                guard let recoveryDay else {
+                    journalDraftSaveFailure = .sourceDeleted
+                    return nil
+                }
+                guard !journals.contains(where: { $0.civilDayKey == recoveryDay.key || $0.dayKey == recoveryDay.key }) else {
+                    journalDraftSaveFailure = .dayConflict
+                    return nil
+                }
+                targetDay = recoveryDay
+                targetID = nil
+            }
+        }
+        let saved = saveJournal(on: targetDay, existingJournalID: targetID,
+                           title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines), body: draft.body,
+                           sourceRecordIDs: draft.sourceRecordIDs, emotion: draft.representativeEmotion,
+                           writingDraftID: draft.id, document: draft.document)
+        if saved == nil { journalDraftSaveFailure = .storageFailure }
+        return saved
+    }
+
+    @discardableResult
+    func saveMomentDraft(_ draft: RecordDraft, recoveringDeletedMoment: Bool = false) -> WhisperRecord? {
+        if let originalID = draft.existingRecordID {
+            if record(withID: originalID) != nil { return saveMomentEditDraft(draft) }
+            guard recoveringDeletedMoment else { return nil }
+        }
+        guard draft.canSaveNewMoment, let modelContext, writingDraftStore.save(draft) else { return nil }
+        if record(withID: draft.id) == nil {
+            modelContext.insert(WhisperRecord(id: draft.id, title: draft.titleForSaving,
+                                             content: draft.document == nil ? draft.contentForSaving : draft.content, createdAt: .now,
+                                             emotion: draft.emotion, photoData: draft.photoData))
+        }
+        if draft.document != nil,
+           !stageDiaryDocument(draft.diaryDocument, kind: "moment", id: draft.id) { return nil }
+        writingDraftStore.stageCompletion(of: draft.id)
+        guard saveChanges(reloadAfterSave: true) else { return nil }
+        writingDraftStore.didComplete(id: draft.id)
+        return record(withID: draft.id)
+    }
+
+    @discardableResult
+    func saveMomentEditDraft(_ draft: RecordDraft) -> WhisperRecord? {
+        guard draft.canSave, let originalID = draft.existingRecordID,
+              let original = record(withID: originalID), writingDraftStore.save(draft) else { return nil }
+        guard update(original, title: draft.titleForSaving, content: draft.content, emotion: draft.emotion,
+                     photoData: draft.photoData, document: draft.diaryDocument, writingDraftID: draft.id) else { return nil }
+        return record(withID: originalID)
     }
 
     @discardableResult
@@ -112,6 +254,7 @@ final class RecordStore {
             return false
         }
         modelContext.delete(stored)
+        deleteDiaryPage(kind: "journal", id: stored.id)
         return saveChanges(reloadAfterSave: true)
     }
 
@@ -166,18 +309,37 @@ final class RecordStore {
         title: String,
         content: String,
         emotion: String?,
-        photoData: Data?
+        photoData: Data?,
+        document: DiaryDocument? = nil,
+        writingDraftID: UUID? = nil
     ) -> Bool {
         guard modelContext != nil else {
             setUnavailablePersistenceError()
             return false
         }
+        guard stageLegacyJournalSnapshots(linkedTo: record.id) else { return false }
+        let shouldStoreDocument = document != nil || storedDiaryDocument(kind: "moment", id: record.id) != nil
+        var value = document ?? diaryDocument(for: record)
+        value.text = content
+        if let photoData {
+            if value.photos.isEmpty { value.photos = [DiaryPhoto(offset: content.utf16.count, data: photoData)] }
+            value.photos[0].data = photoData
+            value.photos = value.photos.map { photo in
+                var photo = photo
+                photo.offset = value.validOffset(photo.offset)
+                return photo
+            }
+        } else { value.photos = [] }
         record.title = title
         record.content = content
         record.emotion = emotion
         record.photoData = photoData
         record.updatedAt = .now
-        return saveChanges()
+        if shouldStoreDocument, !stageDiaryDocument(value, kind: "moment", id: record.id) { return false }
+        if let writingDraftID { writingDraftStore.stageCompletion(of: writingDraftID) }
+        guard saveChanges(reloadAfterSave: writingDraftID != nil) else { return false }
+        if let writingDraftID { writingDraftStore.didComplete(id: writingDraftID) }
+        return true
     }
 
     @discardableResult
@@ -186,6 +348,7 @@ final class RecordStore {
             setUnavailablePersistenceError()
             return false
         }
+        guard stageLegacyJournalSnapshots(linkedTo: record.id) else { return false }
         let relatedCommitments = commitments.filter { $0.sourceRecordID == record.id }
         let commitmentIDs = relatedCommitments.map(\.id)
         encounters
@@ -193,6 +356,7 @@ final class RecordStore {
             .forEach(modelContext.delete)
         relatedCommitments.forEach(modelContext.delete)
         modelContext.delete(record)
+        deleteDiaryPage(kind: "moment", id: record.id)
         let didSave = saveChanges(reloadAfterSave: true)
 
         if didSave {
@@ -1432,13 +1596,104 @@ final class RecordStore {
         return isPersistenceAvailable
     }
 
+    func diaryDocument(for record: WhisperRecord) -> DiaryDocument {
+        var document = storedDiaryDocument(kind: "moment", id: record.id)
+        if document?.text != record.content { document = nil }
+        var value = document ?? .moment(text: record.content, photoData: record.photoData, caption: record.title)
+        if document == nil, !value.photos.isEmpty { value.photos[0].id = record.id }
+        if let photo = record.photoData {
+            if value.photos.isEmpty { value.photos = [DiaryPhoto(offset: value.text.utf16.count, data: photo)] }
+            value.photos[0].data = photo
+        } else { value.photos = [] }
+        return value
+    }
+
+    func diaryDocument(for journal: DailyJournal) -> DiaryDocument {
+        let stored = storedDiaryDocument(kind: "journal", id: journal.id)
+        var document: DiaryDocument
+        if let stored, stored.text == journal.body { document = stored }
+        else { document = legacyDiaryDocument(body: journal.body, sourceIDs: journal.sourceRecordIDs) }
+        if !journal.reflection.isEmpty { document.append(DiaryDocument(text: journal.reflection)) }
+        return document
+    }
+
+    func prepareJournalDraft(_ draft: JournalWritingDraft, existing: DailyJournal?) -> JournalWritingDraft {
+        var value = draft
+        guard value.document == nil else { return value }
+        if let existing, let stored = storedDiaryDocument(kind: "journal", id: existing.id), stored.text == value.body {
+            value.document = stored
+        } else {
+            value.document = legacyDiaryDocument(body: value.body, sourceIDs: value.sourceRecordIDs)
+        }
+        if let reflection = existing?.reflection, !reflection.isEmpty {
+            value.document?.append(DiaryDocument(text: reflection))
+        }
+        value.body = value.document?.text ?? value.body
+        return value
+    }
+
+    /// Freeze legacy photos before their source changes, in the same transaction as that change.
+    private func stageLegacyJournalSnapshots(linkedTo recordID: UUID) -> Bool {
+        for journal in journals where journal.sourceRecordIDs.contains(recordID) {
+            if storedDiaryDocument(kind: "journal", id: journal.id)?.text == journal.body { continue }
+            let snapshot = legacyDiaryDocument(body: journal.body, sourceIDs: journal.sourceRecordIDs)
+            guard stageDiaryDocument(snapshot, kind: "journal", id: journal.id) else {
+                modelContext?.rollback()
+                reload()
+                return false
+            }
+        }
+        return true
+    }
+
+    private func legacyDiaryDocument(body: String, sourceIDs: [UUID]) -> DiaryDocument {
+        var value = DiaryDocument(text: body)
+        let string = body as NSString
+        var searchStart = 0
+        for id in sourceIDs {
+            guard let record = record(withID: id) else { continue }
+            let range = string.range(of: record.content, options: [],
+                                     range: NSRange(location: searchStart, length: string.length - searchStart))
+            let moment = diaryDocument(for: record)
+            for var photo in moment.photos {
+                photo.offset = range.location == NSNotFound ? string.length : range.location + photo.offset
+                photo.sourceRecordID = id
+                value.photos.append(photo)
+            }
+            if range.location != NSNotFound { searchStart = NSMaxRange(range) }
+        }
+        return value
+    }
+
+    private func storedDiaryDocument(kind: String, id: UUID) -> DiaryDocument? {
+        DiaryDocument.decode(diaryPages.first { $0.storageKey == "\(kind):\(id.uuidString)" }?.documentData)
+    }
+
+    private func stageDiaryDocument(_ document: DiaryDocument, kind: String, id: UUID) -> Bool {
+        guard let modelContext, let data = document.encoded() else { return false }
+        let key = "\(kind):\(id.uuidString)"
+        if let page = diaryPages.first(where: { $0.storageKey == key }) { page.documentData = data }
+        else {
+            let page = DiaryPage(storageKey: key, documentData: data)
+            modelContext.insert(page)
+            diaryPages.append(page)
+        }
+        return true
+    }
+
+    private func deleteDiaryPage(kind: String, id: UUID) {
+        let key = "\(kind):\(id.uuidString)"
+        for page in diaryPages where page.storageKey == key { modelContext?.delete(page) }
+        diaryPages.removeAll { $0.storageKey == key }
+    }
+
     private func saveChanges(reloadAfterSave: Bool = false) -> Bool {
         guard let modelContext else {
             setUnavailablePersistenceError()
             return false
         }
         do {
-            try modelContext.save()
+            try persist(modelContext)
             clearPersistenceIssue()
             if reloadAfterSave {
                 reload()
@@ -1453,6 +1708,7 @@ final class RecordStore {
     }
 
     private func reload() {
+        writingDraftStore.reload()
         guard let modelContext else {
             clearCachedModels()
             setUnavailablePersistenceError()
@@ -1463,6 +1719,7 @@ final class RecordStore {
         )
 
         do {
+            diaryPages = try modelContext.fetch(FetchDescriptor<DiaryPage>())
             records = try modelContext.fetch(descriptor)
             commitments = try modelContext.fetch(
                 FetchDescriptor<WhisperCommitment>(
@@ -1483,7 +1740,10 @@ final class RecordStore {
                 FetchDescriptor<DailyJournal>(
                     sortBy: [SortDescriptor(\.date, order: .reverse)]
                 )
-            )
+            ).sorted {
+                if $0.displayDate != $1.displayDate { return $0.displayDate > $1.displayDate }
+                return $0.createdAt > $1.createdAt
+            }
             clearPersistenceIssue()
         } catch {
             clearCachedModels()
@@ -1565,6 +1825,7 @@ final class RecordStore {
     }
 
     private func clearCachedModels() {
+        diaryPages = []
         records = []
         commitments = []
         encounters = []

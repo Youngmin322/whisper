@@ -79,10 +79,10 @@ struct CollectionView: View {
                                 JournalDetailView(journalID: journal.id, recordStore: recordStore)
                             } label: {
                                 VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                                    Text("완성 일기 · \(journal.date.whisperDateDescription)")
+                                    Text("완성 일기 · \(journal.displayDate.whisperDateDescription)")
                                         .font(.whisperMetadata)
                                         .foregroundStyle(Color.whisperAccentText)
-                                    Text(journal.title.isEmpty ? journal.date.whisperDateDescription : journal.title)
+                                    Text(journal.title.isEmpty ? journal.displayDate.whisperDateDescription : journal.title)
                                         .font(.whisperSectionTitle)
                                         .foregroundStyle(Color.whisperTextPrimary)
                                     Text(journal.body)
@@ -95,7 +95,7 @@ struct CollectionView: View {
                                 .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("완성 일기, \(journal.date.whisperFullDayDescription), \(journal.title)")
+                            .accessibilityLabel("완성 일기, \(journal.displayDate.whisperFullDayDescription), \(journal.title)")
                         }
                     }
                     if !filteredRecords.isEmpty {
@@ -307,11 +307,11 @@ struct CollectionView: View {
         .frame(minHeight: WhisperSize.controlCompact)
         .background(
             Capsule()
-                .fill(isActive ? Color.whisperAccent : Color.whisperSurfaceDefault)
+                .fill(isActive ? Color.whisperButtonBackground : Color.whisperSurfaceDefault)
                 .overlay {
                     Capsule()
                         .stroke(
-                            isActive ? Color.whisperAccent : Color.whisperBorderSubtle,
+                            isActive ? Color.whisperButtonBackground : Color.whisperBorderSubtle,
                             lineWidth: 1
                         )
                 }

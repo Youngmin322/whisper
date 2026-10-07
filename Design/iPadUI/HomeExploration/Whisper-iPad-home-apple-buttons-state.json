@@ -1,0 +1,193 @@
+{
+  "frameId": "10609:2000",
+  "pageId": "1442:7888",
+  "createdNodeIds": [
+    "10619:2329",
+    "I10619:2329;5:108653"
+  ],
+  "mutatedNodeIds": [
+    "10609:2023",
+    "10609:2022",
+    "10609:2024",
+    "10609:2030",
+    "10619:2329",
+    "10619:2326",
+    "I10619:2329;5:108653",
+    "I10619:2326;488:50656",
+    "I10619:2326;488:50657"
+  ],
+  "sourceKit": {
+    "name": "Apple / iOS and iPadOS 27",
+    "communityUrl": "https://www.figma.com/community/file/1651309003795292092/ios-and-ipados-27",
+    "component": "Button - Content Area"
+  },
+  "controls": [
+    {
+      "id": "10619:2329",
+      "name": "Apple UI Kit · 병에 담기",
+      "x": 470,
+      "y": 716,
+      "width": 106,
+      "height": 50,
+      "componentProperties": {
+        "Symbol#5473:145": {
+          "type": "TEXT",
+          "value": "􀊄"
+        },
+        "Label#488:0": {
+          "type": "TEXT",
+          "value": "병에 담기"
+        },
+        "Size": {
+          "value": "Large",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Style": {
+          "value": "Bordered",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Label Style": {
+          "value": "Title only",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Is Enabled": {
+          "value": "True",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Destructive": {
+          "value": "False",
+          "type": "VARIANT",
+          "boundVariables": {}
+        }
+      },
+      "source": {
+        "id": "10619:2158",
+        "key": "a6f632cb5888f358e31076dc3f0e9b9a127810e0",
+        "name": "Size=Large, Style=Bordered, Label Style=Title only, Is Enabled=True, Destructive=False",
+        "remote": true
+      },
+      "fonts": [
+        {
+          "name": "Label",
+          "font": {
+            "family": "SF Pro",
+            "style": "Regular",
+            "variationSettings": {
+              "wdth": 100,
+              "opsz": 28,
+              "wght": 400
+            }
+          },
+          "size": 17
+        }
+      ]
+    },
+    {
+      "id": "10619:2326",
+      "name": "Apple UI Kit · 순간 남기기",
+      "x": 588,
+      "y": 716,
+      "width": 136,
+      "height": 50,
+      "componentProperties": {
+        "Symbol#5473:145": {
+          "type": "TEXT",
+          "value": "+"
+        },
+        "Label#488:0": {
+          "type": "TEXT",
+          "value": "순간 남기기"
+        },
+        "Size": {
+          "value": "Large",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Style": {
+          "value": "Bordered - Prominent",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Label Style": {
+          "value": "Title and Icon",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Is Enabled": {
+          "value": "True",
+          "type": "VARIANT",
+          "boundVariables": {}
+        },
+        "Destructive": {
+          "value": "False",
+          "type": "VARIANT",
+          "boundVariables": {}
+        }
+      },
+      "source": {
+        "id": "10619:2179",
+        "key": "a3312055f22298ffc8ebd6cb0c2bb3ed75827f59",
+        "name": "Size=Large, Style=Bordered - Prominent, Label Style=Title and Icon, Is Enabled=True, Destructive=False",
+        "remote": true
+      },
+      "fonts": [
+        {
+          "name": "Symbol",
+          "font": {
+            "family": "SF Pro",
+            "style": "Regular",
+            "variationSettings": {
+              "wdth": 100,
+              "opsz": 28,
+              "wght": 400
+            }
+          },
+          "size": 17
+        },
+        {
+          "name": "Label",
+          "font": {
+            "family": "SF Pro",
+            "style": "Regular",
+            "variationSettings": {
+              "wdth": 100,
+              "opsz": 28,
+              "wght": 400
+            }
+          },
+          "size": 17
+        }
+      ]
+    }
+  ],
+  "actionGroup": {
+    "id": "10609:2023",
+    "x": 470,
+    "y": 716,
+    "width": 254,
+    "height": 50,
+    "gap": 12
+  },
+  "hiddenPreviousControlIds": [
+    "10609:2024",
+    "10609:2030"
+  ],
+  "activityArea": {
+    "id": "10609:2021",
+    "x": 127,
+    "y": 172,
+    "width": 940,
+    "height": 484,
+    "movement": "independent wandering; no clustering"
+  },
+  "flameCount": 5,
+  "flameBoundsPreserved": true,
+  "kitStylingPreserved": true,
+  "appCodeChanged": false,
+  "cloudSyncVerified": false,
+  "nativeRenderingVerified": false
+}

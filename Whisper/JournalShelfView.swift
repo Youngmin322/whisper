@@ -4,31 +4,29 @@ struct JournalShelfView: View {
     let recordStore: RecordStore
 
     @State private var displayedMonth = JournalCalendar.calendar.dateInterval(of: .month, for: .now)?.start ?? .now
-    @State private var previewSelection: JournalPreviewSelection?
-    @State private var pendingDetailJournalID: UUID?
-    @State private var detailJournalID: UUID?
-    @State private var isDetailPresented = false
+    @State private var selectedDay: JournalDay?
+    @State private var isDayPresented = false
 
-    private let columns = Array(
-        repeating: GridItem(.flexible(), spacing: 0, alignment: .top),
-        count: 7
-    )
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0, alignment: .top), count: 7)
 
     var body: some View {
+        let index = JournalArchiveIndex(records: recordStore.records, journals: recordStore.journals,
+                                        calendar: JournalCalendar.calendar)
+        let monthEntries = index.days.filter {
+            JournalCalendar.calendar.isDate($0.day.date, equalTo: displayedMonth, toGranularity: .month)
+        }
         ScrollView {
             VStack(spacing: 22) {
                 monthHeader
                 weekdayHeader
-
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(calendarDays) { day in
-                        calendarCell(for: day)
+                    ForEach(JournalCalendar.days(in: displayedMonth)) { day in
+                        calendarCell(for: day, index: index)
                     }
                 }
                 .padding(.horizontal, 16)
-
-                archiveSummary
-                    .padding(.top, 8)
+                calendarLegend
+                archiveSummary(entries: monthEntries).padding(.top, 8)
             }
             .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
@@ -38,67 +36,39 @@ struct JournalShelfView: View {
         .background(Color.whisperBackground.ignoresSafeArea())
         .navigationTitle("보관함")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     JournalMemorySearchView(recordStore: recordStore)
                 } label: {
-                    Image(systemName: "magnifyingglass")
+                    Image(systemName: "magnifyingglass").frame(minWidth: 44, minHeight: 44)
                 }
                 .accessibilityLabel("기억 찾기")
+                .accessibilityIdentifier("archive.searchButton")
             }
         }
-        .sheet(item: $previewSelection, onDismiss: openPendingDetail) { selection in
-            JournalPreviewSheet(
-                journalID: selection.id,
-                recordStore: recordStore,
-                onOpen: {
-                    pendingDetailJournalID = selection.id
-                    previewSelection = nil
-                }
-            )
-            .presentationDetents([.height(390), .large])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(WhisperRadius.sheet)
-            .presentationBackground(Color.whisperSurfaceDefault)
-        }
-        .navigationDestination(isPresented: $isDetailPresented) {
-            if let detailJournalID {
-                JournalDetailView(journalID: detailJournalID, recordStore: recordStore)
-            }
+        .navigationDestination(isPresented: $isDayPresented) {
+            if let selectedDay { JournalArchiveDayView(day: selectedDay, recordStore: recordStore) }
         }
     }
 
     private var monthHeader: some View {
         HStack(spacing: 12) {
-            monthButton(systemName: "chevron.left", accessibilityLabel: "이전 달") {
-                changeMonth(by: -1)
-            }
-
+            monthButton(systemName: "chevron.left", accessibilityLabel: "이전 달") { changeMonth(by: -1) }
             Spacer(minLength: 8)
-
             VStack(spacing: 1) {
                 Text(displayedMonth.formatted(JournalCalendar.yearStyle))
-                    .font(.whisperHandwriting(18))
-                    .foregroundStyle(Color.whisperTextSecondary)
-
+                    .font(.whisperHandwriting(18)).foregroundStyle(Color.whisperTextSecondary)
                 Text(displayedMonth.formatted(JournalCalendar.monthStyle))
-                    .font(.whisperHandwriting(34, bold: true))
-                    .foregroundStyle(Color.whisperTextPrimary)
+                    .font(.whisperHandwriting(34, bold: true)).foregroundStyle(Color.whisperTextPrimary)
                     .contentTransition(.numericText())
                     .background(alignment: .bottom) {
-                        Capsule()
-                            .fill(Color.whisperSurfaceHighlight)
-                            .frame(height: 8)
-                            .offset(y: -2)
+                        Capsule().fill(Color.whisperSurfaceHighlight).frame(height: 8).offset(y: -2)
                     }
             }
-
             Spacer(minLength: 8)
-
-            monthButton(systemName: "chevron.right", accessibilityLabel: "다음 달") {
-                changeMonth(by: 1)
-            }
+            monthButton(systemName: "chevron.right", accessibilityLabel: "다음 달") { changeMonth(by: 1) }
         }
         .padding(.horizontal, 16)
     }
@@ -106,140 +76,100 @@ struct JournalShelfView: View {
     private var weekdayHeader: some View {
         LazyVGrid(columns: columns, spacing: 0) {
             ForEach(JournalCalendar.weekdaySymbols, id: \.self) { symbol in
-                Text(symbol)
-                    .font(.whisperLabel)
-                    .foregroundStyle(Color.whisperTextSecondary)
+                Text(symbol).font(.whisperLabel).foregroundStyle(Color.whisperTextSecondary)
                     .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
+        .padding(.horizontal, 16).padding(.top, 4)
     }
 
     @ViewBuilder
-    private func calendarCell(for day: JournalCalendarDay) -> some View {
+    private func calendarCell(for day: JournalCalendarDay, index: JournalArchiveIndex) -> some View {
         if let date = day.date {
-            let journal = journal(on: date)
-
+            let targetDay = JournalDay(date: date, calendar: JournalCalendar.calendar)
+            let entry = index.entry(for: targetDay.key)
             Button {
-                guard let journal else { return }
-                previewSelection = JournalPreviewSelection(id: journal.id)
+                selectedDay = targetDay
+                isDayPresented = true
             } label: {
                 VStack(spacing: 3) {
-                    Text(dayNumber(for: date))
+                    Text(String(JournalCalendar.calendar.component(.day, from: date)))
                         .font(.whisperCaption)
-                        .foregroundStyle(journal == nil ? Color.whisperTextSecondary : Color.whisperTextPrimary)
+                        .foregroundStyle(entry == nil ? Color.whisperTextSecondary : Color.whisperTextPrimary)
                         .frame(minHeight: 18)
-
                     Group {
-                        if let journal {
-                            FlameBottle(emotion: journal.emotion, width: 31)
-                                .transition(.scale.combined(with: .opacity))
+                        if let entry {
+                            HStack(alignment: .center, spacing: 0) {
+                                if let journal = entry.journals.first {
+                                    FlameBottle(emotion: journal.emotion, width: entry.hasUncollectedMoments ? 26 : 31)
+                                }
+                                if let moment = entry.uncollectedMoments.last {
+                                    FlameCharacter(emotion: moment.emotion, size: entry.hasJournal ? 13 : 27)
+                                }
+                            }
                         } else {
-                            Circle()
-                                .fill(Color.whisperBorderSubtle.opacity(0.72))
-                                .frame(width: 4, height: 4)
+                            Circle().fill(Color.whisperBorderSubtle.opacity(0.72)).frame(width: 4, height: 4)
                         }
                     }
                     .frame(height: 45, alignment: .top)
+                    .accessibilityHidden(true)
                 }
                 .frame(maxWidth: .infinity, minHeight: 66, alignment: .top)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(journal == nil)
-            .accessibilityLabel(accessibilityLabel(for: date, journal: journal))
-            .accessibilityHint(journal == nil ? "" : "두 번 탭하면 일기 미리보기가 열려요")
+            .disabled(entry == nil)
+            .accessibilityLabel(entry?.accessibilityDescription ?? "\(targetDay.fullDescription), 기록 없음")
+            .accessibilityHint(entry == nil ? "" : "두 번 탭하면 이날의 기록이 열려요")
+            .accessibilityIdentifier("archive.day.\(targetDay.key)")
         } else {
-            Color.clear
-                .frame(height: 66)
-                .accessibilityHidden(true)
+            Color.clear.frame(height: 66).accessibilityHidden(true)
         }
     }
 
-    private var archiveSummary: some View {
-        VStack(spacing: 8) {
-            if monthJournals.isEmpty {
-                Text("이 달은 아직 비어 있어요")
-                    .font(.whisperHandwriting(22, bold: true))
-                    .foregroundStyle(Color.whisperTextPrimary)
+    private var calendarLegend: some View {
+        HStack(spacing: 20) {
+            HStack(spacing: 5) { FlameBottle(emotion: nil, width: 13); Text("담긴 하루") }
+            HStack(spacing: 5) { FlameCharacter(emotion: "기쁨", size: 18); Text("미보관 순간") }
+        }
+        .font(.whisperCaption).foregroundStyle(Color.whisperTextSecondary)
+        .accessibilityElement(children: .combine)
+    }
 
-                Text("하루를 마무리하면 달력에 작은 병이 놓여요")
-                    .font(.whisperBody)
+    private func archiveSummary(entries: [JournalArchiveDay]) -> some View {
+        let journalCount = entries.reduce(0) { $0 + $1.journals.count }
+        let momentCount = entries.reduce(0) { $0 + $1.uncollectedMoments.count }
+        return VStack(spacing: 8) {
+            if entries.isEmpty {
+                Text("이 달은 아직 비어 있어요").font(.whisperHandwriting(22, bold: true))
+                    .foregroundStyle(Color.whisperTextPrimary)
+                Text("순간을 남기면 불꽃이, 일기로 담으면 병이 놓여요").font(.whisperBody)
                     .foregroundStyle(Color.whisperTextSecondary)
             } else {
-                Text("\(monthJournals.count)개의 하루가 차곡차곡 담겼어요")
-                    .font(.whisperHandwriting(21))
-                    .foregroundStyle(Color.whisperTextSecondary)
+                if journalCount > 0 {
+                    Text("\(journalCount)개의 하루가 차곡차곡 담겼어요").font(.whisperHandwriting(21))
+                }
+                if momentCount > 0 { Text("아직 담지 않은 순간 \(momentCount)개").font(.whisperBody) }
             }
         }
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 24)
+        .foregroundStyle(Color.whisperTextSecondary)
+        .multilineTextAlignment(.center).padding(.horizontal, 24)
     }
 
-    private var monthJournals: [DailyJournal] {
-        recordStore.journals.filter {
-            JournalCalendar.calendar.isDate($0.date, equalTo: displayedMonth, toGranularity: .month)
-        }
-    }
-
-    private var calendarDays: [JournalCalendarDay] {
-        JournalCalendar.days(in: displayedMonth)
-    }
-
-    private func journal(on date: Date) -> DailyJournal? {
-        monthJournals.first { JournalCalendar.calendar.isDate($0.date, inSameDayAs: date) }
-    }
-
-    private func dayNumber(for date: Date) -> String {
-        String(JournalCalendar.calendar.component(.day, from: date))
-    }
-
-    private func accessibilityLabel(for date: Date, journal: DailyJournal?) -> String {
-        guard let journal else { return "\(date.whisperFullDayDescription), 일기 없음" }
-        let title = journal.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty
-            ? "\(date.whisperFullDayDescription), 일기 있음"
-            : "\(date.whisperFullDayDescription), \(title)"
-    }
-
-    private func monthButton(
-        systemName: String,
-        accessibilityLabel: String,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func monthButton(systemName: String, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.whisperTextSecondary)
-                .frame(width: 44, height: 44)
+            Image(systemName: systemName).font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.whisperTextSecondary).frame(width: 44, height: 44)
                 .background(Color.whisperSurfaceDefault, in: Circle())
-                .overlay {
-                    Circle().stroke(Color.whisperBorderSubtle, lineWidth: 1)
-                }
+                .overlay { Circle().stroke(Color.whisperBorderSubtle, lineWidth: 1) }
         }
         .accessibilityLabel(accessibilityLabel)
     }
 
     private func changeMonth(by offset: Int) {
-        guard let next = JournalCalendar.calendar.date(byAdding: .month, value: offset, to: displayedMonth) else {
-            return
-        }
-        withAnimation(.easeInOut(duration: 0.2)) {
-            displayedMonth = next
-        }
+        guard let next = JournalCalendar.calendar.date(byAdding: .month, value: offset, to: displayedMonth) else { return }
+        withAnimation(.easeInOut(duration: 0.2)) { displayedMonth = next }
     }
-
-    private func openPendingDetail() {
-        guard let pendingDetailJournalID else { return }
-        detailJournalID = pendingDetailJournalID
-        self.pendingDetailJournalID = nil
-        isDetailPresented = true
-    }
-}
-
-private struct JournalPreviewSelection: Identifiable {
-    let id: UUID
 }
 
 private struct JournalCalendarDay: Identifiable {
@@ -257,12 +187,12 @@ private enum JournalCalendar {
     }
 
     static let weekdaySymbols = ["월", "화", "수", "목", "금", "토", "일"]
-    static let yearStyle = Date.FormatStyle()
-        .locale(Locale(identifier: "ko_KR"))
-        .year()
-    static let monthStyle = Date.FormatStyle()
-        .locale(Locale(identifier: "ko_KR"))
-        .month(.wide)
+    static var yearStyle: Date.FormatStyle {
+        Date.FormatStyle(calendar: calendar).locale(Locale(identifier: "ko_KR")).year()
+    }
+    static var monthStyle: Date.FormatStyle {
+        Date.FormatStyle(calendar: calendar).locale(Locale(identifier: "ko_KR")).month(.wide)
+    }
 
     static func days(in month: Date) -> [JournalCalendarDay] {
         guard let monthInterval = calendar.dateInterval(of: .month, for: month),
@@ -292,67 +222,5 @@ private enum JournalCalendar {
         }
 
         return result
-    }
-}
-
-private struct JournalPreviewSheet: View {
-    let journalID: UUID
-    let recordStore: RecordStore
-    let onOpen: () -> Void
-
-    var body: some View {
-        Group {
-            if let journal {
-                VStack(spacing: 0) {
-                    HStack(alignment: .top, spacing: 18) {
-                        FlameBottle(emotion: journal.emotion, width: 68)
-
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(journal.date.whisperFullDayDescription)
-                                .font(.whisperMetadata)
-                                .foregroundStyle(Color.whisperAccentText)
-
-                            Text(displayTitle(for: journal))
-                                .font(.whisperHandwriting(26, bold: true))
-                                .foregroundStyle(Color.whisperTextPrimary)
-                                .lineLimit(2)
-
-                            Label("그날의 순간 \(journal.sourceRecordIDs.count)개", systemImage: "sparkles")
-                                .font(.whisperCaption)
-                                .foregroundStyle(Color.whisperTextSecondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    Text(journal.body)
-                        .font(.whisperBody)
-                        .foregroundStyle(Color.whisperTextPrimary)
-                        .lineSpacing(5)
-                        .lineLimit(4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 18)
-
-                    Spacer(minLength: 18)
-
-                    Button("이날의 일기 읽기", action: onOpen)
-                        .buttonStyle(.whisperPrimary)
-                }
-                .padding(.horizontal, WhisperLayout.sheetHorizontalPadding)
-                .padding(.top, 28)
-                .padding(.bottom, 16)
-            } else {
-                ContentUnavailableView("일기를 찾을 수 없어요", systemImage: "book.closed")
-            }
-        }
-        .background(Color.whisperSurfaceDefault)
-    }
-
-    private var journal: DailyJournal? {
-        recordStore.journals.first { $0.id == journalID }
-    }
-
-    private func displayTitle(for journal: DailyJournal) -> String {
-        let title = journal.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? "\(journal.date.whisperDayDescription)의 하루" : title
     }
 }

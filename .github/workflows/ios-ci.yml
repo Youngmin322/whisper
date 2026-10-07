@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - dev
 
 # A newer run replaces an older run for the same pull request or branch.
 concurrency:
@@ -26,9 +27,4 @@ jobs:
         run: xcodebuild -version
 
       - name: Build and test
-        run: |
-          xcodebuild test \
-            -project Whisper.xcodeproj \
-            -scheme Whisper \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
-            CODE_SIGNING_ALLOWED=NO
+        run: bash Scripts/test-ios.sh

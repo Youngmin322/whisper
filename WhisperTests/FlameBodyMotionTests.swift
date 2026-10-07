@@ -20,9 +20,9 @@ struct FlameBodyMotionTests {
 
     @Test("감정별 동작이 실제 홈 포즈에 연결된다")
     func homeUsesEmotion() {
-        let joy = FlameHopMotion.sample(seed: 0, time: 0.22, size: field, reduceMotion: false, emotion: "기쁨")
-        let sadness = FlameHopMotion.sample(seed: 0, time: 0.22, size: field, reduceMotion: false, emotion: "슬픔")
-        let anger = FlameHopMotion.sample(seed: 0, time: 0.22, size: field, reduceMotion: false, emotion: "분노")
+        let joy = sample(kind: .joy, time: 0.22)
+        let sadness = sample(kind: .sadness, time: 0.22)
+        let anger = sample(kind: .anger, time: 0.22)
         #expect(joy.lift > sadness.lift)
         #expect(anger.lead > sadness.lead)
         #expect(joy.body == .rest)
@@ -31,12 +31,9 @@ struct FlameBodyMotionTests {
 
     @Test("기쁨은 GitHub의 16프레임 리듬과 얼굴 자세를 그대로 사용한다")
     func joyUsesCommittedReferenceGait() {
-        let bend = FlameHopMotion.sample(seed: 0, time: 0.66 * 0.25, size: field,
-                                         reduceMotion: false, emotion: "기쁨")
-        let launch = FlameHopMotion.sample(seed: 0, time: 0.66 * 0.52, size: field,
-                                           reduceMotion: false, emotion: "기쁨")
-        let landing = FlameHopMotion.sample(seed: 0, time: 0.66 * 0.83, size: field,
-                                            reduceMotion: false, emotion: "기쁨")
+        let bend = sample(kind: .joy, time: 0.66 * 0.25)
+        let launch = sample(kind: .joy, time: 0.66 * 0.52)
+        let landing = sample(kind: .joy, time: 0.66 * 0.83)
 
         #expect(bend.frameIndex == 4 && bend.faceRotation == -12)
         #expect(launch.frameIndex == 8 && launch.faceRotation == -28)
@@ -46,25 +43,55 @@ struct FlameBodyMotionTests {
         #expect(FlameReferenceRig.frames[8].faceScale == 0.82)
     }
 
-    @Test("휴식과 움직임 줄이기에서는 변형 없이 승인 그림을 표시한다")
+    @Test("실제 생성한 기쁨도 원래 도약 강도와 기준 자세를 그대로 사용한다")
+    func generatedJoyUsesOriginalStrength() {
+        for seed in [0.0, 0.11, 0.27, 0.61, 0.94] {
+            for index in 0..<4 {
+                let run = FlameHopMotion.makeRun(seed: seed, kind: .joy, index: index, at: 0,
+                                                from: CGPoint(x: 0.5, y: 0.5), size: field)
+                #expect(run.strength == 1)
+                for phase in [0.25, 0.52, 0.83] {
+                    let pose = FlameHopMotion.sample(
+                        run: run, time: run.stepDuration * phase, size: field, restingAt: run.from,
+                        restingSince: 0, facing: 1, seed: seed, kind: .joy, reduceMotion: false
+                    )
+                    #expect(abs(pose.lift - 5.4 * sin(.pi * phase)) < 0.000001)
+                    #expect(abs(pose.lead - 3.5 * sin(.pi * phase)) < 0.000001)
+                    #expect(pose.body == .rest)
+                }
+            }
+        }
+    }
+
+    @Test("기쁨의 휴식은 시간과 개체에 관계없이 휘어짐·회전·축소가 없다")
+    func restingJoyKeepsOriginalShape() {
+        for seed in [0.0, 0.11, 0.27, 0.61, 0.94] {
+            for tick in 0...120 {
+                let pose = FlameHopMotion.sample(
+                    run: nil, time: Double(tick) / 10, size: field,
+                    restingAt: CGPoint(x: 0.5, y: 0.5), restingSince: 0,
+                    facing: 1, seed: seed, kind: .joy, reduceMotion: false
+                )
+                #expect(pose.body == .rest)
+                #expect(pose.frameIndex == 0 && pose.faceRotation == 0)
+                #expect(pose.lift == 0 && pose.lead == 0 && !pose.isMoving)
+            }
+        }
+    }
+
+    @Test("움직임 줄이기는 정지 그림이고 휴식 중에는 작은 끝 움직임만 남는다")
     func restAndReducedMotion() {
         for kind in FlameMotionKind.allCases {
-            let emotion: String = switch kind {
-            case .joy: "기쁨"
-            case .calm: "평온"
-            case .anxiety: "불안"
-            case .depression: "우울"
-            case .anger: "분노"
-            case .sadness: "슬픔"
-            }
-            let reduced = FlameHopMotion.sample(seed: 0, time: 1, size: field,
-                                                 reduceMotion: true, emotion: emotion)
+            let reduced = sample(kind: kind, time: 1, reduceMotion: true)
             #expect(reduced.body == .rest)
             #expect(reduced.lift == 0)
+            let resting = sample(kind: kind, time: 5)
+            #expect(!resting.isMoving)
+            #expect(abs(resting.body.tipBend) <= 0.010)
+            #expect(resting.body.footPush == 0 && resting.body.baseCompression == 0)
+            #expect(resting.body.rotation == 0 && resting.body.uniformScale == 1)
+            if kind == .joy { #expect(resting.body == .rest) }
         }
-        let pause = FlameHopMotion.sample(seed: 0, time: 2.1, size: field,
-                                          reduceMotion: false, emotion: "기쁨")
-        #expect(pause.body == .rest)
     }
 
     @Test("몸 변형은 끝과 바닥만 사용하고 중앙 얼굴 영역을 보존한다")
@@ -97,5 +124,14 @@ struct FlameBodyMotionTests {
             #expect(abs(large.minX - small.minX * 2) < 0.001)
             #expect(abs(large.height - small.height * 2) < 0.001)
         }
+    }
+
+    private func sample(kind: FlameMotionKind, time: Double, reduceMotion: Bool = false) -> FlameHopPose {
+        let profile = FlameMotionProfile.forKind(kind)
+        let run = FlameHopRun(kind: kind, startedAt: 0, from: CGPoint(x: 0.5, y: 0.5),
+                              to: CGPoint(x: 0.55, y: 0.5), stepDuration: profile.stepDuration,
+                              steps: profile.stepsPerBurst)
+        return FlameHopMotion.sample(run: run, time: time, size: field, restingAt: run.from,
+                                     restingSince: 0, facing: 1, seed: 0, kind: kind, reduceMotion: reduceMotion)
     }
 }

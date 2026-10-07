@@ -4,10 +4,12 @@
 //
 
 import SwiftUI
+import PhotosUI
 import WhisperDesignSystem
 
 struct RecordDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     let record: WhisperRecord
     let recordStore: RecordStore
@@ -20,9 +22,16 @@ struct RecordDetailView: View {
     @State private var isDeleteConfirmationPresented = false
     @State private var isPersistenceErrorPresented = false
     @State private var isReminderErrorPresented = false
-    @State private var selectedEmotion: String?
-    @State private var photoData: Data?
+    @State private var isDraftErrorPresented = false
+    @State private var isDiscardDraftConfirmationPresented = false
+    @State private var originalDraft: RecordDraft
+    @State private var photoLoader: PhotoAttachmentLoader
+    @State private var appliedPhotoImportID: UUID?
     @State private var isEmotionPickerPresented = false
+    @State private var isPhotoPickerPresented = false
+    @State private var selectedPhoto: DiaryPhoto?
+    @State private var isBodyFocused = false
+    @State private var photoInsertionOffset = 0
     @State private var isReleaseEncounterConfirmationPresented = false
     @State private var didProcessReminderEncounter = false
     @State private var isUpdatingReminderPreference = false
@@ -40,24 +49,26 @@ struct RecordDetailView: View {
         recordStore: RecordStore,
         reminderEncounterID: UUID? = nil,
         reminderCommitmentID: UUID? = nil,
-        reminderRequestIdentifier: String? = nil
+        reminderRequestIdentifier: String? = nil,
+        editingDraft: RecordDraft? = nil
     ) {
         self.record = record
         self.recordStore = recordStore
         self.reminderEncounterID = reminderEncounterID
         self.reminderCommitmentID = reminderCommitmentID
         self.reminderRequestIdentifier = reminderRequestIdentifier
-        _draft = State(
-            initialValue: RecordDraft(
-                title: record.title,
-                content: record.content
-            )
-        )
-        _selectedEmotion = State(initialValue: record.emotion)
-        _photoData = State(initialValue: record.photoData)
+        let original = RecordDraft(title: record.title, content: record.content, emotion: record.emotion,
+            photoData: record.photoData, document: recordStore.diaryDocument(for: record),
+            existingRecordID: record.id)
+        let value = editingDraft ?? recordStore.writingDraftStore.momentEditDraft(for: record.id) ?? original
+        _draft = State(initialValue: value)
+        _originalDraft = State(initialValue: original)
+        _isEditing = State(initialValue: editingDraft != nil)
+        _photoInsertionOffset = State(initialValue: value.content.utf16.count)
+        _photoLoader = State(initialValue: PhotoAttachmentLoader())
     }
 
-    var body: some View {
+    private var detailContent: some View {
         GeometryReader { geometry in
             ScrollView {
                 Group {
@@ -83,14 +94,24 @@ struct RecordDetailView: View {
             .scrollIndicators(.hidden)
         }
         .background(Color.whisperBackground)
-        .navigationTitle(reminderEncounterID == nil ? "기록" : "다시 만난 마음")
+        .navigationTitle(reminderEncounterID == nil ? "남긴 순간" : "다시 만난 마음")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if isEditing {
+                    Button("초안 버리기", systemImage: "trash", role: .destructive) {
+                        isDiscardDraftConfirmationPresented = true
+                    }
+                    .accessibilityIdentifier("record.discardEditDraftButton")
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 if isEditing {
                     Button("저장", action: saveChanges)
-                        .disabled(!draft.canSave)
+                        .tint(Color.whisperAccent)
+                        .disabled(!draft.canSave || photoLoader.isLoading)
+                        .accessibilityIdentifier("record.saveEditButton")
                 } else {
                     Menu {
                         Button("수정", systemImage: "pencil", action: startEditing)
@@ -130,6 +151,10 @@ struct RecordDetailView: View {
             }
             .sharedBackgroundVisibility(.hidden)
         }
+    }
+
+    private var detailWithAlerts: some View {
+        detailContent
         .alert("이 기록을 삭제할까요?", isPresented: $isDeleteConfirmationPresented) {
             Button("취소", role: .cancel) {}
             Button("삭제", role: .destructive, action: deleteRecord)
@@ -141,6 +166,23 @@ struct RecordDetailView: View {
         } message: {
             Text("잠시 후 다시 시도해 주세요.")
         }
+        .alert("초안을 보관할 수 없어요", isPresented: $isDraftErrorPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("수정한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.")
+        }
+        .confirmationDialog("수정 중인 초안을 버릴까요?", isPresented: $isDiscardDraftConfirmationPresented, titleVisibility: .visible) {
+            Button("초안 버리기", role: .destructive) {
+                guard recordStore.writingDraftStore.discard(id: draft.id) else {
+                    isDraftErrorPresented = true
+                    return
+                }
+                isEditing = false
+                isBodyFocused = false
+                resetDraft()
+            }
+            Button("계속 작성", role: .cancel) {}
+        } message: { Text("이미 저장한 순간은 그대로 남아요.") }
         .alert("다시 만나기 알림을 설정할 수 없어요", isPresented: $isReminderErrorPresented) {
             Button("확인", role: .cancel) {}
         } message: {
@@ -157,8 +199,12 @@ struct RecordDetailView: View {
         } message: {
             Text("다시 만나기 알림은 멈추지만, 기록은 보관함에 그대로 남아 있어요.")
         }
+    }
+
+    var body: some View {
+        detailWithAlerts
         .sheet(isPresented: $isEmotionPickerPresented) {
-            EmotionPickerView(selectedEmotion: $selectedEmotion)
+            EmotionPickerView(selectedEmotion: $draft.emotion)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
@@ -166,6 +212,23 @@ struct RecordDetailView: View {
             pauseDatePicker
                 .presentationDetents([.large])
         }
+        .sheet(item: $selectedPhoto) { photo in
+            DiaryPhotoViewer(photo: photo, onDelete: isEditing ? { draft.removePhoto(id: photo.id) } : nil)
+        }
+        .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
+            get: { photoLoader.selectedItems }, set: { photoLoader.select($0) }
+        ), selectionBehavior: .ordered, matching: .images)
+        .onChange(of: photoLoader.completedImport) { _, _ in applyPendingPhotos() }
+        .alert("사진을 불러올 수 없어요", isPresented: Binding<Bool>(
+            get: { photoLoader.errorMessage != nil },
+            set: { if !$0 { photoLoader.dismissError() } }
+        )) {
+            Button("확인", role: .cancel) { photoLoader.dismissError() }
+        } message: { Text(photoLoader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.") }
+        .onAppear { persistDraft() }
+        .onChange(of: draft) { _, _ in persistDraft() }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { persistDraft() } }
+        .onDisappear { persistDraft(); photoLoader.cancelLoading() }
         .task(id: reminderEncounterID) {
             processReminderEncounterIfNeeded()
         }
@@ -173,6 +236,13 @@ struct RecordDetailView: View {
 
     private var readingContent: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if recordStore.writingDraftStore.momentEditDraft(for: record.id) != nil {
+                Button("보관한 수정 초안 이어 쓰기", action: startEditing)
+                    .font(.whisperControl)
+                    .foregroundStyle(Color.whisperAccentText)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("record.resumeEditDraftButton")
+            }
             if let encounter = reminderEncounter,
                encounter.reaction == nil,
                displayedCommitment?.lifecycleStatus() == .active {
@@ -180,10 +250,6 @@ struct RecordDetailView: View {
             }
 
             recordReadingCard
-
-            if let photoData = record.photoData {
-                RecordPhotoView(photoData: photoData)
-            }
 
             if let focusMode = record.focusMode {
                 Label(focusMode, systemImage: "moon.stars.fill")
@@ -219,160 +285,69 @@ struct RecordDetailView: View {
     }
 
     private var recordReadingCard: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(record.createdAt.whisperRecordHeaderDescription)
-                        .font(.whisperMetadata)
-                        .foregroundStyle(Color.whisperTextSecondary)
-
-                    Text(record.title)
-                        .font(.whisperScreenTitle)
-                        .foregroundStyle(Color.whisperTextPrimary)
-                        .padding(.trailing, 44)
-                }
-                .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
-
-                Rectangle()
-                    .fill(Color.whisperDivider)
-                    .frame(height: 1)
-
-                Text(record.content)
-                    .font(.whisperBodyLarge)
-                    .foregroundStyle(Color.whisperTextPrimary)
-                    .lineSpacing(6)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if let emotion = record.emotion {
-                    Text(emotion)
-                        .font(.whisperMetadata)
-                        .foregroundStyle(Color.whisperAccentText)
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .background(Color.whisperSurfaceHighlight, in: Capsule())
-                }
-            }
-            .padding(20)
-
-            FlameCharacter(emotion: record.emotion, size: 36)
-                .padding(20)
+        VStack(alignment: .leading, spacing: 22) {
+            DiaryPageHeader(date: record.createdAt.whisperRecordHeaderDescription,
+                            title: record.title, emotion: record.emotion)
+            DiaryTextView(document: .constant(recordStore.diaryDocument(for: record)),
+                          isFocused: .constant(false), isEditable: false, minimumHeight: 0,
+                          onPhotoTap: { selectedPhoto = $0 })
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                .fill(Color.whisperSurfaceDefault)
-                .overlay {
-                    RoundedRectangle(cornerRadius: WhisperRadius.large, style: .continuous)
-                        .stroke(Color.whisperBorderSubtle, lineWidth: 1)
-                }
-                .shadow(
-                    color: Color(red: 94 / 255, green: 56 / 255, blue: 36 / 255)
-                        .opacity(0.06),
-                    radius: 18,
-                    y: 6
-                )
-        }
-        .textSelection(.enabled)
     }
 
     private var editingContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(record.createdAt.whisperFullDayDescription)
-                .font(.whisperMetadata)
-                .foregroundStyle(Color.whisperTextSecondary)
-
-            fieldLabel(RecordWritingCopy.titleLabel)
-            TextField(RecordWritingCopy.titleExample, text: $draft.title)
-                .font(.whisperBodyLarge)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .frame(minHeight: 52)
-                .background(
-                    Color.whisperSurfaceSubtle,
-                    in: RoundedRectangle(
-                        cornerRadius: WhisperRadius.medium,
-                        style: .continuous
-                    )
-                )
-
-            Text(RecordWritingCopy.titleHelp)
-                .font(.whisperCaption)
-                .foregroundStyle(Color.whisperTextSecondary)
-
-            fieldLabel(RecordWritingCopy.contentLabel)
-            ZStack(alignment: .bottomTrailing) {
-                TextField(
-                    RecordWritingCopy.contentExample,
-                    text: $draft.content,
-                    axis: .vertical
-                )
-                .font(.whisperBodyLarge)
-                .lineSpacing(5)
-                .lineLimit(8 ... 14)
-                .padding(18)
-                .frame(maxWidth: .infinity, minHeight: 240, alignment: .topLeading)
-                .onChange(of: draft.content) { _, newValue in
-                    guard newValue.count > contentLimit else { return }
-                    draft.content = String(newValue.prefix(contentLimit))
+        VStack(alignment: .leading, spacing: 18) {
+            WritingDraftErrorView(message: recordStore.writingDraftStore.errorMessage) { persistDraft() }
+            HStack {
+                Text(record.createdAt.whisperFullDayDescription)
+                    .font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
+                Spacer()
+                Button { isBodyFocused = false; isEmotionPickerPresented = true } label: {
+                    FlameCharacter(emotion: draft.emotion, size: 38).frame(minWidth: 44, minHeight: 44)
                 }
-
+                .buttonStyle(.plain)
+                .accessibilityLabel("감정 바꾸기, 현재 \(draft.emotion ?? "선택 안 함")")
+            }
+            TextField("이 순간의 제목 · 선택 사항", text: $draft.title, axis: .vertical)
+                .font(.whisperHandwriting(28, bold: true))
+                .foregroundStyle(Color.whisperTextPrimary)
+                .accessibilityIdentifier("record.editTitleField")
+            Rectangle().fill(Color.whisperDivider).frame(height: 1)
+            DiaryTextView(document: Binding(
+                get: { draft.diaryDocument },
+                set: { value in
+                    draft.setDiaryDocument(value)
+                }
+            ), isFocused: $isBodyFocused, minimumHeight: 260,
+               accessibilityIdentifier: "record.editContentField",
+               onSelectionChange: { photoInsertionOffset = $0 },
+               onPhotoTap: { selectedPhoto = $0 })
+            if draft.content.count >= contentLimit - 100 {
                 Text("\(draft.content.count) / \(contentLimit.formatted())")
                     .font(.whisperCaption)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .padding(16)
+                    .foregroundStyle(draft.content.count > contentLimit ? .red : Color.whisperTextSecondary)
             }
-            .background(
-                Color.whisperSurfaceSubtle,
-                in: RoundedRectangle(
-                    cornerRadius: WhisperRadius.medium,
-                    style: .continuous
-                )
-            )
-
-            fieldLabel("감정")
-            Button {
-                isEmotionPickerPresented = true
-            } label: {
-                HStack {
-                    if selectedEmotion != nil {
-                        FlameCharacter(emotion: selectedEmotion, size: 32)
-                    } else {
-                        Image(systemName: "circle.dashed")
-                    }
-                    Text(selectedEmotion ?? "선택 안 함")
-                        .font(.whisperBodyEmphasis)
-                        .foregroundStyle(Color.whisperTextPrimary)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.whisperTextSecondary)
+            HStack {
+                Button { isBodyFocused = false; isPhotoPickerPresented = true } label: {
+                    if photoLoader.isLoading { ProgressView() }
+                    else { Label("사진 추가", systemImage: "photo") }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .frame(minHeight: 52)
-                .background(
-                    Color.whisperSurfaceSubtle,
-                    in: RoundedRectangle(
-                        cornerRadius: WhisperRadius.medium,
-                        style: .continuous
-                    )
-                )
+                .disabled(photoLoader.isLoading)
+                .accessibilityValue("\(draft.diaryDocument.photos.count)장 첨부됨")
+                .accessibilityIdentifier("record.photoButton")
+                if draft.photoData != nil {
+                    Button("사진 모두 삭제", role: .destructive) { draft.removeAllPhotos() }
+                }
+                Spacer(minLength: 0)
+                if isBodyFocused {
+                    Button { isBodyFocused = false } label: { Image(systemName: "keyboard.chevron.compact.down") }
+                        .accessibilityLabel("키보드 내리기")
+                }
             }
-            .buttonStyle(.plain)
-
-            fieldLabel("사진")
-            PhotoAttachmentEditor(photoData: $photoData)
+            .font(.whisperControl).buttonStyle(.plain)
+            .foregroundStyle(Color.whisperTextSecondary)
         }
     }
 
-    private func fieldLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.whisperFieldLabel)
-            .foregroundStyle(Color.whisperTextPrimary)
-    }
 
     private var encounterResponseCard: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
@@ -671,30 +646,56 @@ struct RecordDetailView: View {
 
     private func startEditing() {
         resetDraft()
+        if let restored = recordStore.writingDraftStore.momentEditDraft(for: record.id) {
+            draft = restored
+            photoLoader.cancelLoading()
+            photoInsertionOffset = restored.content.utf16.count
+        }
         isEditing = true
+        isBodyFocused = true
     }
 
     private func resetDraft() {
-        draft = RecordDraft(title: record.title, content: record.content)
-        selectedEmotion = record.emotion
-        photoData = record.photoData
+        draft = RecordDraft(title: record.title, content: record.content, emotion: record.emotion, photoData: record.photoData,
+                            document: recordStore.diaryDocument(for: record), existingRecordID: record.id)
+        originalDraft = draft
+        photoInsertionOffset = record.content.utf16.count
+        photoLoader.cancelLoading()
     }
 
     private func saveChanges() {
-        let didSave = recordStore.update(
-            record,
-            title: draft.titleForSaving,
-            content: draft.contentForSaving,
-            emotion: selectedEmotion,
-            photoData: photoData
-        )
+        guard draft.canSave, !photoLoader.isLoading else { return }
+        applyPendingPhotos()
+        let didSave = recordStore.saveMomentEditDraft(draft) != nil
 
         if didSave {
-            resetDraft()
             isEditing = false
+            isBodyFocused = false
+            resetDraft()
         } else {
             isPersistenceErrorPresented = true
         }
+    }
+
+    @discardableResult
+    private func persistDraft() -> Bool {
+        guard isEditing else { return true }
+        applyPendingPhotos()
+        // Entering edit mode alone should not create a draft. Photo positions count as edits.
+        let samePhotos = draft.diaryDocument.photos == originalDraft.diaryDocument.photos
+        let unchanged = draft.title == originalDraft.title && draft.content == originalDraft.content
+            && draft.emotion == originalDraft.emotion && draft.photoData == originalDraft.photoData && samePhotos
+        if unchanged {
+            guard recordStore.writingDraftStore.momentEditDraft(for: record.id) != nil else { return true }
+            return recordStore.writingDraftStore.discard(id: draft.id)
+        }
+        return recordStore.writingDraftStore.save(draft)
+    }
+
+    private func applyPendingPhotos() {
+        guard isEditing, let result = photoLoader.completedImport, result.id != appliedPhotoImportID else { return }
+        appliedPhotoImportID = result.id
+        draft.appendPhotos(result.images, at: photoInsertionOffset)
     }
 
     private func deleteRecord() {
