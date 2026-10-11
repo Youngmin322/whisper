@@ -6,10 +6,6 @@
 	<array>
 		<string>ko</string>
 	</array>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>그 순간의 온기를 오래 간직할 수 있도록, 선택한 사진을 기록에 함께 담아요.</string>
-	<key>UIUserInterfaceStyle</key>
-	<string>Light</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>KyoboHandwriting2019.otf</string>
