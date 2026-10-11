@@ -17,6 +17,7 @@ struct IPadEntryReader: View {
     let onEdit: (IPadEditorSession) -> Void
     var onDelete: () -> Void = {}
     var presentsNavigationTitle = true
+    var searchContext: JournalSearchContext? = nil
 
     @State private var selectedPhoto: DiaryPhoto?
     @State private var isDeleteConfirmationPresented = false
@@ -43,7 +44,8 @@ struct IPadEntryReader: View {
                                 DiaryPageHeader(date: journal.displayDate.whisperFullDayDescription,
                                                 title: journal.title, emotion: journal.emotion)
                                 document(recordStore.diaryDocument(for: journal))
-                                DiarySourcesView(ids: journal.sourceRecordIDs, recordStore: recordStore)
+                                DiarySourcesView(ids: journal.sourceRecordIDs, recordStore: recordStore,
+                                                 searchContext: searchContext)
                             }
                         }
                     }

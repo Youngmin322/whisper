@@ -33,11 +33,63 @@ struct JournalArchiveSearchResult: Identifiable {
     let day: JournalDay
     let createdAt: Date
     let title: String
-    let preview: String
+    var preview: String
     let emotion: String?
-    fileprivate let searchableTexts: [String]
+    fileprivate let searchableTexts: [JournalSearchText]
+    var searchContext: JournalSearchContext? = nil
 
     var id: String { "\(kind.rawValue):\(recordID.uuidString)" }
+}
+
+struct JournalSearchText: Equatable {
+    enum Field: Equatable { case body, reflection, title, emotion }
+    let field: Field
+    /// A nil ID refers to the result itself; an ID refers to a collected source moment.
+    let sourceID: UUID?
+    let text: String
+}
+
+struct JournalSearchMatch: Equatable {
+    let field: JournalSearchText.Field
+    let sourceID: UUID?
+    let snippet: String
+}
+
+struct JournalSearchContext: Equatable {
+    let query: String
+    let matches: [JournalSearchMatch]
+
+    var opensSources: Bool { matches.first?.sourceID != nil }
+    var sourceIDs: Set<UUID> { Set(matches.compactMap(\.sourceID)) }
+
+    func description(for kind: JournalArchiveSearchResult.Kind) -> String? {
+        guard let first = matches.first else { return nil }
+        if first.sourceID != nil {
+            return sourceIDs.count > 1 ? "담아 둔 순간 \(sourceIDs.count)개에서 찾았어요" : "담아 둔 순간에서 찾았어요"
+        }
+        let name = kind == .journal ? "일기" : "순간"
+        switch first.field {
+        case .body: return "\(name) 본문에서 찾았어요"
+        case .reflection: return "일기 회고에서 찾았어요"
+        case .title: return "\(name) 제목에서 찾았어요"
+        case .emotion: return "\(name) 감정에서 찾았어요"
+        }
+    }
+}
+
+enum JournalSearchSnippet {
+    static func range(of query: String, in text: String, within range: Range<String.Index>? = nil) -> Range<String.Index>? {
+        guard !query.isEmpty else { return nil }
+        return text.range(of: query, options: .caseInsensitive, range: range, locale: .current)
+    }
+
+    static func make(in text: String, query: String) -> String? {
+        guard let match = range(of: query, in: text) else { return nil }
+        let start = text.index(match.lowerBound, offsetBy: -24, limitedBy: text.startIndex) ?? text.startIndex
+        let end = text.index(match.upperBound, offsetBy: 72, limitedBy: text.endIndex) ?? text.endIndex
+        let excerpt = text[start..<end].trimmingCharacters(in: .whitespacesAndNewlines)
+        return (start > text.startIndex ? "…" : "") + excerpt + (end < text.endIndex ? "…" : "")
+    }
 }
 
 /// Calendar and search share the same definition of an uncollected moment.
@@ -70,10 +122,20 @@ struct JournalArchiveIndex {
         var results: [JournalArchiveSearchResult] = []
         for entry in entries {
             for journal in entry.journals {
-                var texts = [journal.title, journal.body, journal.reflection, journal.emotion ?? ""]
+                // Prefer the finished diary whenever it also contains the search term.
+                var texts = [
+                    JournalSearchText(field: .body, sourceID: nil, text: journal.body),
+                    JournalSearchText(field: .reflection, sourceID: nil, text: journal.reflection),
+                    JournalSearchText(field: .title, sourceID: nil, text: journal.title),
+                    JournalSearchText(field: .emotion, sourceID: nil, text: journal.emotion ?? "")
+                ]
                 for id in journal.sourceRecordIDs {
                     guard let source = recordsByID[id] else { continue }
-                    texts += [source.title, source.content, source.emotion ?? ""]
+                    texts += [
+                        JournalSearchText(field: .body, sourceID: id, text: source.content),
+                        JournalSearchText(field: .title, sourceID: id, text: source.title),
+                        JournalSearchText(field: .emotion, sourceID: id, text: source.emotion ?? "")
+                    ]
                 }
                 let title = journal.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 results.append(JournalArchiveSearchResult(
@@ -88,7 +150,11 @@ struct JournalArchiveIndex {
                     kind: .moment, recordID: moment.id, day: entry.day, createdAt: moment.createdAt,
                     title: title.isEmpty ? "남겨둔 순간" : title, preview: moment.content,
                     emotion: moment.emotion,
-                    searchableTexts: [moment.title, moment.content, moment.emotion ?? ""]
+                    searchableTexts: [
+                        JournalSearchText(field: .body, sourceID: nil, text: moment.content),
+                        JournalSearchText(field: .title, sourceID: nil, text: moment.title),
+                        JournalSearchText(field: .emotion, sourceID: nil, text: moment.emotion ?? "")
+                    ]
                 ))
             }
         }
@@ -105,8 +171,16 @@ struct JournalArchiveIndex {
     func results(matching query: String) -> [JournalArchiveSearchResult] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return searchResults }
-        return searchResults.filter { result in
-            result.searchableTexts.contains { $0.localizedCaseInsensitiveContains(query) }
+        return searchResults.compactMap { result in
+            let matches = result.searchableTexts.compactMap { item -> JournalSearchMatch? in
+                guard let snippet = JournalSearchSnippet.make(in: item.text, query: query) else { return nil }
+                return JournalSearchMatch(field: item.field, sourceID: item.sourceID, snippet: snippet)
+            }
+            guard let first = matches.first else { return nil }
+            var found = result
+            found.preview = first.snippet
+            found.searchContext = JournalSearchContext(query: query, matches: matches)
+            return found
         }
     }
 }

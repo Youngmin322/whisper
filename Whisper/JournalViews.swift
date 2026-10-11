@@ -197,13 +197,33 @@ struct DiaryPageHeader: View {
 struct DiarySourcesView: View {
     let ids: [UUID]
     let recordStore: RecordStore
+    var searchContext: JournalSearchContext? = nil
+    @State private var isExpanded = false
+
+    private var orderedIDs: [UUID] {
+        let matches = Set(ids.filter { id in
+            recordStore.record(withID: id).flatMap { matchedSnippet(for: $0) } != nil
+        })
+        return ids.filter { matches.contains($0) } + ids.filter { !matches.contains($0) }
+    }
+
+    private func matchedSnippet(for record: WhisperRecord) -> String? {
+        guard let query = searchContext?.query else { return nil }
+        return [record.content, record.title, record.emotion ?? ""].lazy.compactMap {
+            JournalSearchSnippet.make(in: $0, query: query)
+        }.first
+    }
+
     var body: some View {
         if !ids.isEmpty {
-            DisclosureGroup("담아 둔 순간 · \(ids.count)개") {
-                ForEach(ids, id: \.self) { id in sourceRow(id).padding(.vertical, 6) }
+            DisclosureGroup("담아 둔 순간 · \(ids.count)개", isExpanded: $isExpanded) {
+                ForEach(orderedIDs, id: \.self) { id in sourceRow(id).padding(.vertical, 6) }
             }
             .font(.whisperControl)
             .foregroundStyle(Color.whisperTextSecondary)
+            .onChange(of: searchContext, initial: true) { _, context in
+                isExpanded = context?.opensSources == true
+            }
         }
     }
 
@@ -219,9 +239,17 @@ struct DiarySourcesView: View {
                         .font(.whisperCaption)
                         .foregroundStyle(Color.whisperTextSecondary)
                     if record.photoData != nil { Label("사진 있음", systemImage: "photo").font(.whisperCaption) }
+                    if let context = searchContext,
+                       let snippet = matchedSnippet(for: record) {
+                        JournalSearchHighlightedText(text: snippet, query: context.query)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 4)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .accessibilityLabel("출처 순간, \(record.title), 원본 상세 열기")
+            .accessibilityLabel("출처 순간, \(record.title), \(matchedSnippet(for: record) ?? ""), 원본 상세 열기")
+            .accessibilityIdentifier("archive.search.source.\(id)")
         } else {
             Label("삭제된 순간 · 원본을 볼 수 없어요", systemImage: "minus.circle")
         }
@@ -232,6 +260,7 @@ struct JournalDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let journalID: UUID
     let recordStore: RecordStore
+    var searchContext: JournalSearchContext? = nil
     @State private var isDeleteConfirmationPresented = false
     @State private var isDeleteErrorPresented = false
     @State private var selectedPhoto: DiaryPhoto?
@@ -247,7 +276,8 @@ struct JournalDetailView: View {
                                       isFocused: .constant(false), isEditable: false,
                                       minimumHeight: 0, showsRules: true,
                                       onPhotoTap: { selectedPhoto = $0 })
-                        DiarySourcesView(ids: journal.sourceRecordIDs, recordStore: recordStore)
+                        DiarySourcesView(ids: journal.sourceRecordIDs, recordStore: recordStore,
+                                         searchContext: searchContext)
                             .padding(.top, 18)
                     }
                     .padding(.horizontal, 30)

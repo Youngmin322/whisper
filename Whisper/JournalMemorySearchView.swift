@@ -22,7 +22,8 @@ struct JournalMemorySearchView: View {
                     NavigationLink {
                         switch result.kind {
                         case .journal:
-                            JournalDetailView(journalID: result.recordID, recordStore: recordStore)
+                            JournalDetailView(journalID: result.recordID, recordStore: recordStore,
+                                              searchContext: result.searchContext)
                         case .moment:
                             if let record = recordStore.record(withID: result.recordID) {
                                 RecordDetailView(record: record, recordStore: recordStore)
@@ -72,14 +73,11 @@ private struct JournalSearchResultRow: View {
                     .foregroundStyle(Color.whisperTextPrimary)
                     .lineLimit(1)
 
-                Text(result.preview)
-                    .font(.whisperBody)
-                    .foregroundStyle(Color.whisperTextSecondary)
-                    .lineLimit(2)
+                JournalSearchMatchPreview(result: result)
             }
             .padding(.vertical, 8)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(result.day.fullDescription), \(result.kind.label), \(result.title), \(result.preview)")
+        .accessibilityLabel("\(result.day.fullDescription), \(result.kind.label), \(result.title), \(result.searchContext?.description(for: result.kind) ?? ""), \(result.preview)")
     }
 }

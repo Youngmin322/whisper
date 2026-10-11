@@ -153,7 +153,8 @@ struct IPadSearchView: View {
                         Divider()
                         Group {
                             if let entry = navigation.selection {
-                                IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection, presentsNavigationTitle: false)
+                                IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection,
+                                                presentsNavigationTitle: false, searchContext: context(for: entry))
                                     .id(entry)
                             } else {
                                 IPadEmptyState(title: "읽을 기록을 선택해 주세요")
@@ -168,7 +169,8 @@ struct IPadSearchView: View {
                 .searchable(text: $navigation.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "일기와 순간에서 검색")
                 .textInputAutocapitalization(.never)
                 .navigationDestination(for: IPadEntry.self) { entry in
-                    IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection)
+                    IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection,
+                                    searchContext: context(for: entry))
                 }
                 .onChange(of: showsReader, initial: true) { _, wide in
                     if wide { navigation.path = [] }
@@ -176,6 +178,11 @@ struct IPadSearchView: View {
                 }
                 .onChange(of: navigation.query) { _, _ in
                     if let selected = navigation.selection, !results.contains(where: { self.entry(for: $0) == selected }) {
+                        clearSelection()
+                    }
+                }
+                .onChange(of: results.map(\.id)) { _, _ in
+                    if let selected = navigation.selection, !results.contains(where: { entry(for: $0) == selected }) {
                         clearSelection()
                     }
                 }
@@ -198,7 +205,8 @@ struct IPadSearchView: View {
                     if !showsReader { navigation.path.append(entry(for: result)) }
                 } label: {
                     IPadArchiveRow(title: result.title, preview: result.preview, emotion: result.emotion,
-                                   isJournal: result.kind == .journal, metadata: "\(result.day.fullDescription) · \(result.kind.label)")
+                                   isJournal: result.kind == .journal, metadata: "\(result.day.fullDescription) · \(result.kind.label)",
+                                   searchResult: result)
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(navigation.selection == entry(for: result) ? Color.whisperSurfaceHighlight : Color.clear)
@@ -216,6 +224,10 @@ struct IPadSearchView: View {
         result.kind == .journal ? .journal(result.recordID) : .moment(result.recordID)
     }
 
+    private func context(for entry: IPadEntry) -> JournalSearchContext? {
+        results.first { self.entry(for: $0) == entry }?.searchContext
+    }
+
     private func clearSelection() {
         navigation.selection = nil
         navigation.path = []
@@ -228,6 +240,7 @@ private struct IPadArchiveRow: View {
     let emotion: String?
     let isJournal: Bool
     let metadata: String
+    var searchResult: JournalArchiveSearchResult? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: WhisperSpacing.small) {
@@ -239,7 +252,11 @@ private struct IPadArchiveRow: View {
             VStack(alignment: .leading, spacing: WhisperSpacing.small) {
                 Text(metadata).font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
                 Text(title.isEmpty ? "남겨둔 순간" : title).font(.whisperHandwriting(22)).lineLimit(2)
-                Text(preview).font(.whisperDiaryBody).lineLimit(2).foregroundStyle(Color.whisperTextSecondary)
+                if let searchResult {
+                    JournalSearchMatchPreview(result: searchResult)
+                } else {
+                    Text(preview).font(.whisperDiaryBody).lineLimit(2).foregroundStyle(Color.whisperTextSecondary)
+                }
             }
         }
         .foregroundStyle(Color.whisperTextPrimary)
