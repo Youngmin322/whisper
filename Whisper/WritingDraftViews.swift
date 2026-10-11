@@ -35,14 +35,16 @@ struct WritingDraftListView: View {
                 if let error = draftStore.errorMessage {
                     WritingDraftErrorView(message: error, onRetry: draftStore.retry)
                 }
-                if let moment = draftStore.momentDraft, moment.hasChanges {
+                if draftStore.momentDrafts.contains(where: \.hasChanges) {
                     Section("순간") {
-                        Button { onOpenMoment(moment) } label: {
-                            draftLabel(title: moment.title.isEmpty ? "작성 중인 순간" : moment.title,
-                                       subtitle: moment.content.isEmpty ? (moment.emotion ?? "이어서 작성하기") : moment.content)
+                        ForEach(draftStore.momentDrafts.filter(\.hasChanges)) { moment in
+                            Button { onOpenMoment(moment) } label: {
+                                draftLabel(title: moment.title.isEmpty ? "작성 중인 순간" : moment.title,
+                                           subtitle: moment.content.isEmpty ? (moment.emotion ?? "이어서 작성하기") : moment.content)
+                            }
+                            .accessibilityIdentifier("draft.resumeMomentButton")
+                            .swipeActions { discardButton(id: moment.id) }
                         }
-                        .accessibilityIdentifier("draft.resumeMomentButton")
-                        .swipeActions { discardButton(id: moment.id) }
                     }
                 }
                 if !draftStore.momentEditDrafts.isEmpty {

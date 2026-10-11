@@ -133,7 +133,7 @@ struct IPadWorkspaceView: View {
         case .today:
             NavigationStack {
                 IPadHomeView(recordStore: recordStore, onAddMoment: {
-                    presentation.editor = .moment(recordStore.writingDraftStore.momentDraft ?? RecordDraft())
+                    presentation.editor = .moment(RecordDraft())
                 }, onCollect: { day in
                     presentation.editor = .journal(journalDraft(on: day))
                 }, onResumeDrafts: { isDraftListPresented = true }, onSelectMoment: {

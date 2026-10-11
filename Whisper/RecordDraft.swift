@@ -25,7 +25,7 @@ struct RecordDraft: Codable, Equatable, Identifiable {
     var existingRecordID: UUID? = nil
 
     var storageKey: String {
-        existingRecordID.map { "moment:edit:\($0.uuidString)" } ?? "moment"
+        existingRecordID.map { "moment:edit:\($0.uuidString)" } ?? "moment:new:\(id.uuidString)"
     }
 
     var titleForSaving: String {

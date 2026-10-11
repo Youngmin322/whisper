@@ -132,6 +132,6 @@ struct MomentEditDraftTests {
         json.removeValue(forKey: "existingRecordID")
         let restored = try JSONDecoder().decode(RecordDraft.self, from: JSONSerialization.data(withJSONObject: json))
         #expect(restored == draft)
-        #expect(restored.storageKey == "moment")
+        #expect(restored.storageKey == "moment:new:\(draft.id.uuidString)")
     }
 }

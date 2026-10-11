@@ -114,7 +114,7 @@ struct HomeView: View {
     }
 
     private func openMoment() {
-        recordDraft = recordStore.writingDraftStore.momentDraft ?? RecordDraft()
+        recordDraft = RecordDraft()
         isQuickRecordPresented = true
     }
 

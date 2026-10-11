@@ -6,7 +6,7 @@ import SwiftData
 @MainActor
 @Observable
 final class WritingDraftStore {
-    private(set) var momentDraft: RecordDraft?
+    private(set) var momentDrafts: [RecordDraft] = []
     private(set) var momentEditDrafts: [RecordDraft] = []
     private(set) var journalDrafts: [JournalWritingDraft] = []
     private(set) var errorMessage: String?
@@ -15,7 +15,7 @@ final class WritingDraftStore {
     @ObservationIgnored private let modelContainer: ModelContainer?
     @ObservationIgnored private let persist: (ModelContext) throws -> Void
     @ObservationIgnored private var rows: [WritingDraft] = []
-    @ObservationIgnored private var pendingMoment: RecordDraft?
+    @ObservationIgnored private var pendingMoments: [RecordDraft] = []
     @ObservationIgnored private var pendingMomentEdits: [String: RecordDraft] = [:]
     @ObservationIgnored private var pendingJournals: [String: JournalWritingDraft] = [:]
 
@@ -26,7 +26,10 @@ final class WritingDraftStore {
         reload()
     }
 
-    var count: Int { (momentDraft?.hasChanges == true ? 1 : 0) + momentEditDrafts.count + journalDrafts.count }
+    var count: Int { momentDrafts.filter(\.hasChanges).count + momentEditDrafts.count + journalDrafts.count }
+
+    /// The most recently saved new-moment draft. The resume list exposes all drafts.
+    var momentDraft: RecordDraft? { momentDrafts.first { $0.hasChanges } }
 
     func momentEditDraft(for recordID: UUID) -> RecordDraft? {
         momentEditDrafts.first { $0.existingRecordID == recordID }
@@ -40,8 +43,10 @@ final class WritingDraftStore {
     @discardableResult
     func save(_ draft: RecordDraft) -> Bool {
         if draft.existingRecordID == nil {
-            pendingMoment = draft
-            momentDraft = draft
+            pendingMoments.removeAll { $0.id == draft.id }
+            pendingMoments.insert(draft, at: 0)
+            momentDrafts.removeAll { $0.id == draft.id }
+            momentDrafts.insert(draft, at: 0)
         } else {
             pendingMomentEdits[draft.storageKey] = draft
             momentEditDrafts.removeAll { $0.storageKey == draft.storageKey }
@@ -87,11 +92,13 @@ final class WritingDraftStore {
     }
 
     func retry() {
-        let moment = pendingMoment
+        let moments = pendingMoments
         let edits = Array(pendingMomentEdits.values)
         let journals = Array(pendingJournals.values)
-        if moment == nil && edits.isEmpty && journals.isEmpty { reload(); return }
-        if let moment, !save(moment) { return }
+        if moments.isEmpty && edits.isEmpty && journals.isEmpty { reload(); return }
+        for moment in moments {
+            if !save(moment) { return }
+        }
         for edit in edits {
             if !save(edit) { return }
         }
@@ -108,7 +115,7 @@ final class WritingDraftStore {
 
     func didComplete(id: UUID) {
         clearPending(id: id)
-        if momentDraft?.id == id { momentDraft = nil }
+        momentDrafts.removeAll { $0.id == id }
         momentEditDrafts.removeAll { $0.id == id }
         journalDrafts.removeAll { $0.id == id }
         reload()
@@ -121,11 +128,11 @@ final class WritingDraftStore {
         }
         do {
             rows = try context.fetch(FetchDescriptor<WritingDraft>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]))
-            var moment: RecordDraft?
+            var moments: [RecordDraft] = []
             var edits: [RecordDraft] = []
             var journals: [JournalWritingDraft] = []
             for row in rows {
-                if row.storageKey == "moment" || row.storageKey.hasPrefix("moment:edit:") {
+                if row.storageKey == "moment" || row.storageKey.hasPrefix("moment:new:") || row.storageKey.hasPrefix("moment:edit:") {
                     var decoded = try JSONDecoder().decode(RecordDraft.self, from: row.payload)
                     if let snapshot = DiaryDocument.decode(row.photoData) {
                         decoded.document = decoded.document?.restoringPhotos(from: snapshot)
@@ -133,8 +140,8 @@ final class WritingDraftStore {
                     } else {
                         decoded.photoData = row.photoData
                     }
-                    if row.storageKey == "moment" { moment = decoded }
-                    else { edits.append(decoded) }
+                    if row.storageKey.hasPrefix("moment:edit:") { edits.append(decoded) }
+                    else { moments.append(decoded) }
                 } else if row.storageKey.hasPrefix("journal:") {
                     var decoded = try JSONDecoder().decode(JournalWritingDraft.self, from: row.payload)
                     if let snapshot = DiaryDocument.decode(row.photoData) {
@@ -143,14 +150,15 @@ final class WritingDraftStore {
                     journals.append(decoded)
                 }
             }
-            momentDraft = pendingMoment ?? moment
+            let momentIDs = Set(pendingMoments.map(\.id))
+            momentDrafts = pendingMoments + moments.filter { !momentIDs.contains($0.id) }
             let editKeys = Set(pendingMomentEdits.keys)
             momentEditDrafts = edits.filter { !editKeys.contains($0.storageKey) }
                 + pendingMomentEdits.values.sorted { $0.id.uuidString < $1.id.uuidString }
             let keys = Set(pendingJournals.keys)
             journalDrafts = journals.filter { !keys.contains($0.storageKey) }
                 + pendingJournals.values.sorted { $0.day.key > $1.day.key }
-            if pendingMoment == nil && pendingMomentEdits.isEmpty && pendingJournals.isEmpty { errorMessage = nil }
+            if pendingMoments.isEmpty && pendingMomentEdits.isEmpty && pendingJournals.isEmpty { errorMessage = nil }
         } catch {
             errorMessage = "보관한 초안을 불러오지 못했어요. 현재 작성 내용은 화면에 남아 있어요."
         }
@@ -158,8 +166,11 @@ final class WritingDraftStore {
 
     private func upsert(id: UUID, key: String, payload: Data, photoData: Data?) throws {
         guard let context else { return }
-        if let row = rows.first(where: { $0.storageKey == key }) {
+        // Legacy new-moment rows use the shared "moment" key. Match their ID
+        // before upgrading the key so editing them cannot create a duplicate row.
+        if let row = rows.first(where: { $0.id == id }) ?? rows.first(where: { $0.storageKey == key }) {
             row.id = id
+            row.storageKey = key
             row.payload = payload
             if row.photoData != photoData { row.photoData = photoData }
             row.updatedAt = .now
@@ -188,7 +199,7 @@ final class WritingDraftStore {
     }
 
     private func clearPending(id: UUID) {
-        if pendingMoment?.id == id { pendingMoment = nil }
+        pendingMoments.removeAll { $0.id == id }
         pendingMomentEdits = pendingMomentEdits.filter { $0.value.id != id }
         pendingJournals = pendingJournals.filter { $0.value.id != id }
     }
