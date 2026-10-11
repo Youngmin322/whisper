@@ -168,10 +168,10 @@
 				};
 			};
 			buildConfigurationList = 1D97B59F302AB12500C4F5E8 /* Build configuration list for PBXProject "Whisper" */;
-			developmentRegion = en;
+			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				ko,
 				Base,
 			);
 			mainGroup = 1D97B59B302AB12500C4F5E8;

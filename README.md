@@ -10,6 +10,12 @@
 
 `WhisperCore`와 `WhisperDesignSystem`은 저장소 내부의 `Packages/WhisperCore`에 포함되어 있습니다. 이 저장소만 클론한 뒤 `Whisper.xcodeproj`를 열면 빌드할 수 있습니다.
 
+## 표시 언어
+
+현재 앱의 지원 언어와 기본 언어는 한국어(`ko`)이며, 다른 기기 언어에서도 한국어로 폴백합니다. 프로젝트의 `developmentRegion`·`knownRegions`와 `Whisper/Info.plist`의 `CFBundleLocalizations`를 일치시켜 시스템 검색 안내와 취소 동작도 앱의 언어를 따르게 합니다.
+
+다국어 지원은 [#44](https://github.com/Youngmin322/whisper/issues/44)에서 진행합니다. 언어를 추가할 때는 번역 리소스와 지원 언어 선언을 함께 반영하고, 시스템 검색 안내도 실제 빌드된 앱에서 확인합니다.
+
 ## 검증
 
 ```sh
