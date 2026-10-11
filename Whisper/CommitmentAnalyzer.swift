@@ -145,7 +145,8 @@ struct CommitmentAnalyzer {
                 \(existingCommitments)
                 """,
                 generating: GeneratedCommitmentAnalysis.self,
-                options: GenerationOptions(samplingMode: .greedy)
+                // Keep the initializer supported by the Xcode 26 SDK used in CI.
+                options: GenerationOptions(sampling: .greedy)
             )
 
             let generated = response.content
