@@ -1,5 +1,4 @@
 import SwiftUI
-import WhisperDesignSystem
 
 struct JournalEditorView: View {
     @Environment(\.dismiss) private var dismiss

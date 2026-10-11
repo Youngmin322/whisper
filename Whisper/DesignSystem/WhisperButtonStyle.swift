@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 enum WhisperButtonSize {
     case compact

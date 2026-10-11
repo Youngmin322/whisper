@@ -10,36 +10,36 @@ import SwiftUI
 public extension Image {
     static let whisper = Image(
         "Whisper",
-        bundle: .module
+        bundle: .main
     )
 
     static let whisperJar = Image(
         "WhisperJar",
-        bundle: .module
+        bundle: .main
     )
 
     static let whisperFlame = Image(
         "WhisperFlame",
-        bundle: .module
+        bundle: .main
     )
 
     static let whisperCorkscrew = Image(
         "WhisperCorkscrew",
-        bundle: .module
+        bundle: .main
     )
 
     static let jar = Image(
         "Jar",
-        bundle: .module
+        bundle: .main
     )
 
     static let quickRecordIllustration = Image(
         "QuickRecordIllustration",
-        bundle: .module
+        bundle: .main
     )
 
     static let detailRecordIllustration = Image(
         "DetailRecordIllustration",
-        bundle: .module
+        bundle: .main
     )
 }

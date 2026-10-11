@@ -6,11 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		1D3C09333036847100A5EBD8 /* WhisperCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1D3C09323036847100A5EBD8 /* WhisperCore */; };
-		1DF412E3303BCB2F00B271A4 /* WhisperDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		4A000001000000000000000A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -57,8 +52,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1D3C09333036847100A5EBD8 /* WhisperCore in Frameworks */,
-				1DF412E3303BCB2F00B271A4 /* WhisperDesignSystem in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,8 +111,6 @@
 			);
 			name = Whisper;
 			packageProductDependencies = (
-				1D3C09323036847100A5EBD8 /* WhisperCore */,
-				1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */,
 			);
 			productName = Whisper;
 			productReference = 1D97B5A4302AB12500C4F5E8 /* Whisper.app */;
@@ -177,7 +168,6 @@
 			mainGroup = 1D97B59B302AB12500C4F5E8;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "Packages/WhisperCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1D97B5A5302AB12500C4F5E8 /* Products */;
@@ -518,25 +508,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "Packages/WhisperCore" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/WhisperCore;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		1D3C09323036847100A5EBD8 /* WhisperCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "Packages/WhisperCore" */;
-			productName = WhisperCore;
-		};
-		1DF412E2303BCB2F00B271A4 /* WhisperDesignSystem */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1D3C09313036847100A5EBD8 /* XCLocalSwiftPackageReference "Packages/WhisperCore" */;
-			productName = WhisperDesignSystem;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 1D97B59C302AB12500C4F5E8 /* Project object */;
 }

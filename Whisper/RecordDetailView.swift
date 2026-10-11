@@ -5,7 +5,6 @@
 
 import SwiftUI
 import PhotosUI
-import WhisperDesignSystem
 
 struct RecordDetailView: View {
     @Environment(\.dismiss) private var dismiss

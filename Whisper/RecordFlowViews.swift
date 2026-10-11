@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 enum WhisperJarSize {
     case welcome, hero, small, shelf, recordDetail

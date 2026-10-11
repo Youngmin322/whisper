@@ -1,5 +1,4 @@
 import SwiftUI
-import WhisperDesignSystem
 
 struct WritingDraftErrorView: View {
     let message: String?

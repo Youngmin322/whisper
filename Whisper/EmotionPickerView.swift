@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 enum WhisperEmotion: String, CaseIterable, Identifiable {
     case calm = "평온"

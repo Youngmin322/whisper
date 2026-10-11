@@ -6,7 +6,6 @@
 import SwiftUI
 import PhotosUI
 import UIKit
-import WhisperDesignSystem
 
 struct QuickRecordView: View {
     @Environment(\.dismiss) private var dismiss

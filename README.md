@@ -8,7 +8,7 @@
 - iOS 26 이상
 - 테스트용 iOS 26 이상 iPhone 시뮬레이터
 
-`WhisperCore`와 `WhisperDesignSystem`은 저장소 내부의 `Packages/WhisperCore`에 포함되어 있습니다. 이 저장소만 클론한 뒤 `Whisper.xcodeproj`를 열면 빌드할 수 있습니다.
+앱 코드와 디자인 시스템은 `Whisper/`에 함께 있습니다. 이미지·색상은 `Whisper/Assets.xcassets`, 글꼴은 `Whisper/Fonts`에서 관리합니다. 별도 Swift 패키지 없이 `Whisper.xcodeproj`를 열면 빌드할 수 있습니다.
 
 ## 표시 언어
 

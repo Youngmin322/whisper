@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase

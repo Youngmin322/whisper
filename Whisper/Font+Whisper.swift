@@ -32,6 +32,12 @@ extension Font {
     static let whisperLabel = noto(11, weight: .medium)
     static let whisperDiaryBody = whisperHandwriting(WhisperTypography.diaryBodySize)
 
+    // Preserve the distinct styles that previously lived in WhisperDesignSystem.
+    static let whisperTitle = Font.custom("Pretendard-SemiBold", size: 24)
+    static let whisperHeadline = Font.custom("Pretendard-SemiBold", size: 18)
+    static let whisperSubheadline = Font.custom("Pretendard-Regular", size: 15)
+    static let whisperButton = Font.custom("Pretendard-SemiBold", size: 16)
+
     static func whisperHandwriting(_ size: CGFloat) -> Font {
         .custom(WhisperTypography.handwritingFontName, size: size, relativeTo: .body)
     }

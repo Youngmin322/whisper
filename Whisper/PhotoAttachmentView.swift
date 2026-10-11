@@ -8,7 +8,6 @@ import PhotosUI
 import ImageIO
 import UIKit
 import UniformTypeIdentifiers
-import WhisperDesignSystem
 
 struct PhotoAttachmentEditor: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
