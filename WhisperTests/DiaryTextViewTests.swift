@@ -90,6 +90,8 @@ struct DiaryTextViewTests {
         try await settle()
         let readingBody = try #require(textViews(in: host.view).first)
         #expect(DiaryTextFormatter.document(from: readingBody.attributedText) == draft.document)
+        let readingFont = try #require(readingBody.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
+        #expect(readingFont.fontName == "KyoboHandwriting2019")
         capture(window, name: "diary-day")
 
         host.rootView = AnyView(NavigationStack { JournalEditorView(journal: journal, recordStore: store) })
@@ -98,6 +100,8 @@ struct DiaryTextViewTests {
         #expect(editor.isEditable)
         #expect(!editor.isScrollEnabled)
         #expect(DiaryTextFormatter.document(from: editor.attributedText) == draft.document)
+        let editorFont = try #require(editor.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
+        #expect(editorFont.fontName == readingFont.fontName)
         capture(window, name: "diary-day-editor")
         editor.selectedRange = NSRange(location: 0, length: 0)
         editor.insertText("마음을 다듬으며, ")

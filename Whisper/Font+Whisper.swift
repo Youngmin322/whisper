@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+enum WhisperTypography {
+    static let handwritingFontName = "KyoboHandwriting2019"
+    static let diaryBodySize: CGFloat = 18
+}
+
 extension Font {
     private static func noto(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .custom("NotoSansKR-Thin", size: size, relativeTo: .body).weight(weight)
@@ -25,9 +30,9 @@ extension Font {
     static let whisperMetadata = noto(13, weight: .medium)
     static let whisperCaption = noto(12)
     static let whisperLabel = noto(11, weight: .medium)
-    static let whisperDiaryBody = whisperHandwriting(18)
+    static let whisperDiaryBody = whisperHandwriting(WhisperTypography.diaryBodySize)
 
-    static func whisperHandwriting(_ size: CGFloat, bold: Bool = false) -> Font {
-        .custom(bold ? "Gaegu-Bold" : "Gaegu-Regular", size: size, relativeTo: .body)
+    static func whisperHandwriting(_ size: CGFloat) -> Font {
+        .custom(WhisperTypography.handwritingFontName, size: size, relativeTo: .body)
     }
 }

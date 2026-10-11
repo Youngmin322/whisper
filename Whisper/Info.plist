@@ -12,8 +12,7 @@
 	<string>Light</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Gaegu-Regular.ttf</string>
-		<string>Gaegu-Bold.ttf</string>
+		<string>KyoboHandwriting2019.otf</string>
 		<string>NotoSansKR-wght.ttf</string>
 	</array>
 </dict>

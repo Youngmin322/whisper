@@ -61,7 +61,7 @@ struct JournalShelfView: View {
                 Text(displayedMonth.formatted(JournalCalendar.yearStyle))
                     .font(.whisperHandwriting(18)).foregroundStyle(Color.whisperTextSecondary)
                 Text(displayedMonth.formatted(JournalCalendar.monthStyle))
-                    .font(.whisperHandwriting(34, bold: true)).foregroundStyle(Color.whisperTextPrimary)
+                    .font(.whisperHandwriting(34)).foregroundStyle(Color.whisperTextPrimary)
                     .contentTransition(.numericText())
                     .background(alignment: .bottom) {
                         Capsule().fill(Color.whisperSurfaceHighlight).frame(height: 8).offset(y: -2)
@@ -141,7 +141,7 @@ struct JournalShelfView: View {
         let momentCount = entries.reduce(0) { $0 + $1.uncollectedMoments.count }
         return VStack(spacing: 8) {
             if entries.isEmpty {
-                Text("이 달은 아직 비어 있어요").font(.whisperHandwriting(22, bold: true))
+                Text("이 달은 아직 비어 있어요").font(.whisperHandwriting(22))
                     .foregroundStyle(Color.whisperTextPrimary)
                 Text("순간을 남기면 불꽃이, 일기로 담으면 병이 놓여요").font(.whisperBody)
                     .foregroundStyle(Color.whisperTextSecondary)

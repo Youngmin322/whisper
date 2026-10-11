@@ -57,7 +57,7 @@ struct HomeToolbarView: View {
 
     private var dateLabel: some View {
         Text(day.shortDescription)
-            .font(.whisperHandwriting(27, bold: true))
+            .font(.whisperHandwriting(27))
             .foregroundStyle(Color.whisperTextPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.75)

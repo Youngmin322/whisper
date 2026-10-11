@@ -308,7 +308,7 @@ struct RecordDetailView: View {
                 .accessibilityLabel("감정 바꾸기, 현재 \(draft.emotion ?? "선택 안 함")")
             }
             TextField("이 순간의 제목 · 선택 사항", text: $draft.title, axis: .vertical)
-                .font(.whisperHandwriting(28, bold: true))
+                .font(.whisperHandwriting(28))
                 .foregroundStyle(Color.whisperTextPrimary)
                 .accessibilityIdentifier("record.editTitleField")
             Rectangle().fill(Color.whisperDivider).frame(height: 1)

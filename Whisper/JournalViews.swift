@@ -64,7 +64,7 @@ struct JournalEditorView: View {
                         .accessibilityLabel("대표 감정 바꾸기, 현재 \(draft.representativeEmotion ?? "선택 안 함")")
                     }
                     TextField("이 하루의 제목 · 선택 사항", text: $draft.title, axis: .vertical)
-                        .font(.whisperHandwriting(28, bold: true))
+                        .font(.whisperHandwriting(28))
                         .foregroundStyle(Color.whisperTextPrimary)
                         .accessibilityIdentifier("journal.titleField")
                     Rectangle().fill(Color.whisperDivider).frame(height: 1)
@@ -187,7 +187,7 @@ struct DiaryPageHeader: View {
                     .accessibilityLabel(emotion ?? "남긴 마음")
             }
             if !title.isEmpty {
-                Text(title).font(.whisperHandwriting(28, bold: true)).foregroundStyle(Color.whisperTextPrimary)
+                Text(title).font(.whisperHandwriting(28)).foregroundStyle(Color.whisperTextPrimary)
             }
             Rectangle().fill(Color.whisperDivider).frame(height: 1)
         }

@@ -219,7 +219,7 @@ struct QuickRecordView: View {
 
     private var titleField: some View {
         TextField("이 순간의 제목 · 선택 사항", text: $draft.title)
-            .font(.whisperHandwriting(28, bold: true))
+            .font(.whisperHandwriting(28))
             .foregroundStyle(Color.whisperTextPrimary)
             .tint(Color.whisperAccentText)
             .focused($isTitleFocused)
@@ -286,7 +286,7 @@ struct QuickRecordView: View {
     private var moodSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("지금 내 마음은 어떤가요?")
-                .font(.whisperHandwriting(31, bold: true))
+                .font(.whisperHandwriting(31))
                 .foregroundStyle(Color.whisperTextPrimary)
 
             Text("가장 가까운 감정 하나를 골라보세요.")

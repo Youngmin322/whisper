@@ -69,7 +69,7 @@ private struct JournalSearchResultRow: View {
                     .foregroundStyle(Color.whisperAccentText)
 
                 Text(result.title)
-                    .font(.whisperHandwriting(22, bold: true))
+                    .font(.whisperHandwriting(22))
                     .foregroundStyle(Color.whisperTextPrimary)
                     .lineLimit(1)
 

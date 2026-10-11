@@ -65,7 +65,7 @@ enum DiaryPhotoRenderer {
                 paragraph.lineBreakMode = .byTruncatingTail
                 (caption as NSString).draw(in: CGRect(x: imageRect.minX, y: imageRect.maxY + 7,
                                                      width: imageRect.width, height: 22), withAttributes: [
-                    .font: UIFont(name: "Gaegu-Regular", size: 17) ?? .systemFont(ofSize: 15),
+                    .font: UIFont(name: WhisperTypography.handwritingFontName, size: 17) ?? .systemFont(ofSize: 17),
                     .foregroundColor: UIColor(Color.whisperTextSecondary), .paragraphStyle: paragraph
                 ])
             }
@@ -269,7 +269,8 @@ struct DiaryTextView: UIViewRepresentable {
             .accessibility3: .accessibilityExtraLarge, .accessibility4: .accessibilityExtraExtraLarge,
             .accessibility5: .accessibilityExtraExtraExtraLarge
         ]
-        let base = UIFont(name: "NotoSansKR-Thin", size: 16) ?? .systemFont(ofSize: 16)
+        let base = UIFont(name: WhisperTypography.handwritingFontName, size: WhisperTypography.diaryBodySize)
+            ?? .systemFont(ofSize: WhisperTypography.diaryBodySize)
         return UIFontMetrics(forTextStyle: .body).scaledFont(for: base, compatibleWith: UITraitCollection(preferredContentSizeCategory: categories[dynamicTypeSize] ?? .large))
     }
 

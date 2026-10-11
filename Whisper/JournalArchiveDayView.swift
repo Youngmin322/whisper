@@ -10,7 +10,7 @@ struct JournalArchiveDayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: WhisperSpacing.xLarge) {
                 Text(day.fullDescription)
-                    .font(.whisperHandwriting(24, bold: true))
+                    .font(.whisperHandwriting(24))
                     .foregroundStyle(Color.whisperTextPrimary)
 
                 if let entry {
@@ -81,7 +81,7 @@ struct JournalArchiveDayView: View {
             FlameBottle(emotion: journal.emotion, width: 42)
             VStack(alignment: .leading, spacing: WhisperSpacing.small) {
                 Text(journal.title.isEmpty ? "이날의 하루" : journal.title)
-                    .font(.whisperHandwriting(22, bold: true))
+                    .font(.whisperHandwriting(22))
                     .lineLimit(2)
                 Text(journal.body).font(.whisperBody).lineLimit(3)
                     .foregroundStyle(Color.whisperTextSecondary)
@@ -109,7 +109,7 @@ struct JournalArchiveDayView: View {
                 }
                 .font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
                 Text(moment.title.isEmpty ? "남겨둔 순간" : moment.title).font(.whisperControl).lineLimit(1)
-                Text(moment.content).font(.whisperBody).lineLimit(2).foregroundStyle(Color.whisperTextSecondary)
+                Text(moment.content).font(.whisperDiaryBody).lineLimit(2).foregroundStyle(Color.whisperTextSecondary)
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.whisperTextSecondary)
