@@ -236,6 +236,8 @@ struct DiaryTextView: UIViewRepresentable {
         view.tintColor = UIColor(Color.whisperAccentText)
         view.adjustsFontForContentSizeCategory = true
         let photoTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.photoTapped(_:)))
+        photoTap.name = "diary.photoTap"
+        photoTap.delegate = context.coordinator
         photoTap.cancelsTouchesInView = false
         view.addGestureRecognizer(photoTap)
         return view
@@ -274,7 +276,7 @@ struct DiaryTextView: UIViewRepresentable {
         return UIFontMetrics(forTextStyle: .body).scaledFont(for: base, compatibleWith: UITraitCollection(preferredContentSizeCategory: categories[dynamicTypeSize] ?? .large))
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var owner: DiaryTextView
         private var lastDocument: DiaryDocument?
         private var lastWidth: CGFloat = 0
@@ -360,17 +362,29 @@ struct DiaryTextView: UIViewRepresentable {
 
         @objc func dismissKeyboard() { owner.isFocused = false }
 
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            guard let view = gestureRecognizer.view as? UITextView else { return false }
+            // Leave text taps to UITextView's caret and selection gestures.
+            // cancelsTouchesInView alone does not prevent recognizer competition.
+            return photo(at: touch.location(in: view), in: view) != nil
+        }
+
         @objc func photoTapped(_ gesture: UITapGestureRecognizer) {
-            guard let view = gesture.view as? UITextView else { return }
-            var point = gesture.location(in: view)
+            guard let view = gesture.view as? UITextView,
+                  let photo = photo(at: gesture.location(in: view), in: view) else { return }
+            owner.onPhotoTap(photo)
+        }
+
+        private func photo(at location: CGPoint, in view: UITextView) -> DiaryPhoto? {
+            var point = location
             point.x -= view.textContainerInset.left
             point.y -= view.textContainerInset.top
             let index = view.layoutManager.characterIndex(for: point, in: view.textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
             guard index < view.attributedText.length,
-                  let attachment = view.attributedText.attribute(.attachment, at: index, effectiveRange: nil) as? DiaryPhotoAttachment else { return }
+                  let attachment = view.attributedText.attribute(.attachment, at: index, effectiveRange: nil) as? DiaryPhotoAttachment else { return nil }
             let glyphs = view.layoutManager.glyphRange(forCharacterRange: NSRange(location: index, length: 1), actualCharacterRange: nil)
-            guard view.layoutManager.boundingRect(forGlyphRange: glyphs, in: view.textContainer).contains(point) else { return }
-            owner.onPhotoTap(attachment.photo)
+            guard view.layoutManager.boundingRect(forGlyphRange: glyphs, in: view.textContainer).contains(point) else { return nil }
+            return attachment.photo
         }
     }
 }
