@@ -26,6 +26,7 @@ struct QuickRecordWritingTests {
         defer { window.isHidden = true; window.rootViewController = nil; previousWindow?.makeKeyAndVisible() }
         try await settle()
         let editor = try #require(textViews(in: host.view).first)
+        #expect(editor.accessibilityLabel == (Bundle.main.preferredLocalizations.first == "en" ? "Moment text" : "순간 본문"))
         editor.selectedRange = NSRange(location: 1, length: 0)
         let image = UIGraphicsImageRenderer(size: CGSize(width: 64, height: 48)).image { context in
             UIColor.green.setFill()

@@ -8,10 +8,10 @@ enum IPadSection: String, CaseIterable, Identifiable {
     var id: Self { self }
     var title: String {
         switch self {
-        case .today: "오늘의 불꽃"
-        case .archive: "보관함"
-        case .search: "기억 찾기"
-        case .settings: "설정"
+        case .today: String(localized: "오늘의 불꽃")
+        case .archive: String(localized: "보관함")
+        case .search: String(localized: "기억 찾기")
+        case .settings: String(localized: "설정")
         }
     }
 }
@@ -80,17 +80,17 @@ struct IPadWorkspaceView: View {
                     Image("BottleLineIcon").renderingMode(.original)
                 }
             }
-            Tab("기억 찾기", systemImage: "magnifyingglass", value: IPadSection.search, role: .search) {
+            Tab(String(localized: "기억 찾기"), systemImage: "magnifyingglass", value: IPadSection.search, role: .search) {
                 destination(.search)
             }
-            Tab("설정", systemImage: "gearshape", value: IPadSection.settings) {
+            Tab(String(localized: "설정"), systemImage: "gearshape", value: IPadSection.settings) {
                 destination(.settings)
             }
         }
         .tabViewStyle(.sidebarAdaptable)
         .defaultAdaptableTabBarPlacement(.tabBar)
         .tabViewSidebarFooter {
-            Button("작성 중인 기록 · \(recordStore.writingDraftStore.count)") { isDraftListPresented = true }
+            Button(String(localized: "작성 중인 기록 · \(recordStore.writingDraftStore.count)")) { isDraftListPresented = true }
                 .accessibilityIdentifier("home.resumeDraftsButton")
         }
         .tint(Color.whisperTextSecondary)
@@ -100,8 +100,8 @@ struct IPadWorkspaceView: View {
                                 onEdit: presentation.editSelectedMoment, onDelete: closeSelection)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("닫기", action: closeSelection)
-                            .accessibilityLabel("선택한 순간 닫기")
+                        Button(String(localized: "닫기"), action: closeSelection)
+                            .accessibilityLabel(String(localized: "선택한 순간 닫기"))
                     }
                 }
             }

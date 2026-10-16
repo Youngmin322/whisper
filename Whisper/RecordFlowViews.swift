@@ -27,7 +27,7 @@ struct WhisperJar: View {
         let width = min(size.dimensions.width, size.dimensions.height * 82 / 119)
         FlameBottle(emotion: emotion, width: width)
             .frame(width: size.dimensions.width, height: size.dimensions.height)
-            .accessibilityLabel("불꽃이 담긴 유리병")
+            .accessibilityLabel(String(localized: "불꽃이 담긴 유리병"))
     }
 }
 
@@ -53,24 +53,24 @@ struct CollectionView: View {
 
                 if recordStore.records.isEmpty && recordStore.journals.isEmpty {
                     ContentUnavailableView(
-                        "아직 담긴 마음이 없어요",
+                        String(localized: "아직 담긴 마음이 없어요"),
                         systemImage: "flame",
-                        description: Text("오늘의 마음을 기록하면 이곳에 하나씩 쌓여요.")
+                        description: Text(String(localized: "오늘의 마음을 기록하면 이곳에 하나씩 쌓여요."))
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else if filteredRecords.isEmpty && filteredJournals.isEmpty {
                     ContentUnavailableView {
-                        Label("조건에 맞는 기록이 없어요", systemImage: "magnifyingglass")
+                        Label(String(localized: "조건에 맞는 기록이 없어요"), systemImage: "magnifyingglass")
                     } description: {
-                        Text("검색어나 필터를 바꿔 다시 찾아보세요.")
+                        Text(String(localized: "검색어나 필터를 바꿔 다시 찾아보세요."))
                     } actions: {
-                        Button("검색 조건 초기화", action: resetFilters)
+                        Button(String(localized: "검색 조건 초기화"), action: resetFilters)
                             .buttonStyle(.bordered)
                     }
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else {
                     if !filteredJournals.isEmpty {
-                        Text("완성 일기")
+                        Text(String(localized: "완성 일기"))
                             .font(.whisperSectionTitle)
                             .foregroundStyle(Color.whisperTextPrimary)
                         ForEach(filteredJournals) { journal in
@@ -78,7 +78,7 @@ struct CollectionView: View {
                                 JournalDetailView(journalID: journal.id, recordStore: recordStore)
                             } label: {
                                 VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                                    Text("완성 일기 · \(journal.displayDate.whisperDateDescription)")
+                                    Text(String(localized: "완성 일기 · \(journal.displayDate.whisperDateDescription)"))
                                         .font(.whisperMetadata)
                                         .foregroundStyle(Color.whisperAccentText)
                                     Text(journal.title.isEmpty ? journal.displayDate.whisperDateDescription : journal.title)
@@ -94,11 +94,11 @@ struct CollectionView: View {
                                 .whisperCardStyle(fill: .whisperSurfaceDefault, border: .whisperBorderSubtle)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("완성 일기, \(journal.displayDate.whisperFullDayDescription), \(journal.title)")
+                            .accessibilityLabel(String(localized: "완성 일기, \(journal.displayDate.whisperFullDayDescription), \(journal.title)"))
                         }
                     }
                     if !filteredRecords.isEmpty {
-                        Text("모든 순간")
+                        Text(String(localized: "모든 순간"))
                             .font(.whisperSectionTitle)
                             .foregroundStyle(Color.whisperTextPrimary)
                     }
@@ -131,9 +131,9 @@ struct CollectionView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color.whisperBackground)
-        .navigationTitle("보관함")
+        .navigationTitle(String(localized: "보관함"))
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $searchText, prompt: "일기와 순간 검색")
+        .searchable(text: $searchText, prompt: String(localized: "일기와 순간 검색"))
     }
 
     private var collectionHeader: some View {
@@ -165,7 +165,7 @@ struct CollectionView: View {
 
     private var collectionIntroduction: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.xxSmall) {
-            Text("마음이 머무는 곳")
+            Text(String(localized: "마음이 머무는 곳"))
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperAccentText)
 
@@ -200,16 +200,16 @@ struct CollectionView: View {
                 || journal.title.localizedCaseInsensitiveContains(query)
                 || journal.body.localizedCaseInsensitiveContains(query)
                 || journal.reflection.localizedCaseInsensitiveContains(query)
-                || (journal.emotion?.localizedCaseInsensitiveContains(query) ?? false))
+                || WhisperEmotion.searchText(for: journal.emotion).localizedCaseInsensitiveContains(query))
                 && (selectedEmotion == nil || journal.emotion == selectedEmotion)
         }
     }
 
     private var summaryTitle: String {
         if storedFlameCount == 0 && recordStore.journals.isEmpty {
-            return "첫 기록을 기다리고 있어요"
+            return String(localized: "첫 기록을 기다리고 있어요")
         }
-        return "일기 \(recordStore.journals.count)개 · 순간 \(storedFlameCount)개를\n간직하고 있어요"
+        return String(localized: "일기 \(recordStore.journals.count)개 · 순간 \(storedFlameCount)개를\n간직하고 있어요")
     }
 
     private var monthlySummary: String {
@@ -217,8 +217,8 @@ struct CollectionView: View {
             Calendar.current.isDate($0.createdAt, equalTo: .now, toGranularity: .month)
         }.count
         return count == 0
-            ? "이번 달 새로 담은 마음이 없어요"
-            : "이번 달 새로 담은 마음 \(count)개"
+            ? String(localized: "이번 달 새로 담은 마음이 없어요")
+            : String(localized: "이번 달 새로 담은 마음 \(count)개")
     }
 
     private func storedCommitment(for record: WhisperRecord) -> WhisperCommitment? {
@@ -227,14 +227,14 @@ struct CollectionView: View {
     }
 
     private func recordAccessibilityLabel(_ record: WhisperRecord) -> String {
-        let base = "순간 기록, \(record.title), \(record.createdAt.whisperFullDayDescription)"
+        let base = String(localized: "순간 기록, \(record.title), \(record.createdAt.whisperFullDayDescription)")
         guard let status = storedCommitment(for: record)?.lifecycleStatus() else {
             return base
         }
         let statusDescription = switch status {
-        case .active: "다시 만나기를 기다리는 결심"
-        case .paused: "다시 만나기를 잠시 멈춘 결심"
-        case .released: "놓아준 마음"
+        case .active: String(localized: "다시 만나기를 기다리는 결심")
+        case .paused: String(localized: "다시 만나기를 잠시 멈춘 결심")
+        case .released: String(localized: "놓아준 마음")
         }
         return "\(base), \(statusDescription)"
     }
@@ -247,7 +247,7 @@ struct CollectionView: View {
                     selectedCommitmentStatus = nil
                 } label: {
                     filterChip(
-                        title: "전체",
+                        title: String(localized: "전체"),
                         isActive: !hasSelectedFilterChips,
                         showsMenuIndicator: false
                     )
@@ -255,15 +255,15 @@ struct CollectionView: View {
                 .buttonStyle(.plain)
 
                 Menu {
-                    Button("전체 감정") { selectedEmotion = nil }
+                    Button(String(localized: "전체 감정")) { selectedEmotion = nil }
                     ForEach(WhisperEmotion.allCases) { emotion in
-                        Button(emotion.rawValue) {
+                        Button(emotion.displayName) {
                             selectedEmotion = emotion.rawValue
                         }
                     }
                 } label: {
                     filterChip(
-                        title: selectedEmotion ?? "감정",
+                        title: WhisperEmotion.displayName(for: selectedEmotion) ?? String(localized: "감정"),
                         isActive: selectedEmotion != nil,
                         showsMenuIndicator: true
                     )
@@ -271,13 +271,13 @@ struct CollectionView: View {
 
                 if CommitmentReminderFeature.isEnabled {
                     Menu {
-                        Button("모든 상태") { selectedCommitmentStatus = nil }
-                        Button("기억 중") { selectedCommitmentStatus = .active }
-                        Button("잠시 쉬는 중") { selectedCommitmentStatus = .paused }
-                        Button("놓아준 마음") { selectedCommitmentStatus = .released }
+                        Button(String(localized: "모든 상태")) { selectedCommitmentStatus = nil }
+                        Button(String(localized: "기억 중")) { selectedCommitmentStatus = .active }
+                        Button(String(localized: "잠시 쉬는 중")) { selectedCommitmentStatus = .paused }
+                        Button(String(localized: "놓아준 마음")) { selectedCommitmentStatus = .released }
                     } label: {
                         filterChip(
-                            title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? "다시 만나기",
+                            title: selectedCommitmentStatus.map(commitmentStatusTitle) ?? String(localized: "다시 만나기"),
                             isActive: selectedCommitmentStatus != nil,
                             showsMenuIndicator: true
                         )
@@ -352,15 +352,15 @@ struct CollectionView: View {
 
     private func monthTitle(_ month: Date) -> String {
         month.formatted(
-            .dateTime.year().month(.wide).locale(Locale(identifier: "ko_KR"))
+            .dateTime.year().month(.wide).locale(WhisperLocalization.locale)
         )
     }
 
     private func commitmentStatusTitle(_ status: CommitmentLifecycleStatus) -> String {
         switch status {
-        case .active: "기억 중"
-        case .paused: "잠시 쉬는 중"
-        case .released: "놓아준 마음"
+        case .active: String(localized: "기억 중")
+        case .paused: String(localized: "잠시 쉬는 중")
+        case .released: String(localized: "놓아준 마음")
         }
     }
 
@@ -374,7 +374,7 @@ struct CollectionView: View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
             HStack(spacing: WhisperSpacing.small) {
                 VStack(alignment: .leading, spacing: WhisperSpacing.xSmall) {
-                    Text("순간 기록")
+                    Text(String(localized: "순간 기록"))
                         .font(.whisperMetadata)
                         .foregroundStyle(Color.whisperAccentText)
                     Text(record.title)
@@ -413,7 +413,7 @@ struct CollectionView: View {
                     Image(systemName: "photo.fill")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Color.whisperTextSecondary)
-                        .accessibilityLabel("사진 있음")
+                        .accessibilityLabel(String(localized: "사진 있음"))
                 }
 
                 Label {
@@ -438,27 +438,27 @@ struct CollectionView: View {
 
     private func recordStatus(for record: WhisperRecord) -> (title: String, icon: String) {
         guard let status = storedCommitment(for: record)?.lifecycleStatus() else {
-            return ("간직함", "flame.fill")
+            return (String(localized: "간직함"), "flame.fill")
         }
 
         return switch status {
-        case .active: ("기억 중", "flame.fill")
-        case .paused: ("쉬는 중", "moon.zzz.fill")
-        case .released: ("놓아줌", "checkmark")
+        case .active: (String(localized: "기억 중"), "flame.fill")
+        case .paused: (String(localized: "쉬는 중"), "moon.zzz.fill")
+        case .released: (String(localized: "놓아줌"), "checkmark")
         }
     }
 
     private func recordDateLabel(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        formatter.dateFormat = "yyyy.MM.dd"
+        formatter.locale = WhisperLocalization.locale
+        formatter.setLocalizedDateFormatFromTemplate("yMd")
         return formatter.string(from: date)
     }
 
     private func recordTimestampLabel(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        formatter.dateFormat = "M월 d일 (E) a h:mm"
+        formatter.locale = WhisperLocalization.locale
+        formatter.setLocalizedDateFormatFromTemplate("MMMEdjm")
         return formatter.string(from: date)
     }
 }

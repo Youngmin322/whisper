@@ -9,7 +9,7 @@ struct WritingDraftErrorView: View {
             VStack(alignment: .leading, spacing: WhisperSpacing.small) {
                 Text(message)
                     .font(.whisperBody)
-                Button("임시 저장 다시 시도", action: onRetry)
+                Button(String(localized: "임시 저장 다시 시도"), action: onRetry)
                     .font(.whisperControl)
                     .accessibilityIdentifier("draft.retryButton")
             }
@@ -36,11 +36,11 @@ struct WritingDraftListView: View {
                     WritingDraftErrorView(message: error, onRetry: draftStore.retry)
                 }
                 if draftStore.momentDrafts.contains(where: \.hasChanges) {
-                    Section("순간") {
+                    Section(String(localized: "순간")) {
                         ForEach(draftStore.momentDrafts.filter(\.hasChanges)) { moment in
                             Button { onOpenMoment(moment) } label: {
-                                draftLabel(title: moment.title.isEmpty ? "작성 중인 순간" : moment.title,
-                                           subtitle: moment.content.isEmpty ? (moment.emotion ?? "이어서 작성하기") : moment.content)
+                                draftLabel(title: moment.title.isEmpty ? String(localized: "작성 중인 순간") : moment.title,
+                                           subtitle: moment.content.isEmpty ? (moment.emotion ?? String(localized: "이어서 작성하기")) : moment.content)
                             }
                             .accessibilityIdentifier("draft.resumeMomentButton")
                             .swipeActions { discardButton(id: moment.id) }
@@ -48,10 +48,10 @@ struct WritingDraftListView: View {
                     }
                 }
                 if !draftStore.momentEditDrafts.isEmpty {
-                    Section("수정 중인 순간") {
+                    Section(String(localized: "수정 중인 순간")) {
                         ForEach(draftStore.momentEditDrafts) { moment in
                             Button { onOpenMoment(moment) } label: {
-                                draftLabel(title: moment.title.isEmpty ? "수정 중인 순간" : moment.title,
+                                draftLabel(title: moment.title.isEmpty ? String(localized: "수정 중인 순간") : moment.title,
                                            subtitle: moment.content)
                             }
                             .accessibilityIdentifier("draft.resumeMomentEditButton")
@@ -60,7 +60,7 @@ struct WritingDraftListView: View {
                     }
                 }
                 if !draftStore.journalDrafts.isEmpty {
-                    Section("일기") {
+                    Section(String(localized: "일기")) {
                         ForEach(draftStore.journalDrafts) { journal in
                             Button { onOpenJournal(journal) } label: {
                                 draftLabel(title: journal.day.fullDescription,
@@ -72,25 +72,25 @@ struct WritingDraftListView: View {
                     }
                 }
                 if draftStore.count == 0 {
-                    Text("작성 중인 초안이 없어요.")
+                    Text(String(localized: "작성 중인 초안이 없어요."))
                         .foregroundStyle(Color.whisperTextSecondary)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Color.whisperBackground)
-            .navigationTitle("작성 중인 기록")
+            .navigationTitle(String(localized: "작성 중인 기록"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "닫기")) { dismiss() } }
             }
-            .confirmationDialog("이 초안을 버릴까요?", isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
-                Button("초안 버리기", role: .destructive) {
+            .confirmationDialog(String(localized: "이 초안을 버릴까요?"), isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
+                Button(String(localized: "초안 버리기"), role: .destructive) {
                     if let id = draftToDiscard { draftStore.discard(id: id) }
                     draftToDiscard = nil
                 }
-                Button("계속 보관", role: .cancel) { draftToDiscard = nil }
+                Button(String(localized: "계속 보관"), role: .cancel) { draftToDiscard = nil }
             } message: {
-                Text("이미 저장한 기록은 그대로 남아요.")
+                Text(String(localized: "이미 저장한 기록은 그대로 남아요."))
             }
         }
     }
@@ -98,7 +98,7 @@ struct WritingDraftListView: View {
     private func draftLabel(title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.small) {
             Text(title).font(.whisperControl).foregroundStyle(Color.whisperTextPrimary)
-            Text(subtitle.isEmpty ? "이어서 작성하기" : subtitle)
+            Text(subtitle.isEmpty ? String(localized: "이어서 작성하기") : subtitle)
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .lineLimit(2)
@@ -109,7 +109,7 @@ struct WritingDraftListView: View {
     }
 
     private func discardButton(id: UUID) -> some View {
-        Button("초안 버리기", role: .destructive) {
+        Button(String(localized: "초안 버리기"), role: .destructive) {
             draftToDiscard = id
             isDiscardConfirmationPresented = true
         }

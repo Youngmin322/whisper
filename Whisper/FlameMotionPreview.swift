@@ -65,7 +65,7 @@ struct FlameMotionPreview: View {
                         HStack(spacing: 6) {
                             FlameCharacter(emotion: emotion.rawValue, size: 28)
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(emotion.rawValue).font(.headline)
+                                Text(emotion.displayName).font(.headline)
                                 Text(description(for: emotion)).font(.caption2)
                             }
                             Spacer(minLength: 0)

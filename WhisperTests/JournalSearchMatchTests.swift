@@ -17,7 +17,7 @@ struct JournalSearchMatchTests {
         #expect(result.preview.contains("민수와 강변에서 산책했다"))
         #expect(result.preview.count < body.count)
         let context = try #require(result.searchContext)
-        #expect(context.description(for: .journal) == "일기 본문에서 찾았어요")
+        #expect(context.description(for: .journal) == (isEnglish ? "Found in the entry text" : "일기 본문에서 찾았어요"))
         #expect(!context.opensSources)
         let highlighted = JournalSearchHighlightedText(text: result.preview, query: context.query).highlighted
         #expect(highlighted.runs.filter { $0.backgroundColor != nil }.count == 2)
@@ -42,7 +42,7 @@ struct JournalSearchMatchTests {
         #expect(context.opensSources)
         #expect(context.sourceIDs == [first.id, second.id])
         #expect(context.matches.contains { $0.sourceID == second.id && $0.snippet == second.content })
-        #expect(context.description(for: .journal) == "담아 둔 순간 2개에서 찾았어요")
+        #expect(context.description(for: .journal) == (isEnglish ? "Found in 2 moments from this entry" : "담아 둔 순간 2개에서 찾았어요"))
         #expect(journal.body == "오늘은 편안했다.")
         #expect(first.content == "민수와 강변에서 산책했다.")
     }
@@ -66,10 +66,10 @@ struct JournalSearchMatchTests {
         _ = try #require(store.saveJournal(on: .now, title: "서울 여행", body: "햇살이 좋았다.", sourceRecordIDs: [], emotion: "기쁨"))
         let title = try #require(index(store).results(matching: "서울").first)
         #expect(title.preview == "서울 여행")
-        #expect(title.searchContext?.description(for: .journal) == "일기 제목에서 찾았어요")
+        #expect(title.searchContext?.description(for: .journal) == (isEnglish ? "Found in the entry title" : "일기 제목에서 찾았어요"))
         let emotion = try #require(index(store).results(matching: "기쁨").first)
         #expect(emotion.preview == "기쁨")
-        #expect(emotion.searchContext?.description(for: .journal) == "일기 감정에서 찾았어요")
+        #expect(emotion.searchContext?.description(for: .journal) == (isEnglish ? "Matched this entry's emotion" : "일기 감정에서 찾았어요"))
     }
 
     @Test("원본 삭제 후에는 그 원본에서만 일치했던 검색 결과를 남기지 않는다")
@@ -91,12 +91,14 @@ struct JournalSearchMatchTests {
         let result = try #require(index(store).results(matching: " coffee ").first)
         #expect(result.kind == .moment && result.recordID == moment.id)
         #expect(result.preview.contains("Coffee"))
-        #expect(result.searchContext?.description(for: .moment) == "순간 본문에서 찾았어요")
+        #expect(result.searchContext?.description(for: .moment) == (isEnglish ? "Found in the moment text" : "순간 본문에서 찾았어요"))
         #expect(!JournalSearchHighlightedText(text: result.preview, query: "coffee").highlighted.runs.filter { $0.backgroundColor != nil }.isEmpty)
         let all = try #require(index(store).results(matching: " \n ").first)
         #expect(all.preview == moment.content && all.searchContext == nil)
         #expect(JournalSearchSnippet.make(in: "👨‍👩‍👧‍👦 민수", query: "민수") == "👨‍👩‍👧‍👦 민수")
     }
+
+    private var isEnglish: Bool { Bundle.main.preferredLocalizations.first == "en" }
 
     private func index(_ store: RecordStore) -> JournalArchiveIndex {
         JournalArchiveIndex(records: store.records, journals: store.journals)

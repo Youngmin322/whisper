@@ -68,17 +68,17 @@ struct IPadMomentEditor: View {
                 }
             }
             .background(Color.whisperBackground)
-            .navigationTitle(isEditingExisting ? "순간 수정" : isRecovering ? "순간 복구" : "순간 남기기")
+            .navigationTitle(isEditingExisting ? String(localized: "순간 수정") : isRecovering ? String(localized: "순간 복구") : String(localized: "순간 남기기"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: close) { Image(systemName: "xmark") }
-                        .accessibilityLabel("작성 화면 닫기")
-                        .accessibilityHint("작성 중인 초안을 보관해요.")
+                        .accessibilityLabel(String(localized: "작성 화면 닫기"))
+                        .accessibilityHint(String(localized: "작성 중인 초안을 보관해요."))
                         .accessibilityIdentifier("record.closeButton")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isRecovering ? "새 순간으로 저장" : "저장", action: save)
+                    Button(isRecovering ? String(localized: "새 순간으로 저장") : String(localized: "저장"), action: save)
                         .buttonStyle(.borderedProminent)
                         .tint(Color.whisperAccent)
                         .disabled(!canSave)
@@ -111,17 +111,17 @@ struct IPadMomentEditor: View {
             persistDraft()
             photoLoader.cancelLoading()
         }
-        .alert("초안을 보관할 수 없어요", isPresented: $isDraftErrorPresented) {
-            Button("확인", role: .cancel) {}
-        } message: { Text("작성한 내용은 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.") }
-        .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
-            Button("다시 시도", action: save)
-            Button("계속 작성", role: .cancel) {}
-        } message: { Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.") }
-        .alert("사진을 불러올 수 없어요", isPresented: Binding(
+        .alert(String(localized: "초안을 보관할 수 없어요"), isPresented: $isDraftErrorPresented) {
+            Button(String(localized: "확인"), role: .cancel) {}
+        } message: { Text(String(localized: "작성한 내용은 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.")) }
+        .alert(String(localized: "기록을 저장할 수 없어요"), isPresented: $isSaveErrorPresented) {
+            Button(String(localized: "다시 시도"), action: save)
+            Button(String(localized: "계속 작성"), role: .cancel) {}
+        } message: { Text(String(localized: "작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")) }
+        .alert(String(localized: "사진을 불러올 수 없어요"), isPresented: Binding(
             get: { photoLoader.errorMessage != nil }, set: { if !$0 { photoLoader.dismissError() } }
-        )) { Button("확인", role: .cancel) { photoLoader.dismissError() } }
-        message: { Text(photoLoader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.") }
+        )) { Button(String(localized: "확인"), role: .cancel) { photoLoader.dismissError() } }
+        message: { Text(photoLoader.errorMessage ?? String(localized: "다른 사진으로 다시 시도해 주세요.")) }
     }
 
     private func writingContent(showsEmotionMenu: Bool) -> some View {
@@ -138,7 +138,7 @@ struct IPadMomentEditor: View {
                         isTitleFocused = false
                         isEmotionPickerPresented = true
                     } label: {
-                        Label(draft.emotion ?? "감정 고르기", systemImage: "chevron.down")
+                        Label(WhisperEmotion.displayName(for: draft.emotion) ?? String(localized: "감정 고르기"), systemImage: "chevron.down")
                             .font(.whisperControl)
                             .frame(minHeight: 44)
                     }
@@ -146,11 +146,11 @@ struct IPadMomentEditor: View {
                 }
             }
             if isRecovering {
-                Text("원본 순간이 삭제되었어요. 이 초안은 오늘의 새 순간으로 저장할 수 있어요.")
+                Text(String(localized: "원본 순간이 삭제되었어요. 이 초안은 오늘의 새 순간으로 저장할 수 있어요."))
                     .font(.whisperBody)
             }
             WritingDraftErrorView(message: recordStore.writingDraftStore.errorMessage) { persistDraft() }
-            TextField("이 순간의 제목 · 선택 사항", text: $draft.title, axis: .vertical)
+            TextField(String(localized: "이 순간의 제목 · 선택 사항"), text: $draft.title, axis: .vertical)
                 .font(.whisperHandwriting(28))
                 .focused($isTitleFocused)
                 .accessibilityIdentifier("record.titleField")
@@ -158,7 +158,8 @@ struct IPadMomentEditor: View {
             DiaryTextView(document: Binding(get: { draft.diaryDocument }, set: {
                 draft.setDiaryDocument($0)
             }), isFocused: $isBodyFocused, minimumHeight: 300,
-                placeholder: "기억하고 싶은 순간을 적어보세요.", accessibilityIdentifier: "record.contentField",
+                placeholder: String(localized: "기억하고 싶은 순간을 적어보세요."), accessibilityIdentifier: "record.contentField",
+                editorAccessibilityLabel: String(localized: "순간 본문"),
                 onSelectionChange: { photoInsertionOffset = $0 }, onPhotoTap: { selectedPhoto = $0 })
                 .disabled(draft.emotion == nil)
             if draft.content.count >= RecordDraft.contentLimit - 100 {
@@ -167,7 +168,7 @@ struct IPadMomentEditor: View {
                     .foregroundStyle(draft.content.count > RecordDraft.contentLimit ? .red : Color.whisperTextSecondary)
             }
             if draft.content.count > RecordDraft.contentLimit {
-                Text("최대 1,000자까지 저장할 수 있어요. 내용을 줄여 주세요.")
+                Text(String(localized: "최대 1,000자까지 저장할 수 있어요. 내용을 줄여 주세요."))
                     .font(.whisperCaption).foregroundStyle(.red)
             }
         }
@@ -182,13 +183,13 @@ struct IPadMomentEditor: View {
                 isPhotoPickerPresented = true
             } label: {
                 if photoLoader.isLoading { ProgressView() }
-                else { Label("사진 추가", systemImage: "photo") }
+                else { Label(String(localized: "사진 추가"), systemImage: "photo") }
             }
             .disabled(draft.emotion == nil || photoLoader.isLoading)
             .accessibilityIdentifier("record.photoButton")
-            .accessibilityValue("\(draft.diaryDocument.photos.count)장 첨부됨")
+            .accessibilityValue(String(localized: "\(draft.diaryDocument.photos.count)장 첨부됨"))
             if draft.photoData != nil {
-                Button("사진 모두 삭제", systemImage: "trash", role: .destructive) { draft.removeAllPhotos() }
+                Button(String(localized: "사진 모두 삭제"), systemImage: "trash", role: .destructive) { draft.removeAllPhotos() }
                     .labelStyle(.iconOnly)
             }
             Spacer(minLength: 0)
@@ -196,7 +197,7 @@ struct IPadMomentEditor: View {
                 Button { isBodyFocused = false; isTitleFocused = false } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
                 }
-                .accessibilityLabel("키보드 내리기")
+                .accessibilityLabel(String(localized: "키보드 내리기"))
                 .accessibilityIdentifier("record.dismissKeyboardButton")
             }
         }

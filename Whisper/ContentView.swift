@@ -41,23 +41,23 @@ private struct PersistenceUnavailableView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("기록을 불러올 수 없어요", systemImage: "externaldrive.badge.xmark")
+            Label(String(localized: "기록을 불러올 수 없어요"), systemImage: "externaldrive.badge.xmark")
         } description: {
             VStack(spacing: 8) {
-                Text("작성한 기록을 보호하기 위해 저장 기능을 멈췄어요. 잠시 후 다시 시도해 주세요.")
+                Text(String(localized: "작성한 기록을 보호하기 위해 저장 기능을 멈췄어요. 잠시 후 다시 시도해 주세요."))
                 if let supportCode {
-                    Text("지원 코드: \(supportCode)")
+                    Text(String(localized: "지원 코드: \(supportCode)"))
                         .font(.caption.monospaced())
                         .textSelection(.enabled)
                 }
             }
         } actions: {
             VStack(spacing: 12) {
-                Button("다시 시도", action: onRetry)
+                Button(String(localized: "다시 시도"), action: onRetry)
                     .buttonStyle(.whisperPrimary(size: .compact))
 
                 if let diagnosticSummary {
-                    Button(didCopyDiagnostics ? "진단 정보 복사됨" : "진단 정보 복사") {
+                    Button(didCopyDiagnostics ? String(localized: "진단 정보 복사됨") : String(localized: "진단 정보 복사")) {
                         UIPasteboard.general.string = diagnosticSummary
                         didCopyDiagnostics = true
                     }
@@ -85,7 +85,7 @@ private struct MainTabView: View {
                             NotificationRecordDestination(route: route, recordStore: recordStore)
                                 .toolbar {
                                     ToolbarItem(placement: .cancellationAction) {
-                                        Button("닫기") { iPadNotificationRoute = nil }
+                                        Button(String(localized: "닫기")) { iPadNotificationRoute = nil }
                                     }
                                 }
                         }
@@ -187,17 +187,17 @@ private struct NotificationRecordDestination: View {
             )
         } else {
             ContentUnavailableView {
-                Label("기록을 찾을 수 없어요", systemImage: "flame")
+                Label(String(localized: "기록을 찾을 수 없어요"), systemImage: "flame")
             } description: {
-                Text("삭제되었거나 더 이상 존재하지 않는 기록이에요.")
+                Text(String(localized: "삭제되었거나 더 이상 존재하지 않는 기록이에요."))
             } actions: {
                 if CommitmentReminderFeature.isEnabled {
-                    NavigationLink("결심 알림 관리") {
+                    NavigationLink(String(localized: "결심 알림 관리")) {
                         SettingsView(recordStore: recordStore)
                     }
                 }
             }
-            .navigationTitle("기록")
+            .navigationTitle(String(localized: "기록"))
             .navigationBarTitleDisplayMode(.inline)
             .background(Color.whisperBackground)
         }
@@ -254,16 +254,16 @@ private struct WelcomeView: View {
             ZStack {
                 if stage == 0 {
                     onboardingMessage(
-                        title: "오늘의 순간을\n남겨보세요",
-                        description: "한 문장만 남겨도 괜찮아요.\n있었던 일과 마음을 내 말로 적어보세요.",
+                        title: String(localized: "오늘의 순간을\n남겨보세요"),
+                        description: String(localized: "한 문장만 남겨도 괜찮아요.\n있었던 일과 마음을 내 말로 적어보세요."),
                         trustNote: nil
                     )
                     .transition(messageTransition)
                 } else {
                     onboardingMessage(
-                        title: "언제든\n다시 읽어요",
-                        description: "직접 하루를 일기로 정리하고,\n보관함에서 일기와 지난 순간을 다시 읽어요.",
-                        trustNote: "기록은 이 기기 안에서만 처리돼요."
+                        title: String(localized: "언제든\n다시 읽어요"),
+                        description: String(localized: "직접 하루를 일기로 정리하고,\n보관함에서 일기와 지난 순간을 다시 읽어요."),
+                        trustNote: String(localized: "기록은 이 기기 안에서만 처리돼요.")
                     )
                     .transition(messageTransition)
                 }
@@ -274,7 +274,7 @@ private struct WelcomeView: View {
 
             Spacer()
 
-            Button(stage == 0 ? "계속" : "시작하기", action: advance)
+            Button(stage == 0 ? String(localized: "계속") : String(localized: "시작하기"), action: advance)
                 .buttonStyle(.whisperPrimary)
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.bottom, 26)
@@ -375,22 +375,22 @@ struct SettingsView: View {
     var body: some View {
         List {
             if CommitmentReminderFeature.isEnabled {
-                Section("다시 만나기") {
-                    LabeledContent("알림", value: notificationStatusDescription)
+                Section(String(localized: "다시 만나기")) {
+                    LabeledContent(String(localized: "알림"), value: notificationStatusDescription)
 
-                    Toggle("알림에 기록 내용 표시", isOn: $showCommitmentPreview)
+                    Toggle(String(localized: "알림에 기록 내용 표시"), isOn: $showCommitmentPreview)
 
                     if notificationStatus == .notDetermined {
-                        Button("다시 만나기 알림 허용") {
+                        Button(String(localized: "다시 만나기 알림 허용")) {
                             Task { await requestNotificationAuthorization() }
                         }
                     } else if notificationStatus == .denied {
-                        Button("알림 설정 열기", action: openAppSettings)
+                        Button(String(localized: "알림 설정 열기"), action: openAppSettings)
                     }
                 }
 
                 if !recordStore.commitments.isEmpty {
-                    Section("간직한 결심") {
+                    Section(String(localized: "간직한 결심")) {
                         ForEach(recordStore.commitments, id: \.id) { commitment in
                             if let record = recordStore.record(withID: commitment.sourceRecordID) {
                                 NavigationLink {
@@ -398,36 +398,36 @@ struct SettingsView: View {
                                 } label: {
                                     LabeledContent(commitment.name, value: commitmentStatus(commitment))
                                 }
-                                .accessibilityLabel("\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리")
+                                .accessibilityLabel(String(localized: "\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리"))
                             } else {
-                                LabeledContent(commitment.name, value: "원본 기록 없음")
+                                LabeledContent(commitment.name, value: String(localized: "원본 기록 없음"))
                                 if commitment.lifecycleStatus() != .released {
-                                    Button("이 결심 알림 중단", role: .destructive) {
+                                    Button(String(localized: "이 결심 알림 중단"), role: .destructive) {
                                         orphanCommitmentToStop = commitment.id
                                     }
-                                    .accessibilityLabel("\(commitment.name) 결심 알림 중단")
+                                    .accessibilityLabel(String(localized: "\(commitment.name) 결심 알림 중단"))
                                 }
                             }
                         }
-                        Text("결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요.")
+                        Text(String(localized: "결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요."))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Section("집중 모드") {
-                    Button("iPhone 집중 모드에 연결하기") {
+                Section(String(localized: "집중 모드")) {
+                    Button(String(localized: "iPhone 집중 모드에 연결하기")) {
                         isFocusGuidePresented = true
                     }
                 }
 
 #if DEBUG
-                Section("결심 알림 테스트") {
+                Section(String(localized: "결심 알림 테스트")) {
                     Button {
                         Task { await scheduleDebugReminder() }
                     } label: {
                         HStack {
-                            Text("10초 뒤 테스트 알림 보내기")
+                            Text(String(localized: "10초 뒤 테스트 알림 보내기"))
                             Spacer()
                             if isSchedulingDebugReminder {
                                 ProgressView()
@@ -436,14 +436,14 @@ struct SettingsView: View {
                     }
                     .disabled(isSchedulingDebugReminder)
 
-                    Button("예약된 테스트 알림 취소", role: .destructive) {
+                    Button(String(localized: "예약된 테스트 알림 취소"), role: .destructive) {
                         Task { await cancelDebugReminders() }
                     }
                     .disabled(isSchedulingDebugReminder)
 
                     Text(
                         debugReminderMessage
-                            ?? "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요."
+                            ?? String(localized: "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요.")
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -451,14 +451,22 @@ struct SettingsView: View {
 #endif
             }
 
-            Section("앱 정보") {
-                LabeledContent("기록 저장", value: "이 기기")
+            Section {
+                Button(String(localized: "언어 설정 열기"), action: openAppSettings)
+            } header: {
+                Text(String(localized: "언어"))
+            } footer: {
+                Text(String(localized: "기기 설정에서 한국어 또는 영어를 선택할 수 있어요. 작성한 기록은 원래 언어 그대로 남아요."))
+            }
+
+            Section(String(localized: "앱 정보")) {
+                LabeledContent(String(localized: "기록 저장"), value: String(localized: "이 기기"))
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.whisperBackground)
-        .navigationTitle("설정")
+        .navigationTitle(String(localized: "설정"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if CommitmentReminderFeature.isEnabled {
@@ -471,48 +479,48 @@ struct SettingsView: View {
             .presentationDragIndicator(.visible)
         }
         .alert(
-            "알림을 설정할 수 없어요",
+            String(localized: "알림을 설정할 수 없어요"),
             isPresented: Binding(
                 get: { notificationErrorMessage != nil },
                 set: { if !$0 { notificationErrorMessage = nil } }
             )
         ) {
-            Button("확인", role: .cancel) {}
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text(notificationErrorMessage ?? "잠시 후 다시 시도해 주세요.")
+            Text(notificationErrorMessage ?? String(localized: "잠시 후 다시 시도해 주세요."))
         }
         .alert(
-            "원본이 없는 결심 알림을 중단할까요?",
+            String(localized: "원본이 없는 결심 알림을 중단할까요?"),
             isPresented: Binding(
                 get: { orphanCommitmentToStop != nil },
                 set: { if !$0 { orphanCommitmentToStop = nil } }
             )
         ) {
-            Button("취소", role: .cancel) { orphanCommitmentToStop = nil }
-            Button("알림 중단", role: .destructive) {
+            Button(String(localized: "취소"), role: .cancel) { orphanCommitmentToStop = nil }
+            Button(String(localized: "알림 중단"), role: .destructive) {
                 stopOrphanCommitment()
             }
         } message: {
-            Text("결심 상태와 예약을 중단해요. 남아 있는 다른 기록은 삭제하지 않아요.")
+            Text(String(localized: "결심 상태와 예약을 중단해요. 남아 있는 다른 기록은 삭제하지 않아요."))
         }
     }
     
     private var notificationStatusDescription: String {
         switch notificationStatus {
-        case .authorized: "허용됨"
-        case .provisional: "조용히 허용됨"
-        case .denied: "허용 안 됨"
-        case .notDetermined: "설정 필요"
-        case .ephemeral: "일시 허용"
-        @unknown default: "확인 필요"
+        case .authorized: String(localized: "허용됨")
+        case .provisional: String(localized: "조용히 허용됨")
+        case .denied: String(localized: "허용 안 됨")
+        case .notDetermined: String(localized: "설정 필요")
+        case .ephemeral: String(localized: "일시 허용")
+        @unknown default: String(localized: "확인 필요")
         }
     }
 
     private func commitmentStatus(_ commitment: WhisperCommitment) -> String {
         switch commitment.lifecycleStatus() {
-        case .active: "알림 중"
-        case .paused: "쉬는 중"
-        case .released: "중단됨"
+        case .active: String(localized: "알림 중")
+        case .paused: String(localized: "쉬는 중")
+        case .released: String(localized: "중단됨")
         }
     }
 
@@ -525,12 +533,12 @@ struct SettingsView: View {
         }
         orphanCommitmentToStop = nil
         guard recordStore.forgetCommitment(commitment) else {
-            notificationErrorMessage = "결심 상태를 저장하지 못했어요. 다시 시도해 주세요."
+            notificationErrorMessage = String(localized: "결심 상태를 저장하지 못했어요. 다시 시도해 주세요.")
             return
         }
         Task {
             if !(await CommitmentReminderCoordinator.cancel(commitmentIDs: [id], in: recordStore)) {
-                notificationErrorMessage = "예약된 알림을 정리하지 못했어요. 다시 시도해 주세요."
+                notificationErrorMessage = String(localized: "예약된 알림을 정리하지 못했어요. 다시 시도해 주세요.")
             }
         }
     }
@@ -568,14 +576,14 @@ struct SettingsView: View {
             in: recordStore
         ) {
         case let .scheduled(date):
-            debugReminderMessage = "테스트 알림을 \(date.formatted(date: .omitted, time: .standard))에 보낼게요."
+            debugReminderMessage = String(localized: "테스트 알림을 \(date.formatted(date: .omitted, time: .standard))에 보낼게요.")
         case .noActiveCommitment:
-            debugReminderMessage = "먼저 기록에서 결심 하나를 간직해 주세요."
+            debugReminderMessage = String(localized: "먼저 기록에서 결심 하나를 간직해 주세요.")
         case .authorizationUnavailable:
-            debugReminderMessage = "알림 권한을 허용한 뒤 다시 시도해 주세요."
+            debugReminderMessage = String(localized: "알림 권한을 허용한 뒤 다시 시도해 주세요.")
             await refreshNotificationStatus()
         case .failed:
-            debugReminderMessage = "테스트 알림을 예약하지 못했어요. 잠시 후 다시 시도해 주세요."
+            debugReminderMessage = String(localized: "테스트 알림을 예약하지 못했어요. 잠시 후 다시 시도해 주세요.")
         }
     }
 
@@ -584,9 +592,9 @@ struct SettingsView: View {
         defer { isSchedulingDebugReminder = false }
 
         if await CommitmentReminderCoordinator.cancelDebugReminders(in: recordStore) {
-            debugReminderMessage = "예약된 테스트 알림을 취소했어요."
+            debugReminderMessage = String(localized: "예약된 테스트 알림을 취소했어요.")
         } else {
-            debugReminderMessage = "테스트 알림을 취소하지 못했어요."
+            debugReminderMessage = String(localized: "테스트 알림을 취소하지 못했어요.")
         }
     }
 #endif
@@ -599,39 +607,39 @@ private struct FocusFilterGuideView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("집중 모드가 시작될 때 Whisper가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요.")
+                    Text(String(localized: "집중 모드가 시작될 때 Whisper가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요."))
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                     
                     guideStep(
                         number: 1,
-                        title: "iPhone 설정에서 집중 모드 선택",
-                        description: "설정 > 집중 모드에서 Whisper와 연결할 모드를 열어요."
+                        title: String(localized: "iPhone 설정에서 집중 모드 선택"),
+                        description: String(localized: "설정 > 집중 모드에서 Whisper와 연결할 모드를 열어요.")
                     )
                     guideStep(
                         number: 2,
-                        title: "집중 모드 필터에 Whisper 추가",
-                        description: "화면 아래의 필터 추가를 누르고 Whisper를 선택해요."
+                        title: String(localized: "집중 모드 필터에 Whisper 추가"),
+                        description: String(localized: "화면 아래의 필터 추가를 누르고 Whisper를 선택해요.")
                     )
                     guideStep(
                         number: 3,
-                        title: "다시 만날 마음 선택",
-                        description: "이 집중 모드가 시작될 때 다시 만날 마음을 하나 이상 선택하고 추가해요."
+                        title: String(localized: "다시 만날 마음 선택"),
+                        description: String(localized: "이 집중 모드가 시작될 때 다시 만날 마음을 하나 이상 선택하고 추가해요.")
                     )
                     guideStep(
                         number: 4,
-                        title: "Whisper 알림 허용",
-                        description: "집중 모드의 알림 허용 앱에 Whisper를 넣으면 시작과 함께 알림을 받을 수 있어요."
+                        title: String(localized: "Whisper 알림 허용"),
+                        description: String(localized: "집중 모드의 알림 허용 앱에 Whisper를 넣으면 시작과 함께 알림을 받을 수 있어요.")
                     )
                 }
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.vertical, 20)
             }
-            .navigationTitle("집중 모드 연결 방법")
+            .navigationTitle(String(localized: "집중 모드 연결 방법"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("완료") { dismiss() }
+                    Button(String(localized: "완료")) { dismiss() }
                 }
             }
         }

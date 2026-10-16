@@ -33,4 +33,15 @@ struct WhisperTypographyTests {
         }.map { String(UnicodeScalar($0.0)!) }
         #expect(missing.isEmpty, "빈 글자: \(missing.prefix(10))")
     }
+
+    @Test("화면 글꼴과 손글씨가 영어 알파벳·숫자·문장 부호를 지원한다")
+    func bundledFontsSupportEnglish() throws {
+        for name in [WhisperTypography.handwritingFontName, "NotoSansKR-Thin"] {
+            let font = try #require(UIFont(name: name, size: 18)) as CTFont
+            var characters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?':;()–…“”".utf16)
+            var glyphs = [CGGlyph](repeating: 0, count: characters.count)
+            #expect(CTFontGetGlyphsForCharacters(font, &characters, &glyphs, characters.count))
+            #expect(!glyphs.contains(0))
+        }
+    }
 }

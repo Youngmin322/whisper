@@ -40,7 +40,7 @@ struct PhotoAttachmentEditor: View {
                             )
 
                         if isLoading {
-                            ProgressView("사진을 불러오는 중이에요")
+                            ProgressView(String(localized: "사진을 불러오는 중이에요"))
                                 .font(.whisperCaption)
                         }
 
@@ -58,11 +58,11 @@ struct PhotoAttachmentEditor: View {
                             HStack(spacing: WhisperSpacing.xxSmall) {
                                 Image(systemName: "photo")
                                     .resizable().scaledToFit().frame(width: 18, height: 18)
-                                Text("사진 추가")
+                                Text(String(localized: "사진 추가"))
                             }
                             .font(.whisperControl)
                         } else {
-                            Label("사진 추가", systemImage: "photo")
+                            Label(String(localized: "사진 추가"), systemImage: "photo")
                                 .font(.whisperControl)
                         }
                         Spacer()
@@ -92,15 +92,15 @@ struct PhotoAttachmentEditor: View {
             }
         }
         .alert(
-            "사진을 불러올 수 없어요",
+            String(localized: "사진을 불러올 수 없어요"),
             isPresented: Binding(
                 get: { showsErrorAlert && loader.errorMessage != nil },
                 set: { if !$0 { loader.dismissError() } }
             )
         ) {
-            Button("확인", role: .cancel) {}
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text(loader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
+            Text(loader.errorMessage ?? String(localized: "다른 사진으로 다시 시도해 주세요."))
         }
     }
 
@@ -112,14 +112,14 @@ struct PhotoAttachmentEditor: View {
                     .scaledToFill()
                     .frame(width: 52, height: 52)
                     .clipShape(RoundedRectangle(cornerRadius: WhisperRadius.small))
-                    .accessibilityLabel("첨부한 사진")
+                    .accessibilityLabel(String(localized: "첨부한 사진"))
 
                 PhotosPicker(selection: selection, matching: .images) {
-                    Text("바꾸기")
+                    Text(String(localized: "바꾸기"))
                         .font(.whisperControl)
                         .frame(minWidth: 44, minHeight: 44)
                 }
-                .accessibilityLabel("사진 바꾸기")
+                .accessibilityLabel(String(localized: "사진 바꾸기"))
 
                 Spacer(minLength: 0)
 
@@ -130,13 +130,13 @@ struct PhotoAttachmentEditor: View {
                         .frame(width: 18, height: 18)
                         .frame(width: 44, height: 44)
                 }
-                .accessibilityLabel("사진 삭제")
+                .accessibilityLabel(String(localized: "사진 삭제"))
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color.whisperTextSecondary)
 
             if loader.isLoading {
-                ProgressView("사진을 불러오는 중이에요")
+                ProgressView(String(localized: "사진을 불러오는 중이에요"))
                     .font(.whisperCaption)
             }
         }
@@ -145,7 +145,7 @@ struct PhotoAttachmentEditor: View {
     @ViewBuilder
     private var photoActions: some View {
         PhotosPicker(selection: selection, matching: .images) {
-            Label("사진 바꾸기", systemImage: "photo")
+            Label(String(localized: "사진 바꾸기"), systemImage: "photo")
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
@@ -153,7 +153,7 @@ struct PhotoAttachmentEditor: View {
         Button(role: .destructive) {
             loader.replacePhoto(with: nil)
         } label: {
-            Label("삭제", systemImage: "trash")
+            Label(String(localized: "삭제"), systemImage: "trash")
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
@@ -175,7 +175,7 @@ struct RecordPhotoView: View {
                         style: .continuous
                     )
                 )
-                .accessibilityLabel("기록에 첨부된 사진")
+                .accessibilityLabel(String(localized: "기록에 첨부된 사진"))
         }
     }
 }

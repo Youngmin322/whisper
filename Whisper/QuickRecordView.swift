@@ -80,7 +80,7 @@ struct QuickRecordView: View {
             }
             .scrollIndicators(.hidden)
             .background(Color.whisperBackground)
-            .navigationTitle(draft.existingRecordID == nil ? "순간 남기기" : "순간 복구")
+            .navigationTitle(draft.existingRecordID == nil ? String(localized: "순간 남기기") : String(localized: "순간 복구"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -92,17 +92,17 @@ struct QuickRecordView: View {
                             .frame(width: 44, height: 44)
                     }
                     .foregroundStyle(Color.whisperTextSecondary)
-                    .accessibilityLabel("작성 화면 닫기")
-                    .accessibilityHint("작성 중인 초안을 보관해요.")
+                    .accessibilityLabel(String(localized: "작성 화면 닫기"))
+                    .accessibilityHint(String(localized: "작성 중인 초안을 보관해요."))
                     .accessibilityIdentifier("record.closeButton")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(draft.existingRecordID == nil ? "저장" : "새 순간으로 저장", action: save)
+                    Button(draft.existingRecordID == nil ? String(localized: "저장") : String(localized: "새 순간으로 저장"), action: save)
                         .font(.whisperAction)
                         .tint(Color.whisperAccent)
                         .buttonStyle(.glassProminent)
                         .disabled(!canSave)
-                        .accessibilityLabel("순간 저장")
+                        .accessibilityLabel(String(localized: "순간 저장"))
                         .accessibilityIdentifier("record.saveButton")
                 }
             }
@@ -142,24 +142,24 @@ struct QuickRecordView: View {
             }
             photoLoader.cancelLoading()
         }
-        .alert("초안을 보관할 수 없어요", isPresented: $isDraftErrorPresented) {
-            Button("확인", role: .cancel) {}
+        .alert(String(localized: "초안을 보관할 수 없어요"), isPresented: $isDraftErrorPresented) {
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text("작성한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.")
+            Text(String(localized: "작성한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요."))
         }
-        .alert("기록을 저장할 수 없어요", isPresented: $isSaveErrorPresented) {
-            Button("다시 시도", action: save)
-            Button("계속 작성", role: .cancel) {}
+        .alert(String(localized: "기록을 저장할 수 없어요"), isPresented: $isSaveErrorPresented) {
+            Button(String(localized: "다시 시도"), action: save)
+            Button(String(localized: "계속 작성"), role: .cancel) {}
         } message: {
-            Text("작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요.")
+            Text(String(localized: "작성한 내용은 그대로 두었어요. 잠시 후 다시 시도해 주세요."))
         }
-        .alert("사진을 불러올 수 없어요", isPresented: Binding(
+        .alert(String(localized: "사진을 불러올 수 없어요"), isPresented: Binding(
             get: { photoLoader.errorMessage != nil },
             set: { if !$0 { photoLoader.dismissError() } }
         )) {
-            Button("확인", role: .cancel) { photoLoader.dismissError() }
+            Button(String(localized: "확인"), role: .cancel) { photoLoader.dismissError() }
         } message: {
-            Text(photoLoader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.")
+            Text(photoLoader.errorMessage ?? String(localized: "다른 사진으로 다시 시도해 주세요."))
         }
     }
 
@@ -209,7 +209,7 @@ struct QuickRecordView: View {
     @ViewBuilder
     private var recoveryNotice: some View {
         if draft.existingRecordID != nil {
-            Text("원본 순간이 삭제되었어요. 보관한 수정 초안은 오늘의 새 순간으로 저장할 수 있어요.")
+            Text(String(localized: "원본 순간이 삭제되었어요. 보관한 수정 초안은 오늘의 새 순간으로 저장할 수 있어요."))
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextPrimary)
                 .accessibilityIdentifier("record.deletedSourceNotice")
@@ -217,7 +217,7 @@ struct QuickRecordView: View {
     }
 
     private var titleField: some View {
-        TextField("이 순간의 제목 · 선택 사항", text: $draft.title)
+        TextField(String(localized: "이 순간의 제목 · 선택 사항"), text: $draft.title)
             .font(.whisperHandwriting(28))
             .foregroundStyle(Color.whisperTextPrimary)
             .tint(Color.whisperAccentText)
@@ -229,7 +229,7 @@ struct QuickRecordView: View {
             .overlay(alignment: .bottom) {
                 Color.whisperDivider.frame(height: 1)
             }
-            .accessibilityLabel("순간 제목, 선택 사항")
+            .accessibilityLabel(String(localized: "순간 제목, 선택 사항"))
             .accessibilityIdentifier("record.titleField")
     }
 
@@ -264,7 +264,7 @@ struct QuickRecordView: View {
             HStack(spacing: WhisperSpacing.xxSmall) {
                 if let emotion = selectedEmotion {
                     emotionArtwork(emotion, size: 28).accessibilityHidden(true)
-                    Text(emotion.rawValue)
+                    Text(emotion.displayName)
                     Image(systemName: "chevron.down")
                         .resizable()
                         .scaledToFit()
@@ -278,17 +278,17 @@ struct QuickRecordView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("감정 바꾸기, 현재 \(draft.emotion ?? "선택 안 함")")
+        .accessibilityLabel(String(localized: "감정 바꾸기, 현재 \(WhisperEmotion.displayName(for: draft.emotion) ?? String(localized: "선택 안 함"))"))
         .accessibilityIdentifier("record.changeEmotionButton")
     }
 
     private var moodSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("지금 내 마음은 어떤가요?")
+            Text(String(localized: "지금 내 마음은 어떤가요?"))
                 .font(.whisperHandwriting(31))
                 .foregroundStyle(Color.whisperTextPrimary)
 
-            Text("가장 가까운 감정 하나를 골라보세요.")
+            Text(String(localized: "가장 가까운 감정 하나를 골라보세요."))
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .padding(.top, WhisperSpacing.xSmall)
@@ -300,7 +300,7 @@ struct QuickRecordView: View {
             }
             .padding(.top, 36)
 
-            Text("정확한 이름이 아니어도 괜찮아요.\n지금 가장 먼저 떠오르는 마음을 골라요.")
+            Text(String(localized: "정확한 이름이 아니어도 괜찮아요.\n지금 가장 먼저 떠오르는 마음을 골라요."))
                 .font(.whisperHandwriting(17))
                 .foregroundStyle(Color.whisperTextSecondary)
                 .multilineTextAlignment(.center)
@@ -312,7 +312,7 @@ struct QuickRecordView: View {
                 .frame(height: 1)
                 .padding(.top, 61)
 
-            Text("감정을 고르면 글쓰기 영역이 열려요")
+            Text(String(localized: "감정을 고르면 글쓰기 영역이 열려요"))
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .frame(maxWidth: .infinity)
@@ -336,7 +336,7 @@ struct QuickRecordView: View {
             VStack(spacing: WhisperSpacing.xSmall) {
                 emotionArtwork(emotion, size: 53)
                     .frame(height: 64)
-                Text(emotion.rawValue)
+                Text(emotion.displayName)
                     .font(.whisperControl)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -349,8 +349,8 @@ struct QuickRecordView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(emotion.rawValue)
-        .accessibilityHint("선택하면 글쓰기 영역이 열려요.")
+        .accessibilityLabel(emotion.displayName)
+        .accessibilityHint(String(localized: "선택하면 글쓰기 영역이 열려요."))
         .accessibilityIdentifier("record.emotion.\(emotion.id)")
     }
 
@@ -369,8 +369,9 @@ struct QuickRecordView: View {
                 get: { focusedField == .content },
                 set: { isBodyFocused = $0 }
             ), fillsHeight: true, minimumHeight: 64,
-               placeholder: "기억하고 싶은 순간을 적어보세요.",
+               placeholder: String(localized: "기억하고 싶은 순간을 적어보세요."),
                accessibilityIdentifier: "record.contentField",
+               editorAccessibilityLabel: String(localized: "순간 본문"),
                onSelectionChange: { photoInsertionOffset = $0 },
                onPhotoTap: { selectedPhoto = $0 })
                 .frame(height: editorHeight)
@@ -381,11 +382,11 @@ struct QuickRecordView: View {
                     .foregroundStyle(draft.content.count > RecordDraft.contentLimit ? .red : Color.whisperTextSecondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .accessibilityLabel(
-                        "현재 \(draft.content.count)자, 최대 \(RecordDraft.contentLimit)자"
+                        String(localized: "현재 \(draft.content.count)자, 최대 \(RecordDraft.contentLimit)자")
                     )
             }
             if draft.content.count > RecordDraft.contentLimit {
-                Text("최대 1,000자까지 저장할 수 있어요. 내용을 줄여 주세요.")
+                Text(String(localized: "최대 1,000자까지 저장할 수 있어요. 내용을 줄여 주세요."))
                     .font(.whisperCaption)
                     .foregroundStyle(.red)
             }
@@ -430,7 +431,7 @@ struct QuickRecordView: View {
                 Image(systemName: draft.photoData == nil ? "photo" : "photo.fill")
                     .resizable().scaledToFit().frame(width: 18, height: 18)
             }
-            Text("사진")
+            Text(String(localized: "사진"))
         }
         .frame(minWidth: 44, minHeight: 44)
     }
@@ -441,9 +442,9 @@ struct QuickRecordView: View {
             Button { focusedField = nil; isPhotoPickerPresented = true } label: { photoButtonLabel }
             .fixedSize(horizontal: true, vertical: false)
             .disabled(photoLoader.isLoading)
-            .accessibilityLabel("사진")
-            .accessibilityValue(photoLoader.isLoading ? "불러오는 중" : draft.diaryDocument.photos.isEmpty ? "첨부 없음" : "\(draft.diaryDocument.photos.count)장 첨부됨")
-            .accessibilityHint("여러 장의 사진을 선택해 본문에 추가해요.")
+            .accessibilityLabel(String(localized: "사진"))
+            .accessibilityValue(photoLoader.isLoading ? String(localized: "불러오는 중") : draft.diaryDocument.photos.isEmpty ? String(localized: "첨부 없음") : String(localized: "\(draft.diaryDocument.photos.count)장 첨부됨"))
+            .accessibilityHint(String(localized: "여러 장의 사진을 선택해 본문에 추가해요."))
             .accessibilityIdentifier("record.photoButton")
 
             Button {
@@ -455,13 +456,13 @@ struct QuickRecordView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 18, height: 18)
-                    Text("제목")
+                    Text(String(localized: "제목"))
                 }
                 .frame(minWidth: 44, minHeight: 44)
             }
             .fixedSize(horizontal: true, vertical: false)
-            .accessibilityValue(draft.title.isEmpty ? "입력 없음" : draft.title)
-            .accessibilityHint(isTitleVisible ? "제목 영역을 접어요." : "본문 위에 제목을 입력해요.")
+            .accessibilityValue(draft.title.isEmpty ? String(localized: "입력 없음") : draft.title)
+            .accessibilityHint(isTitleVisible ? String(localized: "제목 영역을 접어요.") : String(localized: "본문 위에 제목을 입력해요."))
             .accessibilityIdentifier("record.titleButton")
         }
     }
@@ -476,7 +477,7 @@ struct QuickRecordView: View {
                     .frame(width: 20, height: 20)
                     .frame(width: 44, height: 44)
             }
-            .accessibilityLabel("키보드 내리기")
+            .accessibilityLabel(String(localized: "키보드 내리기"))
             .accessibilityIdentifier("record.dismissKeyboardButton")
         }
     }

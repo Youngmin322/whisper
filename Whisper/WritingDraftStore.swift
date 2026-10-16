@@ -123,7 +123,7 @@ final class WritingDraftStore {
 
     func reload() {
         guard let context else {
-            errorMessage = "초안을 보관할 저장소를 사용할 수 없어요."
+            errorMessage = String(localized: "초안을 보관할 저장소를 사용할 수 없어요.")
             return
         }
         do {
@@ -160,7 +160,7 @@ final class WritingDraftStore {
                 + pendingJournals.values.sorted { $0.day.key > $1.day.key }
             if pendingMoments.isEmpty && pendingMomentEdits.isEmpty && pendingJournals.isEmpty { errorMessage = nil }
         } catch {
-            errorMessage = "보관한 초안을 불러오지 못했어요. 현재 작성 내용은 화면에 남아 있어요."
+            errorMessage = String(localized: "보관한 초안을 불러오지 못했어요. 현재 작성 내용은 화면에 남아 있어요.")
         }
     }
 
@@ -181,7 +181,7 @@ final class WritingDraftStore {
 
     private func write(_ change: () throws -> Void, onSuccess: () -> Void) -> Bool {
         guard let context else {
-            errorMessage = "초안을 보관할 저장소를 사용할 수 없어요."
+            errorMessage = String(localized: "초안을 보관할 저장소를 사용할 수 없어요.")
             return false
         }
         do {
@@ -193,7 +193,7 @@ final class WritingDraftStore {
         } catch {
             context.rollback()
             reload()
-            errorMessage = "초안을 임시 저장하지 못했어요. 앱을 닫기 전에 다시 시도해 주세요."
+            errorMessage = String(localized: "초안을 임시 저장하지 못했어요. 앱을 닫기 전에 다시 시도해 주세요.")
             return false
         }
     }

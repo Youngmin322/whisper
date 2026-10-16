@@ -143,7 +143,7 @@ struct WhisperFocusFilter: SetFocusFilterIntent {
             )
         )
         let content = UNMutableNotificationContent()
-        content.title = "다시 만난 불꽃"
+        content.title = String(localized: "다시 만난 불꽃")
         content.subtitle = copy.subtitle ?? ""
         content.body = copy.body
         content.sound = .default

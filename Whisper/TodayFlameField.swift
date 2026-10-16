@@ -55,7 +55,7 @@ struct TodayFlameField: View {
                             .position(point)
                             .opacity(progress > 0.84 ? (1 - progress) / 0.16 : 1)
                             .disabled(progress > 0)
-                            .accessibilityLabel("\(record.emotion ?? "감정 미선택") 불꽃, \(record.content), 순간 열기")
+                            .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: record.emotion) ?? String(localized: "감정 미선택")) 불꽃, \(record.content), 순간 열기"))
                             .accessibilityIdentifier("home.flame.\(record.id.uuidString)")
                         }
                     }

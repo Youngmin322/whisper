@@ -11,9 +11,9 @@ struct JournalMemorySearchView: View {
         Group {
             if index.days.isEmpty {
                 ContentUnavailableView {
-                    Label("아직 남긴 기록이 없어요", systemImage: "calendar")
+                    Label(String(localized: "아직 남긴 기록이 없어요"), systemImage: "calendar")
                 } description: {
-                    Text("일기와 아직 담지 않은 순간을 제목·내용·감정으로 찾을 수 있어요.")
+                    Text(String(localized: "일기와 아직 담지 않은 순간을 제목·내용·감정으로 찾을 수 있어요."))
                 }
             } else if results.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -28,7 +28,7 @@ struct JournalMemorySearchView: View {
                             if let record = recordStore.record(withID: result.recordID) {
                                 RecordDetailView(record: record, recordStore: recordStore)
                             } else {
-                                ContentUnavailableView("순간을 찾을 수 없어요", systemImage: "flame")
+                                ContentUnavailableView(String(localized: "순간을 찾을 수 없어요"), systemImage: "flame")
                             }
                         }
                     } label: {
@@ -43,10 +43,10 @@ struct JournalMemorySearchView: View {
             }
         }
         .background(Color.whisperBackground.ignoresSafeArea())
-        .navigationTitle("기억 찾기")
+        .navigationTitle(String(localized: "기억 찾기"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "일기와 순간에서 검색")
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: String(localized: "일기와 순간에서 검색"))
         .textInputAutocapitalization(.never)
     }
 

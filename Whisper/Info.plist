@@ -5,6 +5,7 @@
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>ko</string>
+        <string>en</string>
 	</array>
 	<key>UIAppFonts</key>
 	<array>

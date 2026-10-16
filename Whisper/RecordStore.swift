@@ -19,10 +19,10 @@ enum JournalDraftSaveFailure: Equatable {
 
     var message: String {
         switch self {
-        case .emptyBody: "일기 내용을 입력해 주세요."
-        case .sourceDeleted: "원본 일기가 삭제되었어요. 초안은 남아 있으니 새 일기로 저장해 주세요."
-        case .dayConflict: "선택한 날짜에는 이미 일기가 있어요. 복구할 날짜를 바꿔 주세요. 초안과 기존 일기는 그대로 남아 있어요."
-        case .storageFailure: "작성한 내용은 이 화면에 남아 있어요. 임시 저장 상태를 확인하고 다시 시도해 주세요."
+        case .emptyBody: String(localized: "일기 내용을 입력해 주세요.")
+        case .sourceDeleted: String(localized: "원본 일기가 삭제되었어요. 초안은 남아 있으니 새 일기로 저장해 주세요.")
+        case .dayConflict: String(localized: "선택한 날짜에는 이미 일기가 있어요. 복구할 날짜를 바꿔 주세요. 초안과 기존 일기는 그대로 남아 있어요.")
+        case .storageFailure: String(localized: "작성한 내용은 이 화면에 남아 있어요. 임시 저장 상태를 확인하고 다시 시도해 주세요.")
         }
     }
 }
@@ -1990,11 +1990,11 @@ final class RecordStore {
     private func setUnavailablePersistenceError() {
         isPersistenceAvailable = false
         if persistenceError == nil {
-            persistenceError = "기록 저장소를 사용할 수 없어요."
+            persistenceError = String(localized: "기록 저장소를 사용할 수 없어요.")
             persistenceSupportCode = "WSP-STORAGE-UNAVAILABLE"
             persistenceDiagnosticSummary = [
-                "Whisper 저장소를 사용할 수 없음",
-                "지원 코드: WSP-STORAGE-UNAVAILABLE"
+                String(localized: "Whisper 저장소를 사용할 수 없음"),
+                String(localized: "지원 코드: WSP-STORAGE-UNAVAILABLE")
             ].joined(separator: "\n")
         }
     }

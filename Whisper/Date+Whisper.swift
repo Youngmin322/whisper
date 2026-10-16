@@ -9,7 +9,7 @@ extension Date {
     var whisperDayDescription: String {
         formatted(
             Date.FormatStyle(calendar: JournalDayKey.calendar())
-                .locale(Locale(identifier: "ko_KR"))
+                .locale(WhisperLocalization.locale)
                 .month(.wide)
                 .day()
                 .weekday(.wide)
@@ -19,7 +19,7 @@ extension Date {
     var whisperFullDayDescription: String {
         formatted(
             Date.FormatStyle(calendar: JournalDayKey.calendar())
-                .locale(Locale(identifier: "ko_KR"))
+                .locale(WhisperLocalization.locale)
                 .year()
                 .month(.wide)
                 .day()
@@ -30,14 +30,14 @@ extension Date {
     var whisperRecordHeaderDescription: String {
         let date = formatted(
             Date.FormatStyle(calendar: JournalDayKey.calendar())
-                .locale(Locale(identifier: "ko_KR"))
+                .locale(WhisperLocalization.locale)
                 .year()
                 .month(.wide)
                 .day()
         )
         let weekday = formatted(
             Date.FormatStyle(calendar: JournalDayKey.calendar())
-                .locale(Locale(identifier: "ko_KR"))
+                .locale(WhisperLocalization.locale)
                 .weekday(.wide)
         )
         return "\(date) · \(weekday)"
@@ -46,7 +46,7 @@ extension Date {
     var whisperTimeDescription: String {
         formatted(
             Date.FormatStyle(calendar: JournalDayKey.calendar())
-                .locale(Locale(identifier: "ko_KR"))
+                .locale(WhisperLocalization.locale)
                 .hour()
                 .minute()
         )
@@ -55,7 +55,7 @@ extension Date {
     var whisperDateDescription: String {
         formatted(
             Date.FormatStyle(calendar: JournalDayKey.calendar())
-                .locale(Locale(identifier: "ko_KR"))
+                .locale(WhisperLocalization.locale)
                 .year()
                 .month(.wide)
                 .day()
@@ -65,7 +65,7 @@ extension Date {
     var whisperDateTimeDescription: String {
         formatted(
             Date.FormatStyle(calendar: JournalDayKey.calendar())
-                .locale(Locale(identifier: "ko_KR"))
+                .locale(WhisperLocalization.locale)
                 .year()
                 .month(.wide)
                 .day()

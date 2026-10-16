@@ -30,13 +30,13 @@ struct FlameHomeScreen: View {
                 VStack(spacing: 12) {
                     Spacer()
                     Text(recordStore.journal(on: day) == nil
-                         ? "아직 오늘의 불꽃이 없어요"
-                         : "오늘의 불꽃을 병에 담았어요")
+                         ? String(localized: "아직 오늘의 불꽃이 없어요")
+                         : String(localized: "오늘의 불꽃을 병에 담았어요"))
                         .font(.whisperHandwriting(24))
                         .foregroundStyle(Color.whisperTextPrimary)
                     Text(recordStore.journal(on: day) == nil
-                         ? "떠오른 순간 하나를 남겨보세요"
-                         : "새로운 순간이 떠오르면 또 남겨보세요")
+                         ? String(localized: "떠오른 순간 하나를 남겨보세요")
+                         : String(localized: "새로운 순간이 떠오르면 또 남겨보세요"))
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                     Spacer()
@@ -59,16 +59,16 @@ struct FlameHomeScreen: View {
             ToolbarSpacer(.flexible, placement: .bottomBar)
 
             ToolbarItem(placement: .bottomBar) {
-                HomeActionButton(title: "병에 담기", image: Image("BottleLineIcon"), action: collect)
+                HomeActionButton(title: String(localized: "병에 담기"), image: Image("BottleLineIcon"), action: collect)
                     .disabled(records.isEmpty || collectionStartedAt != nil)
                     .accessibilityIdentifier("home.journalButton")
-                    .accessibilityHint("오늘 남긴 순간을 모아 일기를 작성해요.")
+                    .accessibilityHint(String(localized: "오늘 남긴 순간을 모아 일기를 작성해요."))
             }
 
             ToolbarSpacer(.fixed, placement: .bottomBar)
 
             ToolbarItem(placement: .bottomBar) {
-                HomeActionButton(title: "순간 남기기", image: Image(systemName: "plus"), action: onAddMoment)
+                HomeActionButton(title: String(localized: "순간 남기기"), image: Image(systemName: "plus"), action: onAddMoment)
                     .accessibilityIdentifier("home.recordButton")
                     .disabled(collectionStartedAt != nil)
             }
@@ -123,26 +123,26 @@ struct FlameHomeScreen: View {
 
     private var timeProposal: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("오후 10:00 · 오늘을 돌아볼 시간")
+            Text(String(localized: "\(day.reflectionTimeDescription) · 오늘을 돌아볼 시간"))
                 .font(.whisperMetadata)
                 .foregroundStyle(Color.whisperAccentText)
                 .padding(.top, 44)
-            Text("오늘의 순간을\n일기로 모아볼까요?")
+            Text(String(localized: "오늘의 순간을\n일기로 모아볼까요?"))
                 .font(.custom("NotoSansKR-Thin", size: 22, relativeTo: .title2))
                 .foregroundStyle(Color.whisperTextPrimary)
                 .lineSpacing(5)
                 .padding(.top, 18)
-            Text("나중에 해도 기록은 그대로 남아요.")
+            Text(String(localized: "나중에 해도 기록은 그대로 남아요."))
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .padding(.top, 24)
             Spacer()
-            Button("병에 담고 일기 쓰기") {
+            Button(String(localized: "병에 담고 일기 쓰기")) {
                 isTimeProposalPresented = false
                 collect()
             }
             .buttonStyle(.whisperPrimary)
-            Button("나중에") { isTimeProposalPresented = false }
+            Button(String(localized: "나중에")) { isTimeProposalPresented = false }
                 .font(.whisperControl)
                 .foregroundStyle(Color.whisperAccentText)
                 .frame(maxWidth: .infinity, minHeight: 52)

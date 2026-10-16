@@ -11,12 +11,12 @@ struct JournalArchiveDay: Identifiable {
     var canCollect: Bool { hasUncollectedMoments && journals.count <= 1 }
 
     var collectionTitle: String {
-        hasJournal ? "새 순간 \(uncollectedMoments.count)개 함께 담기" : "이날의 순간 병에 담기"
+        hasJournal ? String(localized: "새 순간 \(uncollectedMoments.count)개 함께 담기") : String(localized: "이날의 순간 병에 담기")
     }
 
     var accessibilityDescription: String {
-        let journalText = hasJournal ? "담긴 하루 \(journals.count)개" : ""
-        let momentText = hasUncollectedMoments ? "아직 담지 않은 순간 \(uncollectedMoments.count)개" : ""
+        let journalText = hasJournal ? String(localized: "담긴 하루 \(journals.count)개") : ""
+        let momentText = hasUncollectedMoments ? String(localized: "아직 담지 않은 순간 \(uncollectedMoments.count)개") : ""
         return [day.fullDescription, journalText, momentText].filter { !$0.isEmpty }.joined(separator: ", ")
     }
 }
@@ -25,7 +25,7 @@ struct JournalArchiveSearchResult: Identifiable {
     enum Kind: String {
         case journal, moment
 
-        var label: String { self == .journal ? "일기" : "미보관 순간" }
+        var label: String { self == .journal ? String(localized: "일기") : String(localized: "미보관 순간") }
     }
 
     let kind: Kind
@@ -47,6 +47,10 @@ struct JournalSearchText: Equatable {
     /// A nil ID refers to the result itself; an ID refers to a collected source moment.
     let sourceID: UUID?
     let text: String
+
+    static func emotionNames(_ value: String?, sourceID: UUID?) -> [Self] {
+        WhisperEmotion.searchNames(for: value).map { Self(field: .emotion, sourceID: sourceID, text: $0) }
+    }
 }
 
 struct JournalSearchMatch: Equatable {
@@ -65,14 +69,16 @@ struct JournalSearchContext: Equatable {
     func description(for kind: JournalArchiveSearchResult.Kind) -> String? {
         guard let first = matches.first else { return nil }
         if first.sourceID != nil {
-            return sourceIDs.count > 1 ? "담아 둔 순간 \(sourceIDs.count)개에서 찾았어요" : "담아 둔 순간에서 찾았어요"
+            return sourceIDs.count > 1 ? String(localized: "담아 둔 순간 \(sourceIDs.count)개에서 찾았어요") : String(localized: "담아 둔 순간에서 찾았어요")
         }
-        let name = kind == .journal ? "일기" : "순간"
-        switch first.field {
-        case .body: return "\(name) 본문에서 찾았어요"
-        case .reflection: return "일기 회고에서 찾았어요"
-        case .title: return "\(name) 제목에서 찾았어요"
-        case .emotion: return "\(name) 감정에서 찾았어요"
+        switch (kind, first.field) {
+        case (.journal, .body): return String(localized: "일기 본문에서 찾았어요")
+        case (.moment, .body): return String(localized: "순간 본문에서 찾았어요")
+        case (_, .reflection): return String(localized: "일기 회고에서 찾았어요")
+        case (.journal, .title): return String(localized: "일기 제목에서 찾았어요")
+        case (.moment, .title): return String(localized: "순간 제목에서 찾았어요")
+        case (.journal, .emotion): return String(localized: "일기 감정에서 찾았어요")
+        case (.moment, .emotion): return String(localized: "순간 감정에서 찾았어요")
         }
     }
 }
@@ -126,21 +132,19 @@ struct JournalArchiveIndex {
                 var texts = [
                     JournalSearchText(field: .body, sourceID: nil, text: journal.body),
                     JournalSearchText(field: .reflection, sourceID: nil, text: journal.reflection),
-                    JournalSearchText(field: .title, sourceID: nil, text: journal.title),
-                    JournalSearchText(field: .emotion, sourceID: nil, text: journal.emotion ?? "")
-                ]
+                    JournalSearchText(field: .title, sourceID: nil, text: journal.title)
+                ] + JournalSearchText.emotionNames(journal.emotion, sourceID: nil)
                 for id in journal.sourceRecordIDs {
                     guard let source = recordsByID[id] else { continue }
                     texts += [
                         JournalSearchText(field: .body, sourceID: id, text: source.content),
-                        JournalSearchText(field: .title, sourceID: id, text: source.title),
-                        JournalSearchText(field: .emotion, sourceID: id, text: source.emotion ?? "")
-                    ]
+                        JournalSearchText(field: .title, sourceID: id, text: source.title)
+                    ] + JournalSearchText.emotionNames(source.emotion, sourceID: id)
                 }
                 let title = journal.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 results.append(JournalArchiveSearchResult(
                     kind: .journal, recordID: journal.id, day: entry.day, createdAt: journal.date,
-                    title: title.isEmpty ? "이날의 하루" : title, preview: journal.body,
+                    title: title.isEmpty ? String(localized: "이날의 하루") : title, preview: journal.body,
                     emotion: journal.emotion, searchableTexts: texts
                 ))
             }
@@ -148,13 +152,12 @@ struct JournalArchiveIndex {
                 let title = moment.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 results.append(JournalArchiveSearchResult(
                     kind: .moment, recordID: moment.id, day: entry.day, createdAt: moment.createdAt,
-                    title: title.isEmpty ? "남겨둔 순간" : title, preview: moment.content,
+                    title: title.isEmpty ? String(localized: "남겨둔 순간") : title, preview: moment.content,
                     emotion: moment.emotion,
                     searchableTexts: [
                         JournalSearchText(field: .body, sourceID: nil, text: moment.content),
-                        JournalSearchText(field: .title, sourceID: nil, text: moment.title),
-                        JournalSearchText(field: .emotion, sourceID: nil, text: moment.emotion ?? "")
-                    ]
+                        JournalSearchText(field: .title, sourceID: nil, text: moment.title)
+                    ] + JournalSearchText.emotionNames(moment.emotion, sourceID: nil)
                 ))
             }
         }
