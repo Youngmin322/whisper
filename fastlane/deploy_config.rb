@@ -14,7 +14,7 @@ module WhisperDeploy
 
   def self.individual_api_key_options(env: ENV)
     issuer_names = %w[ASC_ISSUER_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID SPACESHIP_CONNECT_API_ISSUER_ID]
-    conflict = issuer_names.find { |name| !env[name].to_s.strip.empty? }
+    conflict = issuer_names.find { |name| env.key?(name) }
     raise "Use an individual API key without an issuer ID; unset #{conflict}" if conflict
 
     {

@@ -20,13 +20,15 @@ class DeployConfigTest < Minitest::Test
 
   def test_team_issuer_environment_cannot_override_individual_authentication
     %w[ASC_ISSUER_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID SPACESHIP_CONNECT_API_ISSUER_ID].each do |name|
-      error = assert_raises(RuntimeError) do
-        WhisperDeploy.individual_api_key_options(env: {
-          "ASC_KEY_ID" => "EXAMPLE123", "ASC_KEY_P8_BASE64" => "test-key", name => "unwanted-team-issuer"
-        })
+      ["", " ", "unwanted-team-issuer"].each do |value|
+        error = assert_raises(RuntimeError) do
+          WhisperDeploy.individual_api_key_options(env: {
+            "ASC_KEY_ID" => "EXAMPLE123", "ASC_KEY_P8_BASE64" => "test-key", name => value
+          })
+        end
+        assert_includes error.message, name
+        refute_includes error.message, "unwanted-team-issuer"
       end
-      assert_includes error.message, name
-      refute_includes error.message, "unwanted-team-issuer"
     end
   end
 
