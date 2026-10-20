@@ -66,7 +66,7 @@ npx wrangler login --device --scopes account:read user:read workers_scripts:writ
 npm run deploy
 ```
 
-출력된 Worker URL을 기록합니다. `/health`는 `{"ok":true}`를 반환합니다. 처음에는 Slack ID와 비밀 값이 없으므로 명령 실행은 거부합니다.
+출력된 Worker URL을 기록합니다. `/health`는 `{"ok":true}`를 반환합니다. 처음에는 Slack ID와 비밀 값이 없으므로 명령 실행은 거부합니다. Slack 서명 키와 허용 ID를 연결하면 GitHub 토큰을 등록하기 전에도 `help`는 응답합니다. 이때 실제 배포 명령은 연결 미완료 안내만 반환하며 Actions를 실행하지 않습니다.
 
 Wrangler 로그인 승인 화면에서는 계정·사용자 읽기, **Workers Scripts Write**, 로그인 유지 권한을 확인하고 승인합니다. 일반 `workers:write`만으로는 Worker 배포 API에 접근할 수 없습니다. 기기 인증 방식은 `localhost` 콜백을 사용하지 않습니다. CLI에 표시된 유효 시간 안에 승인을 완료하며, 만료됐다면 로그인 명령을 다시 실행합니다. 유료 플랜 신청은 이 단계에 포함되지 않습니다.
 

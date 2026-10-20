@@ -32,7 +32,7 @@ export function parseCommand(command, text, env) {
 }
 
 function validConfiguration(env) {
-  return ["SLACK_SIGNING_SECRET", "GITHUB_TOKEN", "SLACK_TEAM_ID", "SLACK_ALLOWED_USER_IDS", "SLACK_ALLOWED_CHANNEL_IDS", "DEFAULT_BRANCH", "ALLOWED_BRANCHES", "GITHUB_WORKFLOW_REF"]
+  return ["SLACK_SIGNING_SECRET", "SLACK_TEAM_ID", "SLACK_ALLOWED_USER_IDS", "SLACK_ALLOWED_CHANNEL_IDS", "DEFAULT_BRANCH", "ALLOWED_BRANCHES", "GITHUB_WORKFLOW_REF"]
     .every((key) => env[key]?.trim() && !env[key].includes("REPLACE_WITH"))
     && /^[\w.-]+\/[\w.-]+$/.test(env.GITHUB_REPOSITORY ?? "")
     && /^[\w.-]+\.ya?ml$/.test(env.GITHUB_WORKFLOW ?? "")
@@ -107,6 +107,7 @@ export async function handleRequest(request, env, ctx, fetcher = fetch) {
   try { inputs = parseCommand(command, form.get("text") ?? "", env); }
   catch (error) { return reply(error.message); }
   if (inputs.help) return reply(`/testflight [브랜치]: 내부 테스트 빌드 업로드 (${env.ALLOWED_BRANCHES})\n/review 버전 빌드번호: 기존 빌드 심사 제출`);
+  if (!env.GITHUB_TOKEN?.trim() || env.GITHUB_TOKEN.includes("REPLACE_WITH")) return reply("GitHub Actions 실행 권한을 아직 연결하지 않았어요. 관리자에게 연결 상태를 확인해주세요.");
   const callback = responseURL(form.get("response_url"));
   if (!callback) return reply("Slack 응답 주소가 올바르지 않아요.", 400);
   inputs.requester = form.get("user_id");

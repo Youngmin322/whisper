@@ -90,6 +90,22 @@ test("help does not trigger a deployment", async () => {
   assert.match((await response.json()).text, /\/review/); assert.equal(h.calls.length, 0);
 });
 
+test("help remains available before GitHub is connected", async () => {
+  const h = harness({ configuration: { ...env, GITHUB_TOKEN: "" } });
+  const response = await h.run(request({ text: "help" })); await h.finish();
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).text, /\/testflight/);
+  assert.equal(h.calls.length, 0);
+});
+
+test("missing GitHub credentials explain setup without dispatching", async () => {
+  const h = harness({ configuration: { ...env, GITHUB_TOKEN: "" } });
+  const response = await h.run(request()); await h.finish();
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).text, /GitHub Actions 실행 권한/);
+  assert.equal(h.calls.length, 0);
+});
+
 test("Slack retries do not trigger another deployment", async () => {
   const h = harness(); await h.run(request({}, { headers: { "x-slack-retry-num": "1" } }));
   await h.finish(); assert.equal(h.calls.length, 0);
