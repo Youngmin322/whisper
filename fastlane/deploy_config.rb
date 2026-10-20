@@ -6,10 +6,25 @@ module WhisperDeploy
   APP_IDENTIFIER = "co.kr.youngmin.Whisper".freeze
   TEAM_ID = "5R33532VPH".freeze
 
-  def self.required(name)
-    value = ENV[name]
+  def self.required(name, env: ENV)
+    value = env[name]
     raise "Missing deployment secret: #{name}" if value.nil? || value.strip.empty?
     value
+  end
+
+  def self.individual_api_key_options(env: ENV)
+    issuer_names = %w[ASC_ISSUER_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID SPACESHIP_CONNECT_API_ISSUER_ID]
+    conflict = issuer_names.find { |name| !env[name].to_s.strip.empty? }
+    raise "Use an individual API key without an issuer ID; unset #{conflict}" if conflict
+
+    {
+      key_id: required("ASC_KEY_ID", env: env),
+      issuer_id: nil,
+      key_content: required("ASC_KEY_P8_BASE64", env: env),
+      is_key_content_base64: true,
+      duration: 1200,
+      in_house: false
+    }
   end
 
   def self.decode_secret(name)

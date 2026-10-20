@@ -26,18 +26,24 @@ App Store Connect에서 Whisper의 **내부 테스트 그룹**을 만들고 팀�
 
 암호화 답변은 기존 App Store Connect 설정과 앱이 사용하는 암호화 기능을 확인해 정합니다. 이 값은 TestFlight의 빌드 처리에 필요합니다.
 
-App Store Connect → Users and Access → Integrations에서 앱 관리와 심사 제출 권한이 있는 API 키를 준비합니다. Apple Developer에서 이 앱·팀에 맞는 **App Store Connect 배포용 provisioning profile**을 준비하고, 그 프로필과 일치하는 Apple Distribution 인증서와 개인 키를 키체인에서 암호가 있는 `.p12`로 내보냅니다.
+이 구성은 **Whisper만 접근할 수 있는 사용자의 개별 API 키**를 사용합니다. 계정 설정과 키 등록은 본인이 사용하는 브라우저·터미널에서 직접 진행합니다. 비밀번호·인증번호·키 파일이나 계정 전체 화면을 공유할 필요는 없습니다.
 
-현재 인증 코드는 Issuer ID가 있는 **팀 API 키**를 사용합니다. 팀 키는 역할을 제한할 수 있지만 **특정 앱으로 접근 범위를 제한할 수 없습니다**. 코드의 Whisper 앱 ID 검사는 잘못된 앱 배포를 막는 용도이며, 유출된 키 자체의 권한을 제한하지는 않습니다. Whisper만 접근하도록 제한해야 한다면 사용자별 앱 접근 권한과 개별 API 키 방식부터 검토하고 인증 구성을 변경해야 합니다. [Apple API 키 권한 안내](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api/)
+1. 기존 소유자 계정의 Users and Access → People에서 별도 사용자를 추가합니다. 역할은 **App Manager**, 앱 접근은 **Whisper만** 선택합니다. 보고서와 Certificates, Identifiers & Profiles 접근 권한은 추가하지 않습니다. 이미 같은 제한이 적용된 사용자가 있다면 그 사용자를 사용할 수 있습니다.
+2. 해당 사용자에게 Additional Resources → **Generate Individual API Keys**가 허용되어 있는지 확인합니다. 이 권한이 없으면 프로필에 키 생성 버튼이 보이지 않습니다.
+3. 제한된 사용자 계정으로 초대를 수락하고 로그인한 뒤 사용자 이름 → Edit Profile → Individual API Key에서 키를 발급합니다. Key ID를 확인하고 `.p8`를 안전한 위치에 보관합니다. 키는 한 번만 다운로드할 수 있습니다.
+4. 아래 명령을 본인의 터미널에서 실행해 Key ID와 `.p8`의 base64 값을 GitHub Secrets에 직접 등록합니다. 개별 키에는 **Issuer ID가 없으므로 ASC_ISSUER_ID는 등록하지 않습니다**. 배포 인증은 개별 키로 고정되며, 세 가지 기존 issuer 환경 변수(ASC_ISSUER_ID, APP_STORE_CONNECT_API_KEY_ISSUER_ID, SPACESHIP_CONNECT_API_ISSUER_ID)가 설정되어 있으면 팀 키 인증으로 전환하지 않고 오류로 중단합니다.
+
+키의 실제 앱 접근 범위는 Apple의 사용자 설정이 결정합니다. 팀 키는 역할과 무관하게 모든 앱에 적용되고, 소유자 계정의 개별 키도 소유자의 넓은 접근 권한을 상속합니다. 코드의 Whisper 앱 ID 검사는 유출된 키 자체의 권한을 제한하지 못하므로 키를 만들 사용자의 앱 범위를 먼저 확인합니다. [Apple API 키 권한 안내](https://developer.apple.com/documentation/AppStoreConnectAPI/creating-api-keys-for-app-store-connect-api), [사용자 앱 접근 제한](https://developer.apple.com/help/app-store-connect/manage-your-team/edit-access-to-apps/), [fastlane 개별 키 인증](https://docs.fastlane.tools/actions/app_store_connect_api_key/)
+
+개별 키는 Provisioning API를 사용할 수 없습니다. 기존 소유자 계정에서 이 앱·팀에 맞는 **App Store Connect 배포용 provisioning profile**을 별도로 준비하고, 그 프로필과 일치하는 Apple Distribution 인증서와 개인 키를 암호가 있는 `.p12`로 내보냅니다. CI는 준비된 파일을 사용하며 인증서·프로필을 API로 생성하지 않습니다.
 
 키는 GitHub Actions Secrets에 보관하되, 실행 중인 workflow는 값을 사용할 수 있으므로 배포 workflow와 실행 브랜치를 수정할 수 있는 사람도 신뢰할 수 있어야 합니다. 키가 유출되면 Apple에서 즉시 폐기합니다.
 
-아래 값은 GitHub Actions의 **Secrets**에 등록합니다. 파일·비밀 값은 채팅이나 Git에 붙여 넣지 않습니다.
+아래 값은 GitHub 저장소 → Settings → Secrets and variables → Actions의 **Secrets**에 직접 등록합니다. 파일·비밀 값은 채팅이나 Git에 붙여 넣지 않습니다.
 
 | Secret | 내용 |
 | --- | --- |
-| `ASC_KEY_ID` | App Store Connect API Key ID |
-| `ASC_ISSUER_ID` | API 키의 Issuer ID |
+| `ASC_KEY_ID` | 제한된 사용자의 개별 API Key ID |
 | `ASC_KEY_P8_BASE64` | `.p8` 파일을 base64로 인코딩한 값 |
 | `IOS_DISTRIBUTION_P12_BASE64` | 인증서와 개인 키가 들어 있는 `.p12`의 base64 |
 | `IOS_DISTRIBUTION_P12_PASSWORD` | `.p12` 내보내기 암호 |
@@ -51,7 +57,6 @@ base64 -i /absolute/path/AuthKey.p8 | gh secret set ASC_KEY_P8_BASE64 --repo You
 base64 -i /absolute/path/Distribution.p12 | gh secret set IOS_DISTRIBUTION_P12_BASE64 --repo Youngmin322/whisper
 base64 -i /absolute/path/AppStore.mobileprovision | gh secret set IOS_APPSTORE_PROFILE_BASE64 --repo Youngmin322/whisper
 gh secret set ASC_KEY_ID --repo Youngmin322/whisper
-gh secret set ASC_ISSUER_ID --repo Youngmin322/whisper
 gh secret set IOS_DISTRIBUTION_P12_PASSWORD --repo Youngmin322/whisper
 ```
 

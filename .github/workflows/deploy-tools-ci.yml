@@ -23,7 +23,7 @@ jobs:
           ruby-version: "3.3"
       - name: Test Slack authentication and deployment dispatch
         run: node --test Services/slack-deploy/test/*.test.js Scripts/notify-slack.test.mjs
-      - name: Test signing profile and review selection
+      - name: Test API authentication, signing profiles, and review selection
         run: ruby fastlane/deploy_config_test.rb
       - name: Validate Fastfile syntax
         run: ruby -c fastlane/Fastfile

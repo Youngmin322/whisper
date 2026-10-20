@@ -71,7 +71,6 @@ jobs:
         shell: bash
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
           IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
           IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
@@ -80,7 +79,7 @@ jobs:
           IOS_USES_NON_EXEMPT_ENCRYPTION: ${{ vars.IOS_USES_NON_EXEMPT_ENCRYPTION }}
         run: |
           set -euo pipefail
-          required=(ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64 SLACK_WEBHOOK_URL)
+          required=(ASC_KEY_ID ASC_KEY_P8_BASE64 SLACK_WEBHOOK_URL)
           if [[ "$DEPLOY_OPERATION" == testflight ]]; then
             required+=(IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_APPSTORE_PROFILE_BASE64 TESTFLIGHT_INTERNAL_GROUP IOS_USES_NON_EXEMPT_ENCRYPTION)
             [[ "$IOS_USES_NON_EXEMPT_ENCRYPTION" == true || "$IOS_USES_NON_EXEMPT_ENCRYPTION" == false ]]
@@ -134,7 +133,6 @@ jobs:
         run: fastlane ios testflight
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
           IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
           IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
@@ -148,7 +146,6 @@ jobs:
         run: fastlane ios review
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
 
       - name: Read uploaded version
