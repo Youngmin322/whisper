@@ -72,9 +72,9 @@ Wrangler 로그인 승인 화면에서는 계정·사용자 읽기, **Workers Sc
 
 ## 4. Whisper 워크스페이스에 Slack 앱 설치
 
-1. [Slack Your Apps](https://api.slack.com/apps)에서 **Create New App → From a manifest**를 선택하고 **Whisper** 워크스페이스를 고릅니다.
-2. `Services/slack-deploy/slack-app-manifest.json`의 두 `url`을 실제 Worker URL + `/slack/commands`로 바꿔 입력합니다.
-3. 앱을 워크스페이스에 설치합니다. 배포 알림 채널을 선택하고 Incoming Webhooks에서 URL을 확인합니다.
+1. [Slack Your Apps](https://api.slack.com/apps)에 Whisper 계정으로 로그인하고 **Create an App → From a manifest**를 선택합니다.
+2. `Services/slack-deploy/slack-app-manifest.json`을 에디터의 기존 내용 전체와 교체합니다. 두 명령의 `url`이 본인의 Worker URL + `/slack/commands`인지 확인하고 **Whisper** 워크스페이스를 선택합니다. manifest의 `bot_user`는 Slack이 bot scope 검증에 요구하는 표시 설정입니다.
+3. **Next**에서 권한이 `commands`, `incoming-webhook`인지 검토하고 **Create and Install**로 설치합니다. 배포 알림 채널을 선택하고 Incoming Webhooks에서 URL을 확인합니다.
 4. 그 URL을 GitHub의 `SLACK_DEPLOY_WEBHOOK_URL` secret에 등록합니다. 이 채널에서 시작·완료·실패 알림을 받습니다.
 5. Basic Information에서 **Signing Secret**을 확인합니다. Cloudflare Worker secret에 직접 등록합니다.
 
