@@ -28,6 +28,10 @@ App Store Connect에서 Whisper의 **내부 테스트 그룹**을 만들고 팀�
 
 App Store Connect → Users and Access → Integrations에서 앱 관리와 심사 제출 권한이 있는 API 키를 준비합니다. Apple Developer에서 이 앱·팀에 맞는 **App Store Connect 배포용 provisioning profile**을 준비하고, 그 프로필과 일치하는 Apple Distribution 인증서와 개인 키를 키체인에서 암호가 있는 `.p12`로 내보냅니다.
 
+현재 인증 코드는 Issuer ID가 있는 **팀 API 키**를 사용합니다. 팀 키는 역할을 제한할 수 있지만 **특정 앱으로 접근 범위를 제한할 수 없습니다**. 코드의 Whisper 앱 ID 검사는 잘못된 앱 배포를 막는 용도이며, 유출된 키 자체의 권한을 제한하지는 않습니다. Whisper만 접근하도록 제한해야 한다면 사용자별 앱 접근 권한과 개별 API 키 방식부터 검토하고 인증 구성을 변경해야 합니다. [Apple API 키 권한 안내](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api/)
+
+키는 GitHub Actions Secrets에 보관하되, 실행 중인 workflow는 값을 사용할 수 있으므로 배포 workflow와 실행 브랜치를 수정할 수 있는 사람도 신뢰할 수 있어야 합니다. 키가 유출되면 Apple에서 즉시 폐기합니다.
+
 아래 값은 GitHub Actions의 **Secrets**에 등록합니다. 파일·비밀 값은 채팅이나 Git에 붙여 넣지 않습니다.
 
 | Secret | 내용 |
