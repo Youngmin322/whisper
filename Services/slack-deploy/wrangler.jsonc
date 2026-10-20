@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "whisper-slack-deploy",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-20",
+  "vars": {
+    "GITHUB_REPOSITORY": "Youngmin322/whisper",
+    "GITHUB_WORKFLOW": "slack-deploy.yml",
+    "GITHUB_WORKFLOW_REF": "dev",
+    "DEFAULT_BRANCH": "dev",
+    "ALLOWED_BRANCHES": "dev,main",
+    "SLACK_TEAM_ID": "REPLACE_WITH_WORKSPACE_ID",
+    "SLACK_ALLOWED_USER_IDS": "REPLACE_WITH_YOUR_MEMBER_ID",
+    "SLACK_ALLOWED_CHANNEL_IDS": "REPLACE_WITH_DEPLOY_CHANNEL_ID"
+  }
+}

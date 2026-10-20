@@ -1,0 +1,167 @@
+name: Slack deploy
+run-name: "${{ inputs.operation }} · ${{ inputs.branch }} · ${{ inputs.version }} ${{ inputs.build_number }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deployment operation
+        type: choice
+        options: [testflight, review]
+        required: true
+        default: testflight
+      branch:
+        description: Source branch for TestFlight
+        type: choice
+        options: [dev, main]
+        required: true
+        default: dev
+      version:
+        description: Exact existing app version for review
+        type: string
+      build_number:
+        description: Exact existing build number for review
+        type: string
+      requester:
+        description: Slack member ID (optional for manual runs)
+        type: string
+
+permissions:
+  contents: read
+
+# Serialize uploads so two runs cannot allocate the same TestFlight build number.
+concurrency:
+  group: whisper-appstore-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      DEPLOY_OPERATION: ${{ inputs.operation }}
+      DEPLOY_BRANCH: ${{ inputs.branch }}
+      DEPLOY_REQUESTER: ${{ inputs.requester }}
+      REVIEW_VERSION: ${{ inputs.version }}
+      REVIEW_BUILD_NUMBER: ${{ inputs.build_number }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_DEPLOY_WEBHOOK_URL }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+      FASTLANE_SKIP_DOCS: "1"
+      FASTLANE_HIDE_CHANGELOG: "1"
+
+    steps:
+      - name: Validate request
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$DEPLOY_OPERATION" in testflight|review) ;; *) exit 1 ;; esac
+          case "$DEPLOY_BRANCH" in dev|main) ;; *) exit 1 ;; esac
+          if [[ "$DEPLOY_OPERATION" == review ]]; then
+            [[ "$REVIEW_VERSION" =~ ^[0-9]{1,4}(\.[0-9]{1,3}){1,2}$ ]]
+            [[ "$REVIEW_BUILD_NUMBER" =~ ^[0-9]{1,4}(\.[0-9]{1,2}){0,2}$ ]]
+          fi
+
+      - name: Check out deployment tools
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: deployment
+
+      - name: Check deployment configuration
+        shell: bash
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_APPSTORE_PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+          TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
+          IOS_USES_NON_EXEMPT_ENCRYPTION: ${{ vars.IOS_USES_NON_EXEMPT_ENCRYPTION }}
+        run: |
+          set -euo pipefail
+          required=(ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64 SLACK_WEBHOOK_URL)
+          if [[ "$DEPLOY_OPERATION" == testflight ]]; then
+            required+=(IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_APPSTORE_PROFILE_BASE64 TESTFLIGHT_INTERNAL_GROUP IOS_USES_NON_EXEMPT_ENCRYPTION)
+            [[ "$IOS_USES_NON_EXEMPT_ENCRYPTION" == true || "$IOS_USES_NON_EXEMPT_ENCRYPTION" == false ]]
+          fi
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing deployment setting: $name"
+              exit 1
+            fi
+          done
+
+      - name: Notify start
+        run: node deployment/Scripts/notify-slack.mjs
+        env:
+          DEPLOY_STATUS: started
+          DEPLOY_DETAIL: "${{ inputs.branch }} · ${{ inputs.version }} ${{ inputs.build_number }}"
+
+      - name: Check out app source
+        if: inputs.operation == 'testflight'
+        uses: actions/checkout@v4
+        with:
+          ref: refs/heads/${{ inputs.branch }}
+          persist-credentials: false
+          path: app
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install fastlane
+        run: gem install fastlane --version 2.241.1 --no-document
+
+      - name: Test app before upload
+        if: inputs.operation == 'testflight'
+        working-directory: app
+        run: bash Scripts/test-ios.sh
+
+      - name: Prepare trusted deployment tools
+        if: inputs.operation == 'testflight'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf app/fastlane
+          cp -R deployment/fastlane app/fastlane
+          printf 'DEPLOY_SHA=%s\n' "$(git -C app rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build and upload TestFlight
+        if: inputs.operation == 'testflight'
+        working-directory: app
+        run: fastlane ios testflight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_APPSTORE_PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+          TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
+          IOS_USES_NON_EXEMPT_ENCRYPTION: ${{ vars.IOS_USES_NON_EXEMPT_ENCRYPTION }}
+
+      - name: Submit existing build for review
+        if: inputs.operation == 'review'
+        working-directory: deployment
+        run: fastlane ios review
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+
+      - name: Read uploaded version
+        if: success() && inputs.operation == 'testflight'
+        shell: bash
+        run: |
+          printf 'DEPLOY_DETAIL=%s\n' "$(cat app/fastlane/output/deployment.txt) · $DEPLOY_BRANCH · ${DEPLOY_SHA:0:7}" >> "$GITHUB_ENV"
+
+      - name: Notify result
+        if: always()
+        # Notification errors stay visible without changing an upload's result.
+        continue-on-error: true
+        run: node deployment/Scripts/notify-slack.mjs
+        env:
+          DEPLOY_STATUS: ${{ job.status }}
+          DEPLOY_DETAIL: "${{ env.DEPLOY_DETAIL || format('{0} · {1} {2}', inputs.branch, inputs.version, inputs.build_number) }}"

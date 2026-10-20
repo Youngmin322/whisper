@@ -36,3 +36,7 @@ xcodebuild archive \
 ```
 
 배포용 아카이브는 Xcode에서 서명 설정과 버전을 확인한 뒤 생성합니다. 배포 전 실기기에서 기존 기록·사진 유지, 초안 이어 쓰기, 수정·삭제와 일기 복구, 접근성 글자 크기 및 VoiceOver를 확인하세요.
+
+## Slack 배포 자동화
+
+Slack의 `/testflight [dev|main]`으로 내부 TestFlight 빌드를 올리고, `/review 버전 빌드번호`로 기존 빌드를 App Store 심사에 제출하는 구성을 제공합니다. Cloudflare Worker와 GitHub Actions를 사용합니다. 계정 연결·서명·API 키 설정과 첫 실행 절차는 [설정 안내](Docs/slack-deploy.md)를 참고하세요.
