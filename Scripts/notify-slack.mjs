@@ -6,7 +6,7 @@ export async function notifySlack(env, fetcher = fetch) {
   if (url.protocol !== "https:" || url.hostname !== "hooks.slack.com" || !url.pathname.startsWith("/services/") || url.username || url.password || url.port) {
     throw new Error("SLACK_WEBHOOK_URL must be a Slack incoming webhook");
   }
-  const operation = env.DEPLOY_OPERATION === "review" ? "App Store 심사 제출" : "TestFlight 업로드";
+  const operation = { review: "App Store 심사 제출", finish_testflight: "기존 TestFlight 배포 확인" }[env.DEPLOY_OPERATION] ?? "TestFlight 배포";
   const status = { started: "시작", success: "완료", failure: "실패", cancelled: "취소" }[env.DEPLOY_STATUS] ?? "상태 확인 필요";
   const requester = /^[UW][A-Z0-9]+$/.test(env.DEPLOY_REQUESTER ?? "") ? `<@${env.DEPLOY_REQUESTER}>` : "GitHub Actions";
   const repository = env.GITHUB_REPOSITORY;
