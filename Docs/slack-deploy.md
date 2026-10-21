@@ -132,3 +132,9 @@ npx wrangler deploy --dry-run --outdir /tmp/whisper-slack-worker
 단위 테스트는 GitHub·Slack 요청을 대체해 인증·권한·입력·비동기 접수·실패 알림을 검증합니다. 실제 서명·Apple 업로드·Slack 설치까지 성공했다는 의미는 아닙니다.
 
 공식 문서: [Slash Commands](https://docs.slack.dev/interactivity/implementing-slash-commands/), [Slack 서명 검증](https://docs.slack.dev/authentication/verifying-requests-from-slack/), [GitHub workflow dispatch](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event), [Cloudflare secrets](https://developers.cloudflare.com/workers/configuration/secrets/), [fastlane TestFlight](https://docs.fastlane.tools/actions/upload_to_testflight/), [fastlane 심사 제출](https://docs.fastlane.tools/actions/upload_to_app_store/).
+
+## 업로드 후 그룹 연결 오류 복구
+
+업로드가 성공한 뒤 `Cannot add internal group to a build`가 발생하면 `/testflight`를 다시 실행하기 전에 기존 빌드를 확인합니다. 자동 배포 그룹에는 수동 연결 요청을 보내지 않고, 수동 그룹에서 같은 오류가 발생해도 정확한 빌드가 처리 완료·내부 테스트 가능 상태이며 지정 그룹의 빌드 목록에 실제로 포함된 경우에만 성공으로 처리합니다. 그 외 API 오류는 그대로 실패합니다.
+
+이미 업로드된 빌드는 GitHub Actions의 **Slack deploy → Run workflow**에서 `operation=finish_testflight`, 정확한 `version`과 `build_number`를 지정해 배포를 마무리할 수 있습니다. 이 경로는 앱을 다시 빌드하거나 업로드하지 않으며 서명 인증서도 사용하지 않습니다. 기존 빌드의 내부 그룹 접근을 확인한 뒤 Slack에 결과를 알립니다. App Store 심사 제출은 실행하지 않습니다.

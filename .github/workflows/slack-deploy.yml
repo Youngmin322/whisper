@@ -7,7 +7,7 @@ on:
       operation:
         description: Deployment operation
         type: choice
-        options: [testflight, review]
+        options: [testflight, finish_testflight, review]
         required: true
         default: testflight
       branch:
@@ -17,10 +17,10 @@ on:
         required: true
         default: dev
       version:
-        description: Exact existing app version for review
+        description: Exact existing app version for review or finishing TestFlight
         type: string
       build_number:
-        description: Exact existing build number for review
+        description: Exact existing build number for review or finishing TestFlight
         type: string
       requester:
         description: Slack member ID (optional for manual runs)
@@ -54,9 +54,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$DEPLOY_OPERATION" in testflight|review) ;; *) exit 1 ;; esac
+          case "$DEPLOY_OPERATION" in testflight|finish_testflight|review) ;; *) exit 1 ;; esac
           case "$DEPLOY_BRANCH" in dev|main) ;; *) exit 1 ;; esac
-          if [[ "$DEPLOY_OPERATION" == review ]]; then
+          if [[ "$DEPLOY_OPERATION" != testflight ]]; then
             [[ "$REVIEW_VERSION" =~ ^[0-9]{1,4}(\.[0-9]{1,3}){1,2}$ ]]
             [[ "$REVIEW_BUILD_NUMBER" =~ ^[0-9]{1,4}(\.[0-9]{1,2}){0,2}$ ]]
           fi
@@ -72,17 +72,20 @@ jobs:
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
-          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
-          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
-          IOS_APPSTORE_PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+          IOS_DISTRIBUTION_P12_BASE64: ${{ inputs.operation == 'testflight' && secrets.IOS_DISTRIBUTION_P12_BASE64 || '' }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ inputs.operation == 'testflight' && secrets.IOS_DISTRIBUTION_P12_PASSWORD || '' }}
+          IOS_APPSTORE_PROFILE_BASE64: ${{ inputs.operation == 'testflight' && secrets.IOS_APPSTORE_PROFILE_BASE64 || '' }}
           TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
           IOS_USES_NON_EXEMPT_ENCRYPTION: ${{ vars.IOS_USES_NON_EXEMPT_ENCRYPTION }}
         run: |
           set -euo pipefail
           required=(ASC_KEY_ID ASC_KEY_P8_BASE64 SLACK_WEBHOOK_URL)
-          if [[ "$DEPLOY_OPERATION" == testflight ]]; then
-            required+=(IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_APPSTORE_PROFILE_BASE64 TESTFLIGHT_INTERNAL_GROUP IOS_USES_NON_EXEMPT_ENCRYPTION)
+          if [[ "$DEPLOY_OPERATION" != review ]]; then
+            required+=(TESTFLIGHT_INTERNAL_GROUP IOS_USES_NON_EXEMPT_ENCRYPTION)
             [[ "$IOS_USES_NON_EXEMPT_ENCRYPTION" == true || "$IOS_USES_NON_EXEMPT_ENCRYPTION" == false ]]
+          fi
+          if [[ "$DEPLOY_OPERATION" == testflight ]]; then
+            required+=(IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_APPSTORE_PROFILE_BASE64)
           fi
           for name in "${required[@]}"; do
             if [[ -z "${!name}" ]]; then
@@ -140,6 +143,16 @@ jobs:
           TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
           IOS_USES_NON_EXEMPT_ENCRYPTION: ${{ vars.IOS_USES_NON_EXEMPT_ENCRYPTION }}
 
+      - name: Finish existing internal TestFlight distribution
+        if: inputs.operation == 'finish_testflight'
+        working-directory: deployment
+        run: fastlane ios finish_testflight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
+          IOS_USES_NON_EXEMPT_ENCRYPTION: ${{ vars.IOS_USES_NON_EXEMPT_ENCRYPTION }}
+
       - name: Submit existing build for review
         if: inputs.operation == 'review'
         working-directory: deployment
@@ -148,11 +161,16 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
 
-      - name: Read uploaded version
-        if: success() && inputs.operation == 'testflight'
+      - name: Read deployed version
+        if: success() && inputs.operation != 'review'
         shell: bash
         run: |
-          printf 'DEPLOY_DETAIL=%s\n' "$(cat app/fastlane/output/deployment.txt) · $DEPLOY_BRANCH · ${DEPLOY_SHA:0:7}" >> "$GITHUB_ENV"
+          if [[ "$DEPLOY_OPERATION" == finish_testflight ]]; then
+            detail="$(cat deployment/fastlane/output/deployment.txt) · 기존 빌드 배포 확인"
+          else
+            detail="$(cat app/fastlane/output/deployment.txt) · $DEPLOY_BRANCH · ${DEPLOY_SHA:0:7}"
+          fi
+          printf 'DEPLOY_DETAIL=%s\n' "$detail" >> "$GITHUB_ENV"
 
       - name: Notify result
         if: always()

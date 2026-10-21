@@ -7,7 +7,7 @@ const env = { SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/test/only", G
 test("notification includes status, version, requester, and run link", async () => {
   let sent;
   await notifySlack(env, async (_url, options) => { sent = options; return new Response("ok"); });
-  assert.match(sent.body, /TestFlight 업로드 완료/); assert.match(sent.body, /2.0.1 \(42\)/);
+  assert.match(sent.body, /TestFlight 배포 완료/); assert.match(sent.body, /2.0.1 \(42\)/);
   assert.match(sent.body, /<@U123>/); assert.match(sent.body, /actions\/runs\/123/);
   assert.equal(sent.redirect, "error");
 });
@@ -21,4 +21,12 @@ test("foreign webhook is rejected before networking", async () => {
 });
 test("failed notification returns a useful error", async () => {
   await assert.rejects(notifySlack(env, async () => new Response("no", { status: 403 })), /HTTP 403/);
+});
+
+test("finishing an existing build does not claim another upload", async () => {
+  await notifySlack({ ...env, DEPLOY_OPERATION: "finish_testflight" }, async (_url, options) => {
+    assert.match(options.body, /기존 TestFlight 배포 확인 완료/);
+    assert.doesNotMatch(options.body, /업로드|심사/);
+    return new Response("ok");
+  });
 });

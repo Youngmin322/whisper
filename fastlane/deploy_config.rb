@@ -43,6 +43,29 @@ module WhisperDeploy
     profile.fetch("UUID")
   end
 
+  # Some internal groups already receive the build automatically, and Apple's
+  # assignment endpoint can reject an otherwise successful internal distribution.
+  # Success requires the exact uploaded build to be ready and visible in the group.
+  def self.distribute_internal!(group:, find_build:, distribute:, attempts: 12, interval: 5, sleeper: ->(seconds) { sleep(seconds) })
+    raise "Use an internal TestFlight group" unless group.is_internal_group
+    groups = group.has_access_to_all_builds == true ? [] : [group.id]
+    begin
+      distribute.call(groups)
+    rescue StandardError => error
+      raise unless error.message.include?("Cannot add internal group to a build")
+    end
+
+    attempts.times do |attempt|
+      build = find_build.call
+      internal_state = build&.build_beta_detail&.internal_build_state
+      if build && build.processing_state == "VALID" && !build.expired && %w[READY_FOR_BETA_TESTING IN_BETA_TESTING].include?(internal_state)
+        return build if group.fetch_builds.any? { |candidate| candidate.id == build.id }
+      end
+      sleeper.call(interval) if attempt < attempts - 1
+    end
+    raise "Could not verify the uploaded build in the configured internal TestFlight group; check the existing build before uploading again"
+  end
+
   def self.review_arguments!(version, build)
     raise "Specify an exact app version" unless /\A\d{1,4}(\.\d{1,3}){1,2}\z/.match?(version.to_s)
     raise "Specify an exact build number" unless /\A\d{1,4}(\.\d{1,2}){0,2}\z/.match?(build.to_s)

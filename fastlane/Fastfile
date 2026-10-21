@@ -1,4 +1,5 @@
 require "tmpdir"
+require "fileutils"
 require "securerandom"
 require "shellwords"
 require "open3"
@@ -11,17 +12,34 @@ def connect_api_key
   app_store_connect_api_key(**WhisperDeploy.individual_api_key_options)
 end
 
+def configured_internal_group(app)
+  name = WhisperDeploy.required("TESTFLIGHT_INTERNAL_GROUP")
+  group = app.get_beta_groups.find { |candidate| candidate.is_internal_group && candidate.name == name }
+  UI.user_error!("Create the configured internal TestFlight group first") unless group
+  group
+end
+
+def with_verified_internal_distribution(app, group, version, build_number)
+  WhisperDeploy.distribute_internal!(
+    group: group,
+    find_build: -> {
+      Spaceship::ConnectAPI::Build.all(app_id: app.id, version: version,
+        build_number: build_number.to_s, platform: "IOS", limit: 1).first
+    },
+    distribute: ->(groups) { yield(groups) }
+  )
+  UI.success("Verified internal TestFlight distribution: #{version} (#{build_number})")
+end
+
 platform :ios do
   desc "Build Whisper and upload it for internal TestFlight testing"
   lane :testflight do
     api_key = connect_api_key
-    group_name = WhisperDeploy.required("TESTFLIGHT_INTERNAL_GROUP")
     encryption = WhisperDeploy.required("IOS_USES_NON_EXEMPT_ENCRYPTION")
     UI.user_error!("IOS_USES_NON_EXEMPT_ENCRYPTION must be true or false") unless ["true", "false"].include?(encryption)
     app = Spaceship::ConnectAPI::App.find(WhisperDeploy::APP_IDENTIFIER)
     UI.user_error!("Whisper is missing from App Store Connect") unless app
-    group = app.get_beta_groups.find { |candidate| candidate.is_internal_group && candidate.name == group_name }
-    UI.user_error!("Create the configured internal TestFlight group first") unless group
+    group = configured_internal_group(app)
     project = File.join(WhisperDeploy::PROJECT_ROOT, "Whisper.xcodeproj")
     output = File.join(WhisperDeploy::PROJECT_ROOT, "fastlane", "output")
     version = get_version_number(xcodeproj: project, target: "Whisper")
@@ -80,18 +98,21 @@ platform :ios do
             provisioningProfiles: { WhisperDeploy::APP_IDENTIFIER => profile_uuid }
           }
         )
-        upload_to_testflight(
-          api_key: api_key,
-          app_identifier: WhisperDeploy::APP_IDENTIFIER,
-          ipa: ipa,
-          groups: [group.id],
-          distribute_external: false,
-          submit_beta_review: false,
-          uses_non_exempt_encryption: encryption == "true",
-          skip_waiting_for_build_processing: false,
-          wait_processing_timeout_duration: 1800,
-          changelog: "#{ENV.fetch('DEPLOY_BRANCH', 'local')} / #{ENV.fetch('DEPLOY_SHA', 'local')[0, 7]}"
-        )
+        with_verified_internal_distribution(app, group, version, build_number) do |groups|
+          upload_to_testflight(
+            api_key: api_key,
+            app_identifier: WhisperDeploy::APP_IDENTIFIER,
+            ipa: ipa,
+            groups: groups,
+            distribute_external: false,
+            submit_beta_review: false,
+            notify_external_testers: false,
+            uses_non_exempt_encryption: encryption == "true",
+            skip_waiting_for_build_processing: false,
+            wait_processing_timeout_duration: 1800,
+            changelog: "#{ENV.fetch('DEPLOY_BRANCH', 'local')} / #{ENV.fetch('DEPLOY_SHA', 'local')[0, 7]}"
+          )
+        end
         File.write(File.join(output, "deployment.txt"), "#{version} (#{build_number})")
       ensure
         begin
@@ -101,6 +122,30 @@ platform :ios do
         end
       end
     end
+  end
+
+  desc "Finish and verify internal distribution of an exact existing TestFlight build"
+  lane :finish_testflight do
+    version, build_number = WhisperDeploy.review_arguments!(ENV["REVIEW_VERSION"], ENV["REVIEW_BUILD_NUMBER"])
+    api_key = connect_api_key
+    encryption = WhisperDeploy.required("IOS_USES_NON_EXEMPT_ENCRYPTION")
+    UI.user_error!("IOS_USES_NON_EXEMPT_ENCRYPTION must be true or false") unless ["true", "false"].include?(encryption)
+    app = Spaceship::ConnectAPI::App.find(WhisperDeploy::APP_IDENTIFIER)
+    UI.user_error!("Whisper is missing from App Store Connect") unless app
+    group = configured_internal_group(app)
+    with_verified_internal_distribution(app, group, version, build_number) do |groups|
+      upload_to_testflight(
+        api_key: api_key, app_identifier: WhisperDeploy::APP_IDENTIFIER,
+        app_version: version, build_number: build_number, app_platform: "ios",
+        distribute_only: true, groups: groups, distribute_external: false,
+        submit_beta_review: false, notify_external_testers: false,
+        uses_non_exempt_encryption: encryption == "true",
+        skip_waiting_for_build_processing: false, wait_processing_timeout_duration: 1800
+      )
+    end
+    output = File.join(WhisperDeploy::PROJECT_ROOT, "fastlane", "output")
+    FileUtils.mkdir_p(output)
+    File.write(File.join(output, "deployment.txt"), "#{version} (#{build_number})")
   end
 
   desc "Submit a specific existing build for App Store review; release stays manual"

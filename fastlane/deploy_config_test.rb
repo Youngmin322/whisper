@@ -2,6 +2,91 @@ require "minitest/autorun"
 require_relative "deploy_config"
 
 class DeployConfigTest < Minitest::Test
+  Detail = Struct.new(:internal_build_state)
+  Build = Struct.new(:id, :processing_state, :expired, :internal_state) do
+    def build_beta_detail; Detail.new(internal_state); end
+  end
+  Group = Struct.new(:id, :is_internal_group, :has_access_to_all_builds, :builds) do
+    def fetch_builds; builds; end
+  end
+
+  def ready_build
+    Build.new("uploaded-build", "VALID", false, "READY_FOR_BETA_TESTING")
+  end
+
+  def verify_distribution(group:, build: ready_build, **options, &distribute)
+    WhisperDeploy.distribute_internal!(group: group, find_build: -> { build },
+      distribute: distribute || ->(_) {}, attempts: 1, **options)
+  end
+
+  def test_automatic_internal_group_does_not_receive_an_assignment_request
+    build = ready_build
+    group = Group.new("internal", true, true, [build])
+    verified = verify_distribution(group: group, build: build) { |groups| assert_empty groups }
+    assert_equal build, verified
+  end
+
+  def test_a_build_already_in_internal_testing_is_also_valid
+    build = Build.new("uploaded-build", "VALID", false, "IN_BETA_TESTING")
+    group = Group.new("internal", true, true, [build])
+    assert_equal build, verify_distribution(group: group, build: build)
+  end
+
+  def test_manual_internal_group_is_selected_and_verified
+    build = ready_build
+    group = Group.new("internal", true, false, [build])
+    verified = verify_distribution(group: group, build: build) { |groups| assert_equal ["internal"], groups }
+    assert_equal build, verified
+  end
+
+  def test_known_assignment_error_is_recovered_only_after_membership_verification
+    build = ready_build
+    group = Group.new("internal", true, false, [build])
+    assert_equal build, verify_distribution(group: group, build: build) {
+      raise "Builds cannot be assigned to this internal group. - Cannot add internal group to a build."
+    }
+  end
+
+  def test_known_assignment_error_without_the_build_is_not_success
+    group = Group.new("internal", true, false, [])
+    assert_raises(RuntimeError) do
+      verify_distribution(group: group) { raise "Cannot add internal group to a build" }
+    end
+  end
+
+  def test_other_api_errors_are_not_suppressed
+    group = Group.new("internal", true, false, [ready_build])
+    error = assert_raises(RuntimeError) { verify_distribution(group: group) { raise "Permission denied" } }
+    assert_equal "Permission denied", error.message
+  end
+
+  def test_failed_expired_unready_and_unrelated_builds_cannot_be_verified
+    [Build.new("uploaded-build", "INVALID", false, "READY_FOR_BETA_TESTING"),
+     Build.new("uploaded-build", "VALID", true, "EXPIRED"),
+     Build.new("uploaded-build", "VALID", false, "MISSING_EXPORT_COMPLIANCE"), nil].each do |build|
+      group = Group.new("internal", true, false, [ready_build])
+      assert_raises(RuntimeError) { verify_distribution(group: group, build: build) }
+    end
+    group = Group.new("internal", true, false, [Build.new("another-build", "VALID", false, "READY_FOR_BETA_TESTING")])
+    assert_raises(RuntimeError) { verify_distribution(group: group) }
+  end
+
+  def test_readiness_is_polled_with_a_bounded_wait
+    build = ready_build
+    group = Group.new("internal", true, true, [build])
+    candidates = [nil, Build.new(build.id, "PROCESSING", false, "PROCESSING"), build]
+    waits = []
+    verified = WhisperDeploy.distribute_internal!(group: group, find_build: -> { candidates.shift },
+      distribute: ->(groups) { assert_empty groups }, attempts: 3, interval: 5, sleeper: ->(seconds) { waits << seconds })
+    assert_equal build, verified
+    assert_equal [5, 5], waits
+  end
+
+  def test_external_group_is_rejected_before_distribution
+    group = Group.new("external", false, false, [])
+    assert_raises(RuntimeError) { verify_distribution(group: group) { flunk "must not distribute" } }
+  end
+
   def profile
     { "UUID" => "test-profile", "TeamIdentifier" => [WhisperDeploy::TEAM_ID],
       "ExpirationDate" => "2099-01-01T00:00:00Z",
