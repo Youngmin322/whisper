@@ -1,0 +1,123 @@
+require "tmpdir"
+require "securerandom"
+require "shellwords"
+require "open3"
+require "plist"
+require_relative "deploy_config"
+
+default_platform(:ios)
+
+def connect_api_key
+  app_store_connect_api_key(**WhisperDeploy.individual_api_key_options)
+end
+
+platform :ios do
+  desc "Build Whisper and upload it for internal TestFlight testing"
+  lane :testflight do
+    api_key = connect_api_key
+    group_name = WhisperDeploy.required("TESTFLIGHT_INTERNAL_GROUP")
+    encryption = WhisperDeploy.required("IOS_USES_NON_EXEMPT_ENCRYPTION")
+    UI.user_error!("IOS_USES_NON_EXEMPT_ENCRYPTION must be true or false") unless ["true", "false"].include?(encryption)
+    app = Spaceship::ConnectAPI::App.find(WhisperDeploy::APP_IDENTIFIER)
+    UI.user_error!("Whisper is missing from App Store Connect") unless app
+    group = app.get_beta_groups.find { |candidate| candidate.is_internal_group && candidate.name == group_name }
+    UI.user_error!("Create the configured internal TestFlight group first") unless group
+    project = File.join(WhisperDeploy::PROJECT_ROOT, "Whisper.xcodeproj")
+    output = File.join(WhisperDeploy::PROJECT_ROOT, "fastlane", "output")
+    version = get_version_number(xcodeproj: project, target: "Whisper")
+    build_number = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: WhisperDeploy::APP_IDENTIFIER,
+      version: version,
+      initial_build_number: 0
+    ).to_i + 1
+    UI.user_error!("Build number exceeds Apple's four digit limit") if build_number > 9999
+
+    Dir.mktmpdir("whisper-signing-") do |directory|
+      certificate = File.join(directory, "distribution.p12")
+      profile = File.join(directory, "app.mobileprovision")
+      keychain = File.join(directory, "signing.keychain-db")
+      installed_profile = nil
+      File.write(certificate, WhisperDeploy.decode_secret("IOS_DISTRIBUTION_P12_BASE64"), mode: "wb", perm: 0600)
+      File.write(profile, WhisperDeploy.decode_secret("IOS_APPSTORE_PROFILE_BASE64"), mode: "wb", perm: 0600)
+      xml, _stderr, status = Open3.capture3("security", "cms", "-D", "-i", profile)
+      UI.user_error!("Could not decode the provisioning profile") unless status.success?
+      profile_uuid = WhisperDeploy.validate_profile!(Plist.parse_xml(xml))
+      password = SecureRandom.hex(32)
+
+      begin
+        create_keychain(path: keychain, password: password, default_keychain: false, unlock: true, timeout: 7200, add_to_search_list: true)
+        import_certificate(
+          certificate_path: certificate,
+          certificate_password: ENV.fetch("IOS_DISTRIBUTION_P12_PASSWORD"),
+          keychain_path: keychain,
+          keychain_password: password
+        )
+        installed_profile = install_provisioning_profile(path: profile)
+        xcargs = {
+          "CURRENT_PROJECT_VERSION" => build_number.to_s,
+          "CODE_SIGN_STYLE" => "Manual",
+          "DEVELOPMENT_TEAM" => WhisperDeploy::TEAM_ID,
+          "CODE_SIGN_IDENTITY" => "Apple Distribution",
+          "PROVISIONING_PROFILE_SPECIFIER" => profile_uuid
+        }.map { |key, value| "#{key}=#{Shellwords.escape(value)}" }.join(" ")
+        ipa = build_app(
+          project: project,
+          scheme: "Whisper",
+          configuration: "Release",
+          destination: "generic/platform=iOS",
+          clean: true,
+          output_directory: output,
+          output_name: "Whisper.ipa",
+          export_method: "app-store",
+          export_team_id: WhisperDeploy::TEAM_ID,
+          skip_profile_detection: true,
+          xcargs: xcargs,
+          export_options: {
+            signingStyle: "manual",
+            signingCertificate: "Apple Distribution",
+            manageAppVersionAndBuildNumber: false,
+            provisioningProfiles: { WhisperDeploy::APP_IDENTIFIER => profile_uuid }
+          }
+        )
+        upload_to_testflight(
+          api_key: api_key,
+          app_identifier: WhisperDeploy::APP_IDENTIFIER,
+          ipa: ipa,
+          groups: [group.id],
+          distribute_external: false,
+          submit_beta_review: false,
+          uses_non_exempt_encryption: encryption == "true",
+          skip_waiting_for_build_processing: false,
+          wait_processing_timeout_duration: 1800,
+          changelog: "#{ENV.fetch('DEPLOY_BRANCH', 'local')} / #{ENV.fetch('DEPLOY_SHA', 'local')[0, 7]}"
+        )
+        File.write(File.join(output, "deployment.txt"), "#{version} (#{build_number})")
+      ensure
+        begin
+          delete_keychain(keychain_path: keychain) if File.exist?(keychain)
+        ensure
+          File.delete(installed_profile) if installed_profile && File.file?(installed_profile)
+        end
+      end
+    end
+  end
+
+  desc "Submit a specific existing build for App Store review; release stays manual"
+  lane :review do
+    version, build = WhisperDeploy.review_arguments!(ENV["REVIEW_VERSION"], ENV["REVIEW_BUILD_NUMBER"])
+    deliver(
+      api_key: connect_api_key,
+      app_identifier: WhisperDeploy::APP_IDENTIFIER,
+      app_version: version,
+      build_number: build,
+      submit_for_review: true,
+      automatic_release: false,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: true,
+      run_precheck_before_submit: false,
+      force: true
+    )
+  end
+end

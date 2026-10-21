@@ -5,7 +5,6 @@
 
 import SwiftUI
 import PhotosUI
-import WhisperDesignSystem
 
 struct RecordDetailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -94,13 +93,13 @@ struct RecordDetailView: View {
             .scrollIndicators(.hidden)
         }
         .background(Color.whisperBackground)
-        .navigationTitle(reminderEncounterID == nil ? "남긴 순간" : "다시 만난 마음")
+        .navigationTitle(reminderEncounterID == nil ? String(localized: "남긴 순간") : String(localized: "다시 만난 마음"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if isEditing {
-                    Button("초안 버리기", systemImage: "trash", role: .destructive) {
+                    Button(String(localized: "초안 버리기"), systemImage: "trash", role: .destructive) {
                         isDiscardDraftConfirmationPresented = true
                     }
                     .accessibilityIdentifier("record.discardEditDraftButton")
@@ -108,33 +107,33 @@ struct RecordDetailView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 if isEditing {
-                    Button("저장", action: saveChanges)
+                    Button(String(localized: "저장"), action: saveChanges)
                         .tint(Color.whisperAccent)
                         .disabled(!draft.canSave || photoLoader.isLoading)
                         .accessibilityIdentifier("record.saveEditButton")
                 } else {
                     Menu {
-                        Button("수정", systemImage: "pencil", action: startEditing)
+                        Button(String(localized: "수정"), systemImage: "pencil", action: startEditing)
 
                         if CommitmentReminderFeature.isEnabled,
                            let commitment = displayedCommitment {
-                            Section("결심 알림") {
+                            Section(String(localized: "결심 알림")) {
                                 switch commitment.lifecycleStatus() {
                                 case .active:
                                     reminderPreferenceMenuActions
                                 case .paused:
-                                    Label("쉬는 중", systemImage: "moon.zzz.fill")
-                                    Button("이제 놓아줘", systemImage: "bell.slash", role: .destructive) {
+                                    Label(String(localized: "쉬는 중"), systemImage: "moon.zzz.fill")
+                                    Button(String(localized: "이제 놓아줘"), systemImage: "bell.slash", role: .destructive) {
                                         isReleaseEncounterConfirmationPresented = true
                                     }
                                 case .released:
-                                    Label("중단됨", systemImage: "bell.slash")
+                                    Label(String(localized: "중단됨"), systemImage: "bell.slash")
                                 }
                             }
                         }
 
                         Button(
-                            "삭제",
+                            String(localized: "삭제"),
                             systemImage: "trash",
                             role: .destructive
                         ) {
@@ -146,7 +145,7 @@ struct RecordDetailView: View {
                             .foregroundStyle(Color.whisperTextPrimary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("기록 메뉴")
+                    .accessibilityLabel(String(localized: "기록 메뉴"))
                 }
             }
             .sharedBackgroundVisibility(.hidden)
@@ -155,24 +154,24 @@ struct RecordDetailView: View {
 
     private var detailWithAlerts: some View {
         detailContent
-        .alert("이 기록을 삭제할까요?", isPresented: $isDeleteConfirmationPresented) {
-            Button("취소", role: .cancel) {}
-            Button("삭제", role: .destructive, action: deleteRecord)
+        .alert(String(localized: "이 기록을 삭제할까요?"), isPresented: $isDeleteConfirmationPresented) {
+            Button(String(localized: "취소"), role: .cancel) {}
+            Button(String(localized: "삭제"), role: .destructive, action: deleteRecord)
         } message: {
             Text(deleteConfirmationMessage)
         }
-        .alert("변경사항을 저장할 수 없어요", isPresented: $isPersistenceErrorPresented) {
-            Button("확인", role: .cancel) {}
+        .alert(String(localized: "변경사항을 저장할 수 없어요"), isPresented: $isPersistenceErrorPresented) {
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text("잠시 후 다시 시도해 주세요.")
+            Text(String(localized: "잠시 후 다시 시도해 주세요."))
         }
-        .alert("초안을 보관할 수 없어요", isPresented: $isDraftErrorPresented) {
-            Button("확인", role: .cancel) {}
+        .alert(String(localized: "초안을 보관할 수 없어요"), isPresented: $isDraftErrorPresented) {
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text("수정한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.")
+            Text(String(localized: "수정한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요."))
         }
-        .confirmationDialog("수정 중인 초안을 버릴까요?", isPresented: $isDiscardDraftConfirmationPresented, titleVisibility: .visible) {
-            Button("초안 버리기", role: .destructive) {
+        .confirmationDialog(String(localized: "수정 중인 초안을 버릴까요?"), isPresented: $isDiscardDraftConfirmationPresented, titleVisibility: .visible) {
+            Button(String(localized: "초안 버리기"), role: .destructive) {
                 guard recordStore.writingDraftStore.discard(id: draft.id) else {
                     isDraftErrorPresented = true
                     return
@@ -181,23 +180,23 @@ struct RecordDetailView: View {
                 isBodyFocused = false
                 resetDraft()
             }
-            Button("계속 작성", role: .cancel) {}
-        } message: { Text("이미 저장한 순간은 그대로 남아요.") }
-        .alert("다시 만나기 알림을 설정할 수 없어요", isPresented: $isReminderErrorPresented) {
-            Button("확인", role: .cancel) {}
+            Button(String(localized: "계속 작성"), role: .cancel) {}
+        } message: { Text(String(localized: "이미 저장한 순간은 그대로 남아요.")) }
+        .alert(String(localized: "다시 만나기 알림을 설정할 수 없어요"), isPresented: $isReminderErrorPresented) {
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text("알림 권한과 설정을 확인한 뒤 다시 시도해 주세요.")
+            Text(String(localized: "알림 권한과 설정을 확인한 뒤 다시 시도해 주세요."))
         }
         .alert(
-            "이 마음을 이제 놓아줄까요?",
+            String(localized: "이 마음을 이제 놓아줄까요?"),
             isPresented: $isReleaseEncounterConfirmationPresented
         ) {
-            Button("조금 더 기억하기", role: .cancel) {}
-            Button("이제 놓아주기", role: .destructive) {
+            Button(String(localized: "조금 더 기억하기"), role: .cancel) {}
+            Button(String(localized: "이제 놓아주기"), role: .destructive) {
                 releaseReminder()
             }
         } message: {
-            Text("다시 만나기 알림은 멈추지만, 기록은 보관함에 그대로 남아 있어요.")
+            Text(String(localized: "다시 만나기 알림은 멈추지만, 기록은 보관함에 그대로 남아 있어요."))
         }
     }
 
@@ -219,12 +218,12 @@ struct RecordDetailView: View {
             get: { photoLoader.selectedItems }, set: { photoLoader.select($0) }
         ), selectionBehavior: .ordered, matching: .images)
         .onChange(of: photoLoader.completedImport) { _, _ in applyPendingPhotos() }
-        .alert("사진을 불러올 수 없어요", isPresented: Binding<Bool>(
+        .alert(String(localized: "사진을 불러올 수 없어요"), isPresented: Binding<Bool>(
             get: { photoLoader.errorMessage != nil },
             set: { if !$0 { photoLoader.dismissError() } }
         )) {
-            Button("확인", role: .cancel) { photoLoader.dismissError() }
-        } message: { Text(photoLoader.errorMessage ?? "다른 사진으로 다시 시도해 주세요.") }
+            Button(String(localized: "확인"), role: .cancel) { photoLoader.dismissError() }
+        } message: { Text(photoLoader.errorMessage ?? String(localized: "다른 사진으로 다시 시도해 주세요.")) }
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { persistDraft() } }
@@ -237,7 +236,7 @@ struct RecordDetailView: View {
     private var readingContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             if recordStore.writingDraftStore.momentEditDraft(for: record.id) != nil {
-                Button("보관한 수정 초안 이어 쓰기", action: startEditing)
+                Button(String(localized: "보관한 수정 초안 이어 쓰기"), action: startEditing)
                     .font(.whisperControl)
                     .foregroundStyle(Color.whisperAccentText)
                     .frame(minHeight: 44)
@@ -290,6 +289,7 @@ struct RecordDetailView: View {
                             title: record.title, emotion: record.emotion)
             DiaryTextView(document: .constant(recordStore.diaryDocument(for: record)),
                           isFocused: .constant(false), isEditable: false, minimumHeight: 0,
+                          editorAccessibilityLabel: String(localized: "순간 본문"),
                           onPhotoTap: { selectedPhoto = $0 })
         }
     }
@@ -305,10 +305,10 @@ struct RecordDetailView: View {
                     FlameCharacter(emotion: draft.emotion, size: 38).frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("감정 바꾸기, 현재 \(draft.emotion ?? "선택 안 함")")
+                .accessibilityLabel(String(localized: "감정 바꾸기, 현재 \(WhisperEmotion.displayName(for: draft.emotion) ?? String(localized: "선택 안 함"))"))
             }
-            TextField("이 순간의 제목 · 선택 사항", text: $draft.title, axis: .vertical)
-                .font(.whisperHandwriting(28, bold: true))
+            TextField(String(localized: "이 순간의 제목 · 선택 사항"), text: $draft.title, axis: .vertical)
+                .font(.whisperHandwriting(28))
                 .foregroundStyle(Color.whisperTextPrimary)
                 .accessibilityIdentifier("record.editTitleField")
             Rectangle().fill(Color.whisperDivider).frame(height: 1)
@@ -319,6 +319,7 @@ struct RecordDetailView: View {
                 }
             ), isFocused: $isBodyFocused, minimumHeight: 260,
                accessibilityIdentifier: "record.editContentField",
+               editorAccessibilityLabel: String(localized: "순간 본문"),
                onSelectionChange: { photoInsertionOffset = $0 },
                onPhotoTap: { selectedPhoto = $0 })
             if draft.content.count >= contentLimit - 100 {
@@ -329,18 +330,18 @@ struct RecordDetailView: View {
             HStack {
                 Button { isBodyFocused = false; isPhotoPickerPresented = true } label: {
                     if photoLoader.isLoading { ProgressView() }
-                    else { Label("사진 추가", systemImage: "photo") }
+                    else { Label(String(localized: "사진 추가"), systemImage: "photo") }
                 }
                 .disabled(photoLoader.isLoading)
-                .accessibilityValue("\(draft.diaryDocument.photos.count)장 첨부됨")
+                .accessibilityValue(String(localized: "\(draft.diaryDocument.photos.count)장 첨부됨"))
                 .accessibilityIdentifier("record.photoButton")
                 if draft.photoData != nil {
-                    Button("사진 모두 삭제", role: .destructive) { draft.removeAllPhotos() }
+                    Button(String(localized: "사진 모두 삭제"), role: .destructive) { draft.removeAllPhotos() }
                 }
                 Spacer(minLength: 0)
                 if isBodyFocused {
                     Button { isBodyFocused = false } label: { Image(systemName: "keyboard.chevron.compact.down") }
-                        .accessibilityLabel("키보드 내리기")
+                        .accessibilityLabel(String(localized: "키보드 내리기"))
                 }
             }
             .font(.whisperControl).buttonStyle(.plain)
@@ -351,7 +352,7 @@ struct RecordDetailView: View {
 
     private var encounterResponseCard: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            Label("다시 만난 문장", systemImage: "flame.fill")
+            Label(String(localized: "다시 만난 문장"), systemImage: "flame.fill")
                 .font(.whisperSectionTitle)
                 .foregroundStyle(Color.whisperAccentText)
 
@@ -362,11 +363,11 @@ struct RecordDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Text("지금 이 마음을 어떻게 두고 싶나요?")
+            Text(String(localized: "지금 이 마음을 어떻게 두고 싶나요?"))
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
 
-            Button("계속 기억하기", action: keepReminder)
+            Button(String(localized: "계속 기억하기"), action: keepReminder)
                 .buttonStyle(.whisperPrimary(size: .compact))
                 .disabled(isUpdatingReminderPreference)
 
@@ -378,13 +379,13 @@ struct RecordDetailView: View {
                 ) ?? .now
                 isPauseDatePickerPresented = true
             } label: {
-                Text("잠시 쉬기")
+                Text(String(localized: "잠시 쉬기"))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.whisperSecondary)
             .disabled(isUpdatingReminderPreference)
 
-            Button("이제 놓아주기") {
+            Button(String(localized: "이제 놓아주기")) {
                 isReleaseEncounterConfirmationPresented = true
             }
             .font(.whisperControl)
@@ -400,11 +401,11 @@ struct RecordDetailView: View {
 
     private func commitmentCard(_: WhisperCommitment) -> some View {
         WhisperMessageCard(emotion: record.emotion) {
-            Text("이 마음은 제가 잘 간직하고 있을게요.")
+            Text(String(localized: "이 마음은 제가 잘 간직하고 있을게요."))
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
 
-            Text("잊고 지낼 즈음,\n그날의 마음을 조용히 다시 건넬게요.")
+            Text(String(localized: "잊고 지낼 즈음,\n그날의 마음을 조용히 다시 건넬게요."))
                 .font(.whisperCaption)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .lineSpacing(3)
@@ -413,7 +414,7 @@ struct RecordDetailView: View {
 
     @ViewBuilder
     private var reminderPreferenceMenuActions: some View {
-        Button("잠시 쉬어갈게", systemImage: "moon.zzz.fill") {
+        Button(String(localized: "잠시 쉬어갈게"), systemImage: "moon.zzz.fill") {
             pauseUntil = Calendar.current.date(
                 byAdding: .day,
                 value: 30,
@@ -424,7 +425,7 @@ struct RecordDetailView: View {
         .disabled(isUpdatingReminderPreference)
 
         Button(
-            "이제 놓아줘",
+            String(localized: "이제 놓아줘"),
             systemImage: "bell.slash",
             role: .destructive
         ) {
@@ -438,26 +439,26 @@ struct RecordDetailView: View {
             Form {
                 Section {
                     DatePicker(
-                        "다시 만날 시각",
+                        String(localized: "다시 만날 시각"),
                         selection: $pauseUntil,
                         in: Date.now.addingTimeInterval(5 * 60)...,
                         displayedComponents: [.date, .hourAndMinute]
                     )
                     .datePickerStyle(.graphical)
                 } footer: {
-                    Text("정한 시각이 알림 가능 시간을 벗어나면 가까운 시간으로 맞춰드려요.")
+                    Text(String(localized: "정한 시각이 알림 가능 시간을 벗어나면 가까운 시간으로 맞춰드려요."))
                 }
             }
-            .navigationTitle("알림 쉬기")
+            .navigationTitle(String(localized: "알림 쉬기"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("취소") {
+                    Button(String(localized: "취소")) {
                         isPauseDatePickerPresented = false
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("이때까지 쉬기") {
+                    Button(String(localized: "이때까지 쉬기")) {
                         isPauseDatePickerPresented = false
                         pauseReminder(until: pauseUntil)
                     }
@@ -470,11 +471,11 @@ struct RecordDetailView: View {
         let status = commitment.lifecycleStatus()
         let message: (title: String, description: String) = switch status {
         case .active:
-            ("이 마음은 제가 간직하고 있을게요.", "잊고 지낼 즈음, 그날의 마음을 조용히 다시 건넬게요.")
+            (String(localized: "이 마음은 제가 간직하고 있을게요."), String(localized: "잊고 지낼 즈음, 그날의 마음을 조용히 다시 건넬게요."))
         case .paused:
-            ("조금 쉬어가도 괜찮아요.", "이 마음은 그대로 간직하고 있을게요.")
+            (String(localized: "조금 쉬어가도 괜찮아요."), String(localized: "이 마음은 그대로 간직하고 있을게요."))
         case .released:
-            ("이제 다시 건네지는 않을게요.", "기록은 여기 소중히 남겨둘게요.")
+            (String(localized: "이제 다시 건네지는 않을게요."), String(localized: "기록은 여기 소중히 남겨둘게요."))
         }
 
         return WhisperMessageCard(fill: .whisperSurfaceSubtle, emotion: record.emotion) {
@@ -527,9 +528,9 @@ struct RecordDetailView: View {
 
     private var deleteConfirmationMessage: String {
         if CommitmentReminderFeature.isEnabled {
-            return "이 순간의 원문과 사진, 연결된 결심 알림이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요."
+            return String(localized: "이 순간의 원문과 사진, 연결된 결심 알림이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요.")
         }
-        return "이 순간의 원문과 사진이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요."
+        return String(localized: "이 순간의 원문과 사진이 삭제돼요. 일기에 복사한 문장은 그대로 남고 출처는 삭제된 순간으로 표시돼요. 삭제한 원본은 복구할 수 없어요.")
     }
 
     private func pauseReminder(until pausedUntil: Date) {

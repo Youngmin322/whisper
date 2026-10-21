@@ -22,20 +22,31 @@ struct JournalDay: Codable, Equatable {
     }
 
     var fullDescription: String {
+        fullDescription(locale: WhisperLocalization.locale)
+    }
+
+    func fullDescription(locale: Locale) -> String {
         date.formatted(Date.FormatStyle(
-            locale: Locale(identifier: "ko_KR"), calendar: calendar, timeZone: calendar.timeZone
+            locale: locale, calendar: calendar, timeZone: calendar.timeZone
         ).year().month(.wide).day().weekday(.wide))
     }
 
     var shortDescription: String {
         date.formatted(Date.FormatStyle(
-            locale: Locale(identifier: "ko_KR"), calendar: calendar, timeZone: calendar.timeZone
+            locale: WhisperLocalization.locale, calendar: calendar, timeZone: calendar.timeZone
         ).month(.wide).day())
+    }
+
+    var reflectionTimeDescription: String {
+        let time = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: date) ?? date
+        return time.formatted(Date.FormatStyle(
+            locale: WhisperLocalization.locale, calendar: calendar, timeZone: calendar.timeZone
+        ).hour().minute())
     }
 }
 
 enum JournalDayKey {
-    static func calendar(timeZone: TimeZone = .current) -> Calendar {
+    nonisolated static func calendar(timeZone: TimeZone = .current) -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         return calendar

@@ -64,9 +64,9 @@ struct IPadEmotionChoices: View {
 
     private var choices: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.large) {
-            Text("지금 내 마음은 어떤가요?")
+            Text(String(localized: "지금 내 마음은 어떤가요?"))
                 .font(.whisperHandwriting(28))
-            Text("가장 가까운 감정 하나를 골라보세요.")
+            Text(String(localized: "가장 가까운 감정 하나를 골라보세요."))
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: WhisperSpacing.small),
@@ -77,7 +77,7 @@ struct IPadEmotionChoices: View {
                             FlameCharacter(emotion: value.rawValue, size: 53)
                                 .frame(height: 64)
                                 .accessibilityHidden(true)
-                            Text(value.rawValue).font(.whisperControl)
+                            Text(value.displayName).font(.whisperControl)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, minHeight: dynamicTypeSize.isAccessibilitySize ? 154 : 129)
@@ -89,7 +89,7 @@ struct IPadEmotionChoices: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(value.rawValue)
+                    .accessibilityLabel(value.displayName)
                     .accessibilityAddTraits(emotion == value.rawValue ? .isSelected : [])
                     .accessibilityIdentifier("record.emotion.\(value.id)")
                 }

@@ -5,7 +5,6 @@
 
 import UIKit
 import UserNotifications
-import WhisperDesignSystem
 
 enum WhisperNotificationRoute {
     static let didSelectRecord = Notification.Name("WhisperDidSelectNotificationRecord")

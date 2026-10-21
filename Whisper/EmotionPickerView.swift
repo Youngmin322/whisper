@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 enum WhisperEmotion: String, CaseIterable, Identifiable {
     case calm = "평온"
@@ -22,6 +21,41 @@ enum WhisperEmotion: String, CaseIterable, Identifiable {
     ]
 
     var id: String { rawValue }
+
+    // rawValue is persisted in records and drafts; only the display name is translated.
+    var displayName: String {
+        switch self {
+        case .calm: String(localized: "평온")
+        case .joy: String(localized: "기쁨")
+        case .proud: String(localized: "뿌듯함")
+        case .excitement: String(localized: "설렘")
+        case .tired: String(localized: "지침")
+        case .anxiety: String(localized: "불안")
+        case .depression: String(localized: "우울")
+        case .anger: String(localized: "분노")
+        case .sadness: String(localized: "슬픔")
+        }
+    }
+
+    static func displayName(for storedValue: String?) -> String? {
+        guard let storedValue else { return nil }
+        // Older versions also persisted these two names.
+        switch storedValue {
+        case "차분함": return WhisperEmotion.calm.displayName
+        case "속상": return WhisperEmotion.sadness.displayName
+        default: return WhisperEmotion(rawValue: storedValue)?.displayName ?? storedValue
+        }
+    }
+
+    static func searchText(for storedValue: String?) -> String {
+        searchNames(for: storedValue).joined(separator: " ")
+    }
+
+    static func searchNames(for storedValue: String?) -> [String] {
+        guard let storedValue else { return [] }
+        let name = displayName(for: storedValue) ?? storedValue
+        return name == storedValue ? [storedValue] : [name, storedValue]
+    }
 
     var emoji: String {
         switch self {
@@ -65,7 +99,7 @@ struct EmotionPickerView: View {
                         selectedEmotion = nil
                         dismiss()
                     } label: {
-                        emotionRow(title: "선택 안 함", systemImage: "circle.dashed")
+                        emotionRow(emotion: nil)
                     }
                 }
 
@@ -74,41 +108,38 @@ struct EmotionPickerView: View {
                         selectedEmotion = emotion.rawValue
                         dismiss()
                     } label: {
-                        emotionRow(
-                            title: emotion.rawValue,
-                            systemImage: emotion.systemImage
-                        )
+                        emotionRow(emotion: emotion)
                     }
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("지금의 감정")
+            .navigationTitle(String(localized: "지금의 감정"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("닫기") { dismiss() }
+                    Button(String(localized: "닫기")) { dismiss() }
                 }
             }
         }
     }
 
-    private func emotionRow(title: String, systemImage: String) -> some View {
+    private func emotionRow(emotion: WhisperEmotion?) -> some View {
         HStack(spacing: 14) {
-            if title == "선택 안 함" {
-                Image(systemName: systemImage)
+            if emotion == nil {
+                Image(systemName: "circle.dashed")
                     .foregroundStyle(Color.whisperAccent)
                     .frame(width: 32, height: 36)
             } else {
-                FlameCharacter(emotion: title, size: 32)
+                FlameCharacter(emotion: emotion?.rawValue, size: 32)
             }
 
-            Text(title)
+            Text(emotion?.displayName ?? String(localized: "선택 안 함"))
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
 
             Spacer()
 
-            if selectedEmotion == (title == "선택 안 함" ? nil : title) {
+            if selectedEmotion == emotion?.rawValue {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color.whisperAccent)
             }

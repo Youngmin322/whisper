@@ -39,7 +39,7 @@ struct IPadArchiveView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
-                .navigationTitle("보관함")
+                .navigationTitle(String(localized: "보관함"))
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: IPadEntry.self) { entry in
                     IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection)
@@ -68,9 +68,9 @@ struct IPadArchiveView: View {
                 Section(day.fullDescription) {
                     ForEach(entry.journals) { journal in
                         entryButton(.journal(journal.id), showsReader: showsReader) {
-                            IPadArchiveRow(title: journal.title.isEmpty ? "이날의 하루" : journal.title,
+                            IPadArchiveRow(title: journal.title.isEmpty ? String(localized: "이날의 하루") : journal.title,
                                            preview: journal.body, emotion: journal.emotion, isJournal: true,
-                                           metadata: "담긴 순간 \(journal.sourceRecordIDs.count)개")
+                                           metadata: String(localized: "담긴 순간 \(journal.sourceRecordIDs.count)개"))
                         }
                     }
                     ForEach(entry.uncollectedMoments) { moment in
@@ -89,7 +89,7 @@ struct IPadArchiveView: View {
                 }
             } else {
                 Section {
-                    Text(navigation.day == nil ? "날짜를 골라 그날의 기록을 펼쳐보세요." : "이날의 기록이 없어요.")
+                    Text(navigation.day == nil ? String(localized: "날짜를 골라 그날의 기록을 펼쳐보세요.") : String(localized: "이날의 기록이 없어요."))
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                         .padding(.vertical, WhisperSpacing.large)
@@ -121,7 +121,7 @@ struct IPadArchiveView: View {
             IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection, presentsNavigationTitle: false)
                 .id(entry)
         } else {
-            IPadEmptyState(title: navigation.day == nil ? "날짜를 골라보세요" : "읽을 기록을 선택해 주세요")
+            IPadEmptyState(title: navigation.day == nil ? String(localized: "날짜를 골라보세요") : String(localized: "읽을 기록을 선택해 주세요"))
             .accessibilityIdentifier("ipad.archive.emptySelection")
         }
     }
@@ -153,22 +153,24 @@ struct IPadSearchView: View {
                         Divider()
                         Group {
                             if let entry = navigation.selection {
-                                IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection, presentsNavigationTitle: false)
+                                IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection,
+                                                presentsNavigationTitle: false, searchContext: context(for: entry))
                                     .id(entry)
                             } else {
-                                IPadEmptyState(title: "읽을 기록을 선택해 주세요")
+                                IPadEmptyState(title: String(localized: "읽을 기록을 선택해 주세요"))
                                 .accessibilityIdentifier("ipad.search.emptySelection")
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
-                .navigationTitle("기억 찾기")
+                .navigationTitle(String(localized: "기억 찾기"))
                 .navigationBarTitleDisplayMode(.inline)
-                .searchable(text: $navigation.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "일기와 순간에서 검색")
+                .searchable(text: $navigation.query, placement: .navigationBarDrawer(displayMode: .always), prompt: String(localized: "일기와 순간에서 검색"))
                 .textInputAutocapitalization(.never)
                 .navigationDestination(for: IPadEntry.self) { entry in
-                    IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection)
+                    IPadEntryReader(entry: entry, recordStore: recordStore, onEdit: onEdit, onDelete: clearSelection,
+                                    searchContext: context(for: entry))
                 }
                 .onChange(of: showsReader, initial: true) { _, wide in
                     if wide { navigation.path = [] }
@@ -176,6 +178,11 @@ struct IPadSearchView: View {
                 }
                 .onChange(of: navigation.query) { _, _ in
                     if let selected = navigation.selection, !results.contains(where: { self.entry(for: $0) == selected }) {
+                        clearSelection()
+                    }
+                }
+                .onChange(of: results.map(\.id)) { _, _ in
+                    if let selected = navigation.selection, !results.contains(where: { entry(for: $0) == selected }) {
                         clearSelection()
                     }
                 }
@@ -188,9 +195,9 @@ struct IPadSearchView: View {
     private func resultList(showsReader: Bool) -> some View {
         if results.isEmpty {
             IPadEmptyState(title: navigation.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                           ? "어떤 기억을 찾고 있나요?" : "찾는 기록이 없어요",
+                           ? String(localized: "어떤 기억을 찾고 있나요?") : String(localized: "찾는 기록이 없어요"),
                            message: navigation.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                           ? "기억나는 말을 적어보세요" : "다른 말로 찾아보세요")
+                           ? String(localized: "기억나는 말을 적어보세요") : String(localized: "다른 말로 찾아보세요"))
         } else {
             List(results) { result in
                 Button {
@@ -198,7 +205,8 @@ struct IPadSearchView: View {
                     if !showsReader { navigation.path.append(entry(for: result)) }
                 } label: {
                     IPadArchiveRow(title: result.title, preview: result.preview, emotion: result.emotion,
-                                   isJournal: result.kind == .journal, metadata: "\(result.day.fullDescription) · \(result.kind.label)")
+                                   isJournal: result.kind == .journal, metadata: "\(result.day.fullDescription) · \(result.kind.label)",
+                                   searchResult: result)
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(navigation.selection == entry(for: result) ? Color.whisperSurfaceHighlight : Color.clear)
@@ -216,6 +224,10 @@ struct IPadSearchView: View {
         result.kind == .journal ? .journal(result.recordID) : .moment(result.recordID)
     }
 
+    private func context(for entry: IPadEntry) -> JournalSearchContext? {
+        results.first { self.entry(for: $0) == entry }?.searchContext
+    }
+
     private func clearSelection() {
         navigation.selection = nil
         navigation.path = []
@@ -228,6 +240,7 @@ private struct IPadArchiveRow: View {
     let emotion: String?
     let isJournal: Bool
     let metadata: String
+    var searchResult: JournalArchiveSearchResult? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: WhisperSpacing.small) {
@@ -238,8 +251,12 @@ private struct IPadArchiveRow: View {
             .frame(width: 32).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: WhisperSpacing.small) {
                 Text(metadata).font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
-                Text(title.isEmpty ? "남겨둔 순간" : title).font(.whisperHandwriting(22)).lineLimit(2)
-                Text(preview).font(.whisperDiaryBody).lineLimit(2).foregroundStyle(Color.whisperTextSecondary)
+                Text(title.isEmpty ? String(localized: "남겨둔 순간") : title).font(.whisperHandwriting(22)).lineLimit(2)
+                if let searchResult {
+                    JournalSearchMatchPreview(result: searchResult)
+                } else {
+                    Text(preview).font(.whisperDiaryBody).lineLimit(2).foregroundStyle(Color.whisperTextSecondary)
+                }
             }
         }
         .foregroundStyle(Color.whisperTextPrimary)
@@ -257,9 +274,7 @@ private struct IPadCalendar: View {
     let onSelect: (JournalDay) -> Void
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
     private var calendar: Calendar {
-        var value = JournalDayKey.calendar(timeZone: .current)
-        value.firstWeekday = 2
-        return value
+        WhisperLocalization.calendar()
     }
     private var dates: [Date?] {
         guard let start = calendar.dateInterval(of: .month, for: month)?.start,
@@ -271,15 +286,15 @@ private struct IPadCalendar: View {
     var body: some View {
         VStack(spacing: WhisperSpacing.large) {
             HStack {
-                monthButton("chevron.left", label: "이전 달", offset: -1)
+                monthButton("chevron.left", label: String(localized: "이전 달"), offset: -1)
                 Spacer(minLength: 0)
-                Text(month.formatted(Date.FormatStyle(calendar: calendar).locale(Locale(identifier: "ko_KR")).year().month()))
+                Text(month.formatted(Date.FormatStyle(calendar: calendar).locale(WhisperLocalization.locale).year().month()))
                     .font(.whisperHandwriting(25))
                 Spacer(minLength: 0)
-                monthButton("chevron.right", label: "다음 달", offset: 1)
+                monthButton("chevron.right", label: String(localized: "다음 달"), offset: 1)
             }
             LazyVGrid(columns: columns, spacing: WhisperSpacing.xSmall) {
-                ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) { day in
+                ForEach(WhisperLocalization.weekdaySymbols(), id: \.self) { day in
                     Text(day).font(.whisperCaption).foregroundStyle(Color.whisperTextSecondary)
                 }
                 ForEach(Array(dates.enumerated()), id: \.offset) { _, date in
@@ -296,8 +311,8 @@ private struct IPadCalendar: View {
     }
 
     @ViewBuilder private var legend: some View {
-        HStack(spacing: 5) { FlameBottle(emotion: nil, width: 13); Text("담긴 하루") }
-        HStack(spacing: 5) { FlameCharacter(emotion: "기쁨", size: 18); Text("미보관 순간") }
+        HStack(spacing: 5) { FlameBottle(emotion: nil, width: 13); Text(String(localized: "담긴 하루")) }
+        HStack(spacing: 5) { FlameCharacter(emotion: WhisperEmotion.joy.rawValue, size: 18); Text(String(localized: "미보관 순간")) }
     }
 
     private func cell(_ date: Date) -> some View {
@@ -321,7 +336,7 @@ private struct IPadCalendar: View {
         }
         .buttonStyle(.plain)
         .disabled(entry == nil)
-        .accessibilityLabel(entry?.accessibilityDescription ?? "\(day.fullDescription), 기록 없음")
+        .accessibilityLabel(entry?.accessibilityDescription ?? String(localized: "\(day.fullDescription), 기록 없음"))
         .accessibilityAddTraits(selectedDay?.key == day.key ? .isSelected : [])
         .accessibilityIdentifier("archive.day.\(day.key)")
     }

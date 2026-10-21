@@ -22,7 +22,7 @@ struct IPadHomeView: View {
 
     var body: some View {
         homeContent
-        .navigationTitle("오늘의 불꽃")
+        .navigationTitle(String(localized: "오늘의 불꽃"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) { dateLabel }
@@ -46,10 +46,10 @@ struct IPadHomeView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in refreshDay() }
         .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in refreshDay() }
         .onChange(of: recordStore.records.map(\.id)) { _, _ in proposeCollectionIfNeeded() }
-        .alert("오늘의 순간을 일기로 모아볼까요?", isPresented: $isTimeProposalPresented) {
-            Button("병에 담고 일기 쓰기", action: collect)
-            Button("나중에", role: .cancel) {}
-        } message: { Text("오늘을 돌아볼 시간이에요. 나중에 해도 기록은 그대로 남아요.") }
+        .alert(String(localized: "오늘의 순간을 일기로 모아볼까요?"), isPresented: $isTimeProposalPresented) {
+            Button(String(localized: "병에 담고 일기 쓰기"), action: collect)
+            Button(String(localized: "나중에"), role: .cancel) {}
+        } message: { Text(String(localized: "오늘을 돌아볼 시간이에요. 나중에 해도 기록은 그대로 남아요.")) }
         .onDisappear {
             collectionTask?.cancel()
             collectionStartedAt = nil
@@ -60,7 +60,7 @@ struct IPadHomeView: View {
         VStack(spacing: 0) {
             if recordStore.writingDraftStore.count > 0 || recordStore.writingDraftStore.errorMessage != nil {
                 Button(action: onResumeDrafts) {
-                    Text("작성 중인 기록 이어 쓰기")
+                    Text(String(localized: "작성 중인 기록 이어 쓰기"))
                         .font(.whisperControl)
                 }
                 .accessibilityIdentifier("ipad.home.resumeDraftsButton")
@@ -70,9 +70,9 @@ struct IPadHomeView: View {
 
             if moments.isEmpty {
                 IPadEmptyState(title: recordStore.journal(on: today) == nil
-                               ? "아직 오늘의 불꽃이 없어요" : "오늘의 불꽃을 병에 담았어요",
+                               ? String(localized: "아직 오늘의 불꽃이 없어요") : String(localized: "오늘의 불꽃을 병에 담았어요"),
                                message: recordStore.journal(on: today) == nil
-                               ? "떠오른 순간 하나를 남겨보세요" : "새로운 순간이 떠오르면 또 남겨보세요")
+                               ? String(localized: "떠오른 순간 하나를 남겨보세요") : String(localized: "새로운 순간이 떠오르면 또 남겨보세요"))
             } else {
                 TodayFlameField(records: moments, collectionStartedAt: collectionStartedAt, onSelect: {
                     onSelectMoment($0)
@@ -90,7 +90,7 @@ struct IPadHomeView: View {
             .background(alignment: .bottom) {
                 Capsule().fill(Color.whisperSurfaceHighlight).frame(height: 7).offset(y: 2)
             }
-            .accessibilityLabel("\(today.fullDescription), 오늘 남긴 순간 \(moments.count)개")
+            .accessibilityLabel(String(localized: "\(today.fullDescription), 오늘 남긴 순간 \(moments.count)개"))
             .accessibilityIdentifier("home.dateLabel")
     }
 
@@ -104,8 +104,8 @@ struct IPadHomeView: View {
         .buttonBorderShape(.circle)
         .tint(Color.whisperAccent)
         .disabled(moments.isEmpty || collectionStartedAt != nil)
-        .accessibilityLabel("병에 담기")
-        .accessibilityHint("오늘 남긴 순간을 모아 일기를 작성해요.")
+        .accessibilityLabel(String(localized: "병에 담기"))
+        .accessibilityHint(String(localized: "오늘 남긴 순간을 모아 일기를 작성해요."))
         .accessibilityIdentifier("home.journalButton")
     }
 
@@ -115,7 +115,7 @@ struct IPadHomeView: View {
             .tint(Color.whisperAccent)
             .keyboardShortcut("n", modifiers: .command)
             .disabled(collectionStartedAt != nil)
-            .accessibilityLabel("순간 남기기")
+            .accessibilityLabel(String(localized: "순간 남기기"))
             .accessibilityIdentifier("home.recordButton")
     }
 

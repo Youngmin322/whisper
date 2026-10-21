@@ -10,7 +10,7 @@ final class DiaryPhotoAttachment: NSTextAttachment {
         super.init(data: nil, ofType: nil)
         image = DiaryPhotoRenderer.render(photo, width: width)
         bounds = CGRect(x: 0, y: -6, width: width, height: image?.size.height ?? 0)
-        accessibilityLabel = "첨부한 사진" + (photo.caption.map { ", \($0)" } ?? "")
+        accessibilityLabel = Self.label(for: photo)
     }
     required init?(coder: NSCoder) {
         guard let data = coder.decodeObject(of: NSData.self, forKey: "diary.photo") as Data?,
@@ -20,7 +20,12 @@ final class DiaryPhotoAttachment: NSTextAttachment {
         let width = CGFloat(coder.decodeDouble(forKey: "diary.width"))
         image = DiaryPhotoRenderer.render(photo, width: width)
         bounds = CGRect(x: 0, y: -6, width: width, height: image?.size.height ?? 0)
-        accessibilityLabel = "첨부한 사진" + (photo.caption.map { ", \($0)" } ?? "")
+        accessibilityLabel = Self.label(for: photo)
+    }
+
+    private static func label(for photo: DiaryPhoto) -> String {
+        guard let caption = photo.caption, !caption.isEmpty else { return String(localized: "첨부한 사진") }
+        return String(localized: "첨부한 사진, \(caption)")
     }
     override func encode(with coder: NSCoder) {
         // Rebuild the paper frame from the original photo instead of archiving a rendered copy.
@@ -65,7 +70,7 @@ enum DiaryPhotoRenderer {
                 paragraph.lineBreakMode = .byTruncatingTail
                 (caption as NSString).draw(in: CGRect(x: imageRect.minX, y: imageRect.maxY + 7,
                                                      width: imageRect.width, height: 22), withAttributes: [
-                    .font: UIFont(name: "Gaegu-Regular", size: 17) ?? .systemFont(ofSize: 15),
+                    .font: UIFont(name: WhisperTypography.handwritingFontName, size: 17) ?? .systemFont(ofSize: 17),
                     .foregroundColor: UIColor(Color.whisperTextSecondary), .paragraphStyle: paragraph
                 ])
             }
@@ -204,6 +209,7 @@ struct DiaryTextView: UIViewRepresentable {
     var showsRules = false
     var placeholder: String? = nil
     var accessibilityIdentifier = "diary.body"
+    var editorAccessibilityLabel: String? = nil
     var onSelectionChange: (Int) -> Void = { _ in }
     var onPhotoTap: (DiaryPhoto) -> Void = { _ in }
 
@@ -224,7 +230,7 @@ struct DiaryTextView: UIViewRepresentable {
             let toolbar = UIToolbar()
             toolbar.sizeToFit()
             toolbar.items = [UIBarButtonItem(systemItem: .flexibleSpace),
-                            UIBarButtonItem(title: "키보드 내리기", style: .plain, target: context.coordinator,
+                            UIBarButtonItem(title: String(localized: "키보드 내리기"), style: .plain, target: context.coordinator,
                                             action: #selector(Coordinator.dismissKeyboard))]
             view.inputAccessoryView = toolbar
         }
@@ -236,6 +242,8 @@ struct DiaryTextView: UIViewRepresentable {
         view.tintColor = UIColor(Color.whisperAccentText)
         view.adjustsFontForContentSizeCategory = true
         let photoTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.photoTapped(_:)))
+        photoTap.name = "diary.photoTap"
+        photoTap.delegate = context.coordinator
         photoTap.cancelsTouchesInView = false
         view.addGestureRecognizer(photoTap)
         return view
@@ -247,7 +255,7 @@ struct DiaryTextView: UIViewRepresentable {
         view.isSelectable = true
         view.isScrollEnabled = fillsHeight
         view.accessibilityIdentifier = accessibilityIdentifier
-        view.accessibilityLabel = isEditable ? "일기 본문" : "일기 내용"
+        view.accessibilityLabel = editorAccessibilityLabel ?? (isEditable ? String(localized: "일기 본문") : String(localized: "일기 내용"))
         (view.layoutManager as? DiaryLayoutManager)?.showsRules = showsRules
         context.coordinator.render(in: view, width: max(1, view.bounds.width))
         (view as? DiaryEditorTextView)?.updatePlaceholder(placeholder, font: font)
@@ -269,11 +277,12 @@ struct DiaryTextView: UIViewRepresentable {
             .accessibility3: .accessibilityExtraLarge, .accessibility4: .accessibilityExtraExtraLarge,
             .accessibility5: .accessibilityExtraExtraExtraLarge
         ]
-        let base = UIFont(name: "NotoSansKR-Thin", size: 16) ?? .systemFont(ofSize: 16)
+        let base = UIFont(name: WhisperTypography.handwritingFontName, size: WhisperTypography.diaryBodySize)
+            ?? .systemFont(ofSize: WhisperTypography.diaryBodySize)
         return UIFontMetrics(forTextStyle: .body).scaledFont(for: base, compatibleWith: UITraitCollection(preferredContentSizeCategory: categories[dynamicTypeSize] ?? .large))
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var owner: DiaryTextView
         private var lastDocument: DiaryDocument?
         private var lastWidth: CGFloat = 0
@@ -359,17 +368,29 @@ struct DiaryTextView: UIViewRepresentable {
 
         @objc func dismissKeyboard() { owner.isFocused = false }
 
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            guard let view = gestureRecognizer.view as? UITextView else { return false }
+            // Leave text taps to UITextView's caret and selection gestures.
+            // cancelsTouchesInView alone does not prevent recognizer competition.
+            return photo(at: touch.location(in: view), in: view) != nil
+        }
+
         @objc func photoTapped(_ gesture: UITapGestureRecognizer) {
-            guard let view = gesture.view as? UITextView else { return }
-            var point = gesture.location(in: view)
+            guard let view = gesture.view as? UITextView,
+                  let photo = photo(at: gesture.location(in: view), in: view) else { return }
+            owner.onPhotoTap(photo)
+        }
+
+        private func photo(at location: CGPoint, in view: UITextView) -> DiaryPhoto? {
+            var point = location
             point.x -= view.textContainerInset.left
             point.y -= view.textContainerInset.top
             let index = view.layoutManager.characterIndex(for: point, in: view.textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
             guard index < view.attributedText.length,
-                  let attachment = view.attributedText.attribute(.attachment, at: index, effectiveRange: nil) as? DiaryPhotoAttachment else { return }
+                  let attachment = view.attributedText.attribute(.attachment, at: index, effectiveRange: nil) as? DiaryPhotoAttachment else { return nil }
             let glyphs = view.layoutManager.glyphRange(forCharacterRange: NSRange(location: index, length: 1), actualCharacterRange: nil)
-            guard view.layoutManager.boundingRect(forGlyphRange: glyphs, in: view.textContainer).contains(point) else { return }
-            owner.onPhotoTap(attachment.photo)
+            guard view.layoutManager.boundingRect(forGlyphRange: glyphs, in: view.textContainer).contains(point) else { return nil }
+            return attachment.photo
         }
     }
 }
@@ -383,16 +404,16 @@ struct DiaryPhotoViewer: View {
             Group {
                 if let data = photo.data, let image = UIImage(data: data) {
                     DiaryPhotoZoomView(image: image)
-                } else { ContentUnavailableView("사진을 볼 수 없어요", systemImage: "photo") }
+                } else { ContentUnavailableView(String(localized: "사진을 볼 수 없어요"), systemImage: "photo") }
             }
             .background(Color.whisperBackground)
-            .navigationTitle(photo.caption ?? "사진")
+            .navigationTitle(photo.caption ?? String(localized: "사진"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "닫기")) { dismiss() } }
                 if let onDelete {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("사진 삭제", role: .destructive) { onDelete(); dismiss() }
+                        Button(String(localized: "사진 삭제"), role: .destructive) { onDelete(); dismiss() }
                             .accessibilityIdentifier("photo.deleteButton")
                     }
                 }
@@ -419,7 +440,7 @@ final class DiaryPhotoZoomScrollView: UIScrollView, UIScrollViewDelegate {
         showsHorizontalScrollIndicator = false
         contentInsetAdjustmentBehavior = .never
         imageView.frame = CGRect(origin: .zero, size: image.size)
-        imageView.accessibilityLabel = "사진 원본, 두 손가락으로 확대하거나 두 번 탭할 수 있어요"
+        imageView.accessibilityLabel = String(localized: "사진 원본, 두 손가락으로 확대하거나 두 번 탭할 수 있어요")
         imageView.isAccessibilityElement = true
         addSubview(imageView)
         contentSize = image.size

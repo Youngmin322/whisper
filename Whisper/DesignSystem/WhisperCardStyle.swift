@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 private struct WhisperCardModifier: ViewModifier {
     let fill: Color

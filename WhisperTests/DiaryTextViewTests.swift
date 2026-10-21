@@ -90,6 +90,8 @@ struct DiaryTextViewTests {
         try await settle()
         let readingBody = try #require(textViews(in: host.view).first)
         #expect(DiaryTextFormatter.document(from: readingBody.attributedText) == draft.document)
+        let readingFont = try #require(readingBody.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
+        #expect(readingFont.fontName == "KyoboHandwriting2019")
         capture(window, name: "diary-day")
 
         host.rootView = AnyView(NavigationStack { JournalEditorView(journal: journal, recordStore: store) })
@@ -98,6 +100,8 @@ struct DiaryTextViewTests {
         #expect(editor.isEditable)
         #expect(!editor.isScrollEnabled)
         #expect(DiaryTextFormatter.document(from: editor.attributedText) == draft.document)
+        let editorFont = try #require(editor.attributedText.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
+        #expect(editorFont.fontName == readingFont.fontName)
         capture(window, name: "diary-day-editor")
         editor.selectedRange = NSRange(location: 0, length: 0)
         editor.insertText("마음을 다듬으며, ")
@@ -131,7 +135,7 @@ struct DiaryTextViewTests {
         defer { window.isHidden = true; window.rootViewController = nil; previousWindow?.makeKey() }
         try await settle()
         let editor = try #require(textViews(in: host.view).first)
-        #expect(editor.isFirstResponder)
+        try await waitForFocus(editor)
         #expect(DiaryTextFormatter.document(from: editor.attributedText).photos.count == 1)
         editor.resignFirstResponder()
         try await settle()
@@ -154,6 +158,14 @@ struct DiaryTextViewTests {
         (view as? UITextView).map { [$0] } ?? view.subviews.flatMap { textViews(in: $0) }
     }
     private func settle() async throws { try await Task.sleep(for: .milliseconds(350)) }
+
+    private func waitForFocus(_ editor: UITextView) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while !editor.isFirstResponder, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(editor.isFirstResponder)
+    }
     private func capture(_ window: UIWindow, name: String) {
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) }
         let url = FileManager.default.temporaryDirectory.appending(path: "\(name).png")

@@ -117,6 +117,6 @@ struct FlameBottle: View {
         }
         .frame(width: width, height: width * 119 / 82)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(emotion ?? "기쁨") 불꽃이 담긴 유리병")
+        .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: emotion) ?? WhisperEmotion.joy.displayName) 불꽃이 담긴 유리병"))
     }
 }

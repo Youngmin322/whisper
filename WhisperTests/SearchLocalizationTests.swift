@@ -5,19 +5,19 @@ import Vision
 @testable import Whisper
 
 @MainActor
-@Suite("검색 화면의 한국어 표시", .serialized)
+@Suite("검색 화면의 앱 언어 표시", .serialized)
 struct SearchLocalizationTests {
-    @Test("빌드된 앱의 기본 언어와 한국어·미지원 언어의 폴백이 한국어다")
+    @Test("빌드된 앱이 한국어·영어를 지원하고 기본 언어는 한국어다")
     func bundleSupportsKorean() {
         let bundle = Bundle.main
         #expect(bundle.developmentLocalization == "ko")
         #expect(bundle.localizations.contains("ko"))
-        for languages in [["ko-KR", "en"], ["en-US"], ["ja-JP"]] {
-            #expect(Bundle.preferredLocalizations(from: bundle.localizations, forPreferences: languages).first == "ko")
-        }
+        #expect(bundle.localizations.contains("en"))
+        #expect(Bundle.preferredLocalizations(from: bundle.localizations, forPreferences: ["ko-KR", "en"]).first == "ko")
+        #expect(Bundle.preferredLocalizations(from: bundle.localizations, forPreferences: ["en-US", "ko"]).first == "en")
     }
 
-    @Test("검색 시작·결과 없음·결과 있음·취소 화면이 한국어로 표시된다")
+    @Test("검색 시작·결과 없음·취소 문구가 앱 언어를 따르고 사용자 글은 유지된다")
     func searchUsesAppLanguage() async throws {
         let store = RecordStore(isStoredInMemoryOnly: true)
         _ = try #require(store.addAndReturn(title: "산책", content: "강변에서 걷던 오후", emotion: "평온"))
@@ -26,7 +26,7 @@ struct SearchLocalizationTests {
         defer { close(window) }
         try await settle()
         let initial = try recognizedText(in: window, name: "initial")
-        #expect(initial.contains("기억찾기"))
+        #expect(initial.contains(isEnglish ? "findamemory" : "기억찾기"))
         let search = try #require(searchController(in: host))
         search.isActive = true
         search.searchBar.becomeFirstResponder()
@@ -35,8 +35,8 @@ struct SearchLocalizationTests {
         setQuery("없는 기억", in: search)
         try await settle()
         let empty = try recognizedText(in: window, name: "no-results")
-        #expect(empty.contains(isPad ? "기록이없어요" : "결과없음"))
-        #expect(!empty.contains("NoResults") && !empty.contains("Checkthespelling") && !empty.contains("Cancel"))
+        #expect(empty.contains(isEnglish ? (isPad ? "nomatchingrecords" : "noresults") : (isPad ? "기록이없어요" : "결과없음")))
+        if !isEnglish { #expect(!empty.contains("noresults") && !empty.contains("checkthespelling") && !empty.contains("cancel")) }
 
         setQuery("강변", in: search)
         try await settle()
@@ -53,15 +53,17 @@ struct SearchLocalizationTests {
         #expect(cancelled.contains("기억하는하루"))
     }
 
-    @Test("기록이 없는 검색 화면도 한국어로 표시된다")
+    @Test("기록이 없는 검색 화면도 앱 언어로 표시된다")
     func emptyArchiveUsesKorean() async throws {
         let (window, _) = try makeHost(store: RecordStore(isStoredInMemoryOnly: true))
         defer { close(window) }
         try await settle()
         let text = try recognizedText(in: window, name: "no-records")
-        #expect(text.contains(isPad ? "어떤기억" : "아직남긴기록"))
-        #expect(!text.contains("NoResults") && !text.contains("Cancel"))
+        #expect(text.contains(isEnglish ? (isPad ? "whichmemory" : "nomemoriesyet") : (isPad ? "어떤기억" : "아직남긴기록")))
+        if !isEnglish { #expect(!text.contains("noresults") && !text.contains("cancel")) }
     }
+
+    private var isEnglish: Bool { Bundle.main.preferredLocalizations.first == "en" }
 
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
@@ -114,6 +116,6 @@ struct SearchLocalizationTests {
         let strings = request.results?.compactMap { $0.topCandidates(1).first?.string } ?? []
         print("SEARCH_LANGUAGE \(name) preferences=\(Locale.preferredLanguages) bundle=\(Bundle.main.preferredLocalizations) strings=\(strings)")
         print("SEARCH_CAPTURE \(url.path)")
-        return strings.joined().filter { !$0.isWhitespace }
+        return strings.joined().filter { !$0.isWhitespace }.lowercased()
     }
 }

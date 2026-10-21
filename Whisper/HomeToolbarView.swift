@@ -34,7 +34,7 @@ struct HomeToolbarView: View {
                 .contentShape(Rectangle())
         }
         .foregroundStyle(Color.whisperTextSecondary)
-        .accessibilityLabel("설정")
+        .accessibilityLabel(String(localized: "설정"))
         .accessibilityIdentifier("home.settingsButton")
     }
 
@@ -45,19 +45,19 @@ struct HomeToolbarView: View {
                     .resizable().aspectRatio(contentMode: .fit)
                     .frame(width: 19, height: 23)
                     .accessibilityHidden(true)
-                Text("보관함").font(.whisperControl).lineLimit(1).minimumScaleFactor(0.85)
+                Text(String(localized: "보관함")).font(.whisperControl).lineLimit(1).minimumScaleFactor(0.85)
             }
             .frame(minWidth: 76, minHeight: 48)
             .contentShape(Rectangle())
         }
         .foregroundStyle(Color.whisperTextSecondary)
-        .accessibilityLabel("보관함")
+        .accessibilityLabel(String(localized: "보관함"))
         .accessibilityIdentifier("home.collectionButton")
     }
 
     private var dateLabel: some View {
         Text(day.shortDescription)
-            .font(.whisperHandwriting(27, bold: true))
+            .font(.whisperHandwriting(27))
             .foregroundStyle(Color.whisperTextPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.75)

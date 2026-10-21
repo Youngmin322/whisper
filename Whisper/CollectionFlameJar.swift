@@ -219,11 +219,11 @@ struct CollectionFlameJar: View {
     private var accessibilityLabel: String {
         switch displayState {
         case .empty:
-            "비어 있는 불꽃 유리병"
+            String(localized: "비어 있는 불꽃 유리병")
         case .single:
-            "불꽃 한 개가 떠다니는 유리병"
+            String(localized: "불꽃 한 개가 떠다니는 유리병")
         case .multiple:
-            "\(storedFlameCount)개의 불꽃을 간직한 유리병"
+            String(localized: "\(storedFlameCount)개의 불꽃을 간직한 유리병")
         }
     }
 }

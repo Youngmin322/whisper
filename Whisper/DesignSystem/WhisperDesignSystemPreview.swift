@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 private struct WhisperDesignSystemPreview: View {
     var body: some View {

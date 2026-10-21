@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -41,7 +40,7 @@ struct HomeView: View {
                 Button { isDraftListPresented = true } label: {
                     HStack {
                         Image(systemName: "square.and.pencil")
-                        Text("작성 중인 기록 이어 쓰기 · \(recordStore.writingDraftStore.count)")
+                        Text(String(localized: "작성 중인 기록 이어 쓰기 · \(recordStore.writingDraftStore.count)"))
                         Spacer()
                         Image(systemName: "chevron.right")
                     }
@@ -103,10 +102,10 @@ struct HomeView: View {
                     .presentationDetents([.medium])
             }
         }
-        .alert("알림을 켜야 다시 건넬 수 있어요", isPresented: $isReminderUnavailablePresented) {
-            Button("확인", role: .cancel) {}
+        .alert(String(localized: "알림을 켜야 다시 건넬 수 있어요"), isPresented: $isReminderUnavailablePresented) {
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text("결심은 기억해 두었어요. 설정에서 알림을 허용하면 앱을 열지 않아도 다시 만날 수 있어요.")
+            Text(String(localized: "결심은 기억해 두었어요. 설정에서 알림을 허용하면 앱을 열지 않아도 다시 만날 수 있어요."))
         }
     }
 
@@ -115,7 +114,7 @@ struct HomeView: View {
     }
 
     private func openMoment() {
-        recordDraft = recordStore.writingDraftStore.momentDraft ?? RecordDraft()
+        recordDraft = RecordDraft()
         isQuickRecordPresented = true
     }
 
@@ -144,7 +143,7 @@ struct HomeView: View {
 
     private func candidateCard(_ candidate: CommitmentCandidate) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-            Label("기록에서 이런 결심을 찾았어요", systemImage: "sparkle")
+            Label(String(localized: "기록에서 이런 결심을 찾았어요"), systemImage: "sparkle")
                 .font(.whisperSectionTitle)
                 .foregroundStyle(Color.whisperTextPrimary)
 
@@ -153,18 +152,18 @@ struct HomeView: View {
                 .foregroundStyle(Color.whisperTextPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("이 문장을 나중에 다시 건넬까요? 기록은 어느 쪽이든 보관돼요.")
+            Text(String(localized: "이 문장을 나중에 다시 건넬까요? 기록은 어느 쪽이든 보관돼요."))
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
 
-            Button("다시 만나기") {
+            Button(String(localized: "다시 만나기")) {
                 remember(candidate, firstReminderDate: nil)
                 dismissCandidate()
             }
             .buttonStyle(.whisperPrimary(size: .compact))
             .accessibilityIdentifier("commitment.rememberButton")
 
-            Button("기록만 보관하기", action: dismissCandidate)
+            Button(String(localized: "기록만 보관하기"), action: dismissCandidate)
                 .font(.whisperControl)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .frame(maxWidth: .infinity, minHeight: WhisperSize.controlCompact)

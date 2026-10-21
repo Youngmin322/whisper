@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import WhisperDesignSystem
 
 struct WhisperJarAnimation: View {
     enum Size {
