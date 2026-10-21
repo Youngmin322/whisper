@@ -50,7 +50,8 @@ test("valid command dispatches the selected branch and reports acceptance", asyn
   assert.deepEqual(JSON.parse(h.calls[0].body), {
     ref: "dev", inputs: { operation: "testflight", branch: "main", version: "", build_number: "", requester: "U123" },
   });
-  assert.equal(h.calls[0].redirect, "error");
+  assert.equal(h.calls[0].redirect, "manual");
+  assert.equal(h.calls[1].redirect, "manual");
   assert.equal(h.calls[1].headers.Authorization, undefined);
   assert.match(JSON.parse(h.calls[1].body).text, /main TestFlight/);
 });
