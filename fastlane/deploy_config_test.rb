@@ -2,15 +2,16 @@ require "minitest/autorun"
 require_relative "deploy_config"
 
 class DeployConfigTest < Minitest::Test
-  Build = Struct.new(:id, :processing_state, :expired, :ready) do
-    def ready_for_internal_testing?; ready; end
+  Detail = Struct.new(:internal_build_state)
+  Build = Struct.new(:id, :processing_state, :expired, :internal_state) do
+    def build_beta_detail; Detail.new(internal_state); end
   end
   Group = Struct.new(:id, :is_internal_group, :has_access_to_all_builds, :builds) do
     def fetch_builds; builds; end
   end
 
   def ready_build
-    Build.new("uploaded-build", "VALID", false, true)
+    Build.new("uploaded-build", "VALID", false, "READY_FOR_BETA_TESTING")
   end
 
   def verify_distribution(group:, build: ready_build, **options, &distribute)
@@ -23,6 +24,12 @@ class DeployConfigTest < Minitest::Test
     group = Group.new("internal", true, true, [build])
     verified = verify_distribution(group: group, build: build) { |groups| assert_empty groups }
     assert_equal build, verified
+  end
+
+  def test_a_build_already_in_internal_testing_is_also_valid
+    build = Build.new("uploaded-build", "VALID", false, "IN_BETA_TESTING")
+    group = Group.new("internal", true, true, [build])
+    assert_equal build, verify_distribution(group: group, build: build)
   end
 
   def test_manual_internal_group_is_selected_and_verified
@@ -54,20 +61,20 @@ class DeployConfigTest < Minitest::Test
   end
 
   def test_failed_expired_unready_and_unrelated_builds_cannot_be_verified
-    [Build.new("uploaded-build", "INVALID", false, true),
-     Build.new("uploaded-build", "VALID", true, true),
-     Build.new("uploaded-build", "VALID", false, false), nil].each do |build|
+    [Build.new("uploaded-build", "INVALID", false, "READY_FOR_BETA_TESTING"),
+     Build.new("uploaded-build", "VALID", true, "EXPIRED"),
+     Build.new("uploaded-build", "VALID", false, "MISSING_EXPORT_COMPLIANCE"), nil].each do |build|
       group = Group.new("internal", true, false, [ready_build])
       assert_raises(RuntimeError) { verify_distribution(group: group, build: build) }
     end
-    group = Group.new("internal", true, false, [Build.new("another-build", "VALID", false, true)])
+    group = Group.new("internal", true, false, [Build.new("another-build", "VALID", false, "READY_FOR_BETA_TESTING")])
     assert_raises(RuntimeError) { verify_distribution(group: group) }
   end
 
   def test_readiness_is_polled_with_a_bounded_wait
     build = ready_build
     group = Group.new("internal", true, true, [build])
-    candidates = [nil, Build.new(build.id, "PROCESSING", false, false), build]
+    candidates = [nil, Build.new(build.id, "PROCESSING", false, "PROCESSING"), build]
     waits = []
     verified = WhisperDeploy.distribute_internal!(group: group, find_build: -> { candidates.shift },
       distribute: ->(groups) { assert_empty groups }, attempts: 3, interval: 5, sleeper: ->(seconds) { waits << seconds })

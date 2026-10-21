@@ -57,7 +57,8 @@ module WhisperDeploy
 
     attempts.times do |attempt|
       build = find_build.call
-      if build && build.processing_state == "VALID" && !build.expired && build.ready_for_internal_testing?
+      internal_state = build&.build_beta_detail&.internal_build_state
+      if build && build.processing_state == "VALID" && !build.expired && %w[READY_FOR_BETA_TESTING IN_BETA_TESTING].include?(internal_state)
         return build if group.fetch_builds.any? { |candidate| candidate.id == build.id }
       end
       sleeper.call(interval) if attempt < attempts - 1
