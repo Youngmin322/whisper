@@ -47,13 +47,15 @@ function responseURL(value) {
   } catch { return null; }
 }
 
+// Workers does not support redirect: "error". Manual mode never follows a redirect;
+// both callers treat non-2xx responses as failures.
 async function postResponse(url, text, fetcher) {
   const result = await fetcher(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ response_type: "ephemeral", text }),
     signal: AbortSignal.timeout(8000),
-    redirect: "error",
+    redirect: "manual",
   });
   if (!result.ok) throw new Error(`Slack response failed (${result.status})`);
 }
@@ -73,7 +75,7 @@ async function dispatch(inputs, callback, env, fetcher) {
       },
       body: JSON.stringify({ ref: env.GITHUB_WORKFLOW_REF, inputs }),
       signal: AbortSignal.timeout(10000),
-      redirect: "error",
+      redirect: "manual",
     });
     text = result.ok
       ? `GitHub Actions에 ${inputs.operation === "testflight" ? `${inputs.branch} TestFlight 배포` : `${inputs.version} (${inputs.build_number}) 심사 제출`}를 요청했어요.\n진행 상황: ${actionsURL}`

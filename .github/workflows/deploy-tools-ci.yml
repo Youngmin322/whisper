@@ -21,6 +21,8 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
+      - name: Install Worker runtime dependencies
+        run: npm ci --prefix Services/slack-deploy
       - name: Test Slack authentication and deployment dispatch
         run: node --test Services/slack-deploy/test/*.test.js Scripts/notify-slack.test.mjs
       - name: Test API authentication, signing profiles, and review selection
