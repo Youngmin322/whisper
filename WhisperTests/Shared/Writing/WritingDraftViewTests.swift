@@ -1,7 +1,9 @@
 import Observation
+import SwiftData
 import SwiftUI
 import Testing
 import UIKit
+import Vision
 @testable import Whisper
 
 @MainActor
@@ -14,6 +16,53 @@ private final class DraftEditingState {
 @MainActor
 @Suite("작성 화면의 초안 생명주기", .serialized)
 struct WritingDraftViewTests {
+    @Test("초안 목록은 읽기 불가 안내와 재시도를 표시하고 정상 초안을 계속 노출한다", arguments: [false, true])
+    func listsUnreadableDraftsWithoutAnEmptyState(onlyUnreadable: Bool) async throws {
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        let drafts = WritingDraftStore(context: context)
+        if !onlyUnreadable {
+            #expect(drafts.save(RecordDraft(title: "정상초안", content: "계속 작성할 내용", emotion: "기쁨")))
+        }
+        let id = UUID()
+        context.insert(WritingDraft(id: id, storageKey: "moment:new:\(id.uuidString)", payload: Data([0])))
+        try context.save()
+        drafts.reload()
+
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 600, height: 1000)
+        let host = UIHostingController(rootView: WritingDraftListView(draftStore: drafts, onOpenMoment: { _ in }, onOpenJournal: { _ in }))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            scene.windows.first { !$0.isHidden }?.makeKey()
+        }
+        try await settle()
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image {
+            _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        let cgImage = try #require(image.cgImage)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLanguages = ["ko-KR", "en-US"]
+        try VNImageRequestHandler(cgImage: cgImage).perform([request])
+        let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+            .joined().filter { !$0.isWhitespace }
+        let english = Bundle.main.preferredLocalizations.first == "en"
+        #expect(text.contains(english ? "Draftsthatcouldnotbeopened" : "읽을수없는초안"))
+        #expect(text.contains(english ? "Reloaddrafts" : "초안다시불러오기"))
+        #expect(!text.contains(english ? "Nodraftsinprogress" : "작성중인초안이없어요"))
+        if !onlyUnreadable { #expect(text.contains("정상초안")) }
+        if let directory = ProcessInfo.processInfo.environment["WHISPER_SCREENSHOT_DIR"] {
+            let url = URL(fileURLWithPath: directory, isDirectory: true)
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            try image.pngData()?.write(to: url.appending(path: "unreadable-drafts-\(onlyUnreadable).png"))
+        }
+    }
+
     @Test("순간 작성 화면은 입력 변경과 닫힘을 보관하고 다시 열 때 글과 사진을 유지한다")
     func momentViewAutosavesAndReopens() async throws {
         let store = RecordStore(isStoredInMemoryOnly: true)

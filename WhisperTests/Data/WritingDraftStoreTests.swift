@@ -8,6 +8,169 @@ import Testing
 struct WritingDraftStoreTests {
     private enum SaveFailure: Error { case unavailable }
 
+    @Test("읽을 수 없는 초안이 있어도 정상 순간·수정·일기를 복구하고 원본 행을 보존한다",
+          arguments: ["moment", "edit", "journal"], ["malformed", "incompatible"])
+    func restoresHealthyDraftsBesideUnreadableRows(kind: String, payloadKind: String) throws {
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        let initial = WritingDraftStore(context: context)
+        var moment = RecordDraft(content: "정상 순간", emotion: "기쁨")
+        moment.setDiaryDocument(.moment(text: moment.content, photoData: Data([1, 2, 3])))
+        let edit = RecordDraft(content: "정상 수정", emotion: "평온", existingRecordID: UUID())
+        var journal = JournalWritingDraft(day: day("2026-10-24"), existing: nil, records: [])
+        journal.body = "정상 일기"
+        journal.document = .moment(text: journal.body, photoData: Data([4, 5, 6]))
+        #expect(initial.save(moment))
+        #expect(initial.save(edit))
+        #expect(initial.save(journal))
+
+        let id = UUID()
+        let key = kind == "journal" ? "journal:new:2026-10-23"
+            : "moment:\(kind == "edit" ? "edit" : "new"):\(id.uuidString)"
+        let payload = Data((payloadKind == "malformed" ? "broken-json" : "{}").utf8)
+        let photo = Data(repeating: 0xA5, count: 200_000)
+        let damaged = WritingDraft(id: id, storageKey: key, payload: payload, photoData: photo)
+        damaged.updatedAt = .distantFuture
+        context.insert(damaged)
+        try context.save()
+
+        let reopened = WritingDraftStore(context: context)
+        #expect(reopened.momentDrafts == [moment])
+        #expect(reopened.momentEditDrafts == [edit])
+        #expect(reopened.journalDrafts == [journal])
+        #expect(reopened.unreadableDrafts.map(\.id) == [id])
+        #expect(reopened.count == 4)
+        #expect(reopened.errorMessage == nil)
+        reopened.retry()
+        moment.content = "정상 초안은 계속 수정할 수 있다"
+        #expect(reopened.save(moment))
+        #expect(reopened.momentDraft?.content == moment.content)
+        let preserved = try #require(context.fetch(FetchDescriptor<WritingDraft>()).first { $0.id == id })
+        #expect(preserved.storageKey == key)
+        #expect(preserved.payload == payload)
+        #expect(preserved.photoData == photo)
+        #expect(preserved.updatedAt == .distantFuture)
+    }
+
+    @Test("모든 초안이 읽기 불가여도 목록 진입을 유지하고 다시 읽을 수 있게 되면 복구한다")
+    func tracksAllUnreadableRowsAndRetriesAfterRepair() throws {
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        let repaired = RecordDraft(content: "다시 읽을 수 있는 순간", emotion: "기쁨")
+        let row = WritingDraft(id: repaired.id, storageKey: repaired.storageKey, payload: Data("broken-json".utf8))
+        let future = WritingDraft(id: UUID(), storageKey: "future:kind", payload: Data([9]), photoData: Data([8]))
+        context.insert(row)
+        context.insert(future)
+        try context.save()
+
+        let store = WritingDraftStore(context: context)
+        #expect(store.count == 2)
+        #expect(store.momentDrafts.isEmpty)
+        #expect(Set(store.unreadableDrafts.map(\.id)) == [row.id, future.id])
+        store.retry()
+        #expect(store.unreadableDrafts.count == 2)
+
+        // Simulate a later decoder-compatible payload without deleting its row.
+        row.payload = try JSONEncoder().encode(repaired)
+        try context.save()
+        store.retry()
+        #expect(store.momentDrafts == [repaired])
+        #expect(store.unreadableDrafts.map(\.id) == [future.id])
+        #expect(store.count == 2)
+        #expect(future.payload == Data([9]) && future.photoData == Data([8]))
+    }
+
+    @Test("정상 초안을 확정 저장한 뒤 저장소를 다시 열어도 읽기 불가 원본과 사진은 남는다")
+    func publishingHealthyDraftPreservesUnreadableRowAcrossReopen() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let configuration = configuration(at: directory)
+        let damagedID = UUID()
+        let payload = Data("not-json".utf8)
+        let photo = Data(repeating: 0xAB, count: 200_000)
+        let draft = RecordDraft(content: "정상 순간은 저장할 수 있다", emotion: "기쁨")
+        do {
+            let schema = Schema(versionedSchema: WhisperSchemaV7.self)
+            let container = try ModelContainer(for: schema, migrationPlan: WhisperMigrationPlan.self,
+                                               configurations: configuration)
+            container.mainContext.insert(WritingDraft(id: damagedID, storageKey: "journal:new:2026-10-23",
+                                                      payload: payload, photoData: photo))
+            try container.mainContext.save()
+        }
+        do {
+            let store = RecordStore(configuration: configuration)
+            #expect(store.isPersistenceAvailable)
+            #expect(store.saveMomentDraft(draft)?.id == draft.id)
+            #expect(store.writingDraftStore.momentDrafts.isEmpty)
+            #expect(store.writingDraftStore.unreadableDrafts.map(\.id) == [damagedID])
+        }
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
+        let reopened = try ModelContainer(for: schema, migrationPlan: WhisperMigrationPlan.self,
+                                          configurations: configuration)
+        let rows = try reopened.mainContext.fetch(FetchDescriptor<WritingDraft>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.id == damagedID)
+        #expect(rows.first?.payload == payload)
+        #expect(rows.first?.photoData == photo)
+        #expect(try reopened.mainContext.fetch(FetchDescriptor<WhisperRecord>()).map(\.id) == [draft.id])
+    }
+
+    @Test("같은 날짜의 새 일기는 읽을 수 없는 초안 원본을 덮어쓰지 않는다")
+    func doesNotOverwriteUnreadableJournalWithSameStorageKey() throws {
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        var newDraft = JournalWritingDraft(day: day("2026-10-24"), existing: nil, records: [])
+        newDraft.body = "새로 작성한 일기"
+        let id = UUID()
+        let payload = Data("broken-json".utf8)
+        let photo = Data([7, 8, 9])
+        context.insert(WritingDraft(id: id, storageKey: newDraft.storageKey, payload: payload, photoData: photo))
+        try context.save()
+        let store = WritingDraftStore(context: context)
+        #expect(!store.save(newDraft))
+        #expect(store.journalDrafts == [newDraft])
+        #expect(store.errorMessage != nil)
+        let preserved = try #require(context.fetch(FetchDescriptor<WritingDraft>()).first)
+        #expect(preserved.id == id)
+        #expect(preserved.payload == payload && preserved.photoData == photo)
+        store.retry()
+        #expect(preserved.payload == payload && preserved.photoData == photo)
+    }
+
+    @Test("읽을 수 없는 다른 행이 있어도 저장 실패한 최신 순간을 유지하고 재시도한다")
+    func preservesPendingEditsAlongsideUnreadableRows() throws {
+        let schema = Schema(versionedSchema: WhisperSchemaV7.self)
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        var shouldFail = false
+        let store = WritingDraftStore(context: context) { context in
+            if shouldFail { throw SaveFailure.unavailable }
+            try context.save()
+        }
+        var draft = RecordDraft(content: "기존 내용", emotion: "기쁨")
+        #expect(store.save(draft))
+        let damaged = WritingDraft(id: UUID(), storageKey: "journal:new:2026-10-23", payload: Data([0]))
+        context.insert(damaged)
+        try context.save()
+        store.reload()
+        shouldFail = true
+        draft.content = "저장 실패 후에도 남아야 하는 내용"
+        draft.photoData = Data([3, 2, 1])
+        #expect(!store.save(draft))
+        #expect(store.momentDraft == draft)
+        #expect(store.unreadableDrafts.map(\.id) == [damaged.id])
+        #expect(store.errorMessage != nil)
+        shouldFail = false
+        store.retry()
+        let reopened = WritingDraftStore(context: context)
+        #expect(reopened.momentDraft == draft)
+        #expect(reopened.unreadableDrafts.map(\.id) == [damaged.id])
+        #expect(store.errorMessage == nil)
+    }
+
     @Test("완성하지 않은 순간과 첨부 완료 사진을 새 저장소 인스턴스에서 복구한다", arguments: ["emotion", "text", "photo", "all"])
     func restoresIncompleteMoment(kind: String) throws {
         let directory = try temporaryDirectory()
