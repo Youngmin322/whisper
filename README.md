@@ -8,13 +8,13 @@
 - iOS 26 이상
 - 테스트용 iOS 26 이상 iPhone 시뮬레이터
 
-앱 코드와 디자인 시스템은 `Whisper/`에 함께 있습니다. 이미지·색상은 `Whisper/Assets.xcassets`, 글꼴은 `Whisper/Fonts`에서 관리합니다. 별도 Swift 패키지 없이 `Whisper.xcodeproj`를 열면 빌드할 수 있습니다.
+앱 코드는 `Whisper/App`, `Whisper/Features`, `Whisper/Shared`, `Whisper/Data`로 나누고, 기존 디자인 시스템과 iPad 화면은 `Whisper/DesignSystem`, `Whisper/iPad`에서 관리합니다. 이미지·색상은 `Whisper/Resources/Assets.xcassets`, 글꼴은 `Whisper/Resources/Fonts`에 있습니다. 별도 Swift 패키지 없이 `Whisper.xcodeproj`를 열면 빌드할 수 있습니다.
 
 ## 표시 언어
 
 한국어(`ko`)와 영어(`en`)를 지원하며, 개발 언어와 최종 폴백은 한국어입니다. iOS의 선호 언어 순서와 앱별 언어 설정을 따릅니다. 앱의 설정 → 언어 설정 열기에서 시스템 설정으로 이동할 수 있으며, 시스템 검색 안내와 취소 버튼도 선택한 앱 언어로 표시됩니다.
 
-화면·오류·접근성 문구는 `Whisper/Localizable.xcstrings`, 사진 접근 권한 안내는 `Whisper/InfoPlist.xcstrings`에서 관리합니다. 새 문구는 SwiftUI와 UIKit 모두 `String(localized: "한국어 원문")`으로 작성하고 Xcode의 String Catalog에 영어 번역을 추가합니다. App Intents의 `LocalizedStringResource` 문구도 같은 카탈로그에 포함됩니다. 숫자가 들어간 문구는 정수를 보간하고 영어의 `one`·`other` 복수형을 번역하세요. 문장을 조각내거나 사용자 글을 현지화 키로 사용하지 않습니다.
+화면·오류·접근성 문구는 `Whisper/Resources/Localizable.xcstrings`, 사진 접근 권한 안내는 `Whisper/Resources/InfoPlist.xcstrings`에서 관리합니다. 새 문구는 SwiftUI와 UIKit 모두 `String(localized: "한국어 원문")`으로 작성하고 Xcode의 String Catalog에 영어 번역을 추가합니다. App Intents의 `LocalizedStringResource` 문구도 같은 카탈로그에 포함됩니다. 숫자가 들어간 문구는 정수를 보간하고 영어의 `one`·`other` 복수형을 번역하세요. 문장을 조각내거나 사용자 글을 현지화 키로 사용하지 않습니다.
 
 빌드 시 Swift 컴파일러가 추출한 `.stringsdata`를 Xcode에서 카탈로그와 동기화합니다. CLI에서 새 키를 확인할 때는 `xcstringstool sync <카탈로그 경로> --stringsdata <빌드에서 생성한 .stringsdata 경로들>`을 사용할 수 있습니다. 번역 누락 시 한국어 원문으로 표시되므로, 배포 전 두 카탈로그에서 영어 번역 누락·오래된 키와 보간 인자를 확인하세요. 언어를 추가할 때는 카탈로그, 프로젝트의 `knownRegions`, `Info.plist`의 `CFBundleLocalizations`를 함께 갱신합니다.
 

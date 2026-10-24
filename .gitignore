@@ -37,5 +37,24 @@ node_modules/
 !.dev.vars.example
 *.p8
 *.p12
+*.pfx
+*.pem
+*.key
+*.keychain
+*.keychain-db
+*.developerprofile
 *.mobileprovision
+*.provisionprofile
+*.p8.base64
+*.p8.b64
+*.p12.base64
+*.p12.b64
+*.mobileprovision.base64
+*.mobileprovision.b64
 fastlane/output/
+
+# Local distribution artifacts
+*.ipa
+*.xcarchive/
+*.dSYM/
+*.dSYM.zip
