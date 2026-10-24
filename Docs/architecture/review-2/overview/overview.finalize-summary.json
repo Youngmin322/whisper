@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/overview.architecture.json",
+    "sha256": "53673191427026033e5f940c75c9dc628aef22c60e6ab08111206bfba177e8cd",
+    "bytes": 6541
+  },
+  "artifact": {
+    "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/overview.html",
+    "sha256": "71e9b7576900c1cf6c1096361084f696f74219f103c7db477e385f0f52300a14",
+    "bytes": 830239
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "fail"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/browser-check-runtime",
+      "severity": "error",
+      "message": "browser-check could not complete its Chrome inspection.",
+      "subject": {
+        "artifact": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/overview.html"
+      },
+      "evidence": {
+        "reason": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.0.0, libuv 1.52.1, darwin; pid=5125, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+      },
+      "supportedFixes": [
+        "resolve the reported Chrome inspection error, then rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/overview/overview.finalize.json",
+    "summaryReceipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/overview/overview.finalize-summary.json",
+    "browserCheckReceipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/overview/overview.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 646,
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  }
+}

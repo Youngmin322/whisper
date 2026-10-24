@@ -96,8 +96,8 @@ struct IPadHomeView: View {
 
     private var collectButton: some View {
         Button(action: collect) {
-            Image("BottleLineIcon")
-                .renderingMode(.template)
+            Image("Jar")
+                .renderingMode(.original)
                 .resizable().scaledToFit()
                 .frame(width: 20, height: 24)
         }
@@ -132,11 +132,12 @@ struct IPadHomeView: View {
     private func collect() {
         guard !moments.isEmpty, collectionStartedAt == nil else { return }
         let day = today
+        let duration = FlameCollectionMotion(count: moments.count).duration
         onCloseSelection()
         collectionStartedAt = .now
         collectionTask = Task { @MainActor in
             do {
-                if !reduceMotion { try await Task.sleep(for: .milliseconds(820)) }
+                if !reduceMotion { try await Task.sleep(for: .seconds(duration)) }
             } catch { return }
             guard !Task.isCancelled else { return }
             collectionStartedAt = nil

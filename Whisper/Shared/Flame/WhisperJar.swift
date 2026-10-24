@@ -41,21 +41,16 @@ struct WhisperJarAnimation: View {
     @State private var isFlameAnimating = false
 
     var body: some View {
+        let width = min(size.width, size.height / WhisperJarDesign.heightToWidth)
+        let jar = OriginalWhisperJar(width: width)
         ZStack {
-            // 유리병 + 코르크마개
-            Image.jar
-                .resizable()
-                .scaledToFit()
-                .frame(
-                    width: size.width,
-                    height: size.height
-                )
+            jar.back
 
             // 불꽃 캐릭터
-            FlameCharacter(emotion: nil, size: size.width * 0.40)
+            FlameCharacter(emotion: nil, size: width * 0.40)
                 .frame(
-                    width: size.width * 0.40,
-                    height: size.height * 0.55
+                    width: width * 0.40,
+                    height: width * 0.55
                 )
                 .scaleEffect(
                     x: isFlameAnimating ? 1.02 : 0.98,
@@ -67,8 +62,9 @@ struct WhisperJarAnimation: View {
                     )
                 )
                 .offset(
-                    y: isFlameAnimating ? 8 : 10
+                    y: width * 0.13 + (isFlameAnimating ? -1 : 1)
                 )
+            jar.front
         }
         .frame(
             width: size.width,

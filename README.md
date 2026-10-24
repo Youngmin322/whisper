@@ -2,6 +2,17 @@
 
 순간의 글과 사진을 남기고 하루의 일기로 모으는 iOS 앱입니다.
 
+## 앱 구조
+
+화면에서 작성한 내용을 `WritingDraftStore`가 초안으로 보관하고, `RecordStore`가 기록·일기로 확정합니다. 두 저장소는 같은 SwiftData `ModelContext`를 공유합니다.
+
+![Whisper 기록과 일기 구조](Docs/architecture/overview.png)
+
+- [새 순간의 초안 저장과 확정 흐름](Docs/architecture/moment-save.png)
+- [다이어그램 원본·HTML 열기와 재생성 안내](Docs/architecture/README.md)
+
+구조도는 코드 기준 `5223550`을 바탕으로 Archify로 생성했습니다.
+
 ## 개발 환경
 
 - Xcode 26 이상(Swift 6.2 이상)

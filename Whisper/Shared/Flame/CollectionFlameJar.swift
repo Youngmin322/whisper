@@ -12,7 +12,7 @@ struct CollectionFlameJar: View {
         case multiple
     }
 
-    private static let designSize = CGSize(width: 112, height: 149)
+    private static let designSize = WhisperJarDesign.size
 
     let storedFlameCount: Int
     var width: CGFloat = 72
@@ -43,36 +43,7 @@ struct CollectionFlameJar: View {
                 let time = timeline.date.timeIntervalSinceReferenceDate
 
                 ZStack(alignment: .topLeading) {
-                    fixedAsset(
-                        "CollectionJarBody",
-                        frame: CGRect(x: 13.43, y: 29.23, width: 87.85, height: 118.10),
-                        scaleX: scaleX,
-                        scaleY: scaleY
-                    )
-                    fixedAsset(
-                        "CollectionJarInnerGlass",
-                        frame: CGRect(x: 21.74, y: 36.62, width: 71.46, height: 101.40),
-                        scaleX: scaleX,
-                        scaleY: scaleY
-                    )
-                    fixedAsset(
-                        "CollectionJarNeck",
-                        frame: CGRect(x: 26.02, y: 22.81, width: 59.31, height: 15.83),
-                        scaleX: scaleX,
-                        scaleY: scaleY
-                    )
-                    fixedAsset(
-                        "CollectionJarCork",
-                        frame: CGRect(x: 31.34, y: 0, width: 50.75, height: 26),
-                        scaleX: scaleX,
-                        scaleY: scaleY
-                    )
-                    fixedAsset(
-                        "CollectionJarCorkHighlight",
-                        frame: CGRect(x: 36.02, y: 2.95, width: 41.78, height: 15.41),
-                        scaleX: scaleX,
-                        scaleY: scaleY
-                    )
+                    OriginalWhisperJar(width: geometry.size.width).back
 
                     floatingFlames(
                         time: time,
@@ -80,12 +51,7 @@ struct CollectionFlameJar: View {
                         scaleY: scaleY
                     )
 
-                    fixedAsset(
-                        "CollectionJarGlassHighlight",
-                        frame: CGRect(x: 25.96, y: 53.37, width: 10.86, height: 55.50),
-                        scaleX: scaleX,
-                        scaleY: scaleY
-                    )
+                    OriginalWhisperJar(width: geometry.size.width).front
                 }
             }
         }
@@ -107,9 +73,9 @@ struct CollectionFlameJar: View {
         case .single:
             movingAsset(
                 flameAsset(at: 0),
-                frame: CGRect(x: 43, y: 73, width: 26, height: 36),
+                frame: CGRect(x: 182, y: 382, width: 128, height: 176),
                 baseRotation: 0,
-                yAmplitude: 4,
+                yAmplitude: 18,
                 rotationAmplitude: 2,
                 duration: 2.6,
                 phase: 0,
@@ -121,9 +87,9 @@ struct CollectionFlameJar: View {
         case .multiple:
             movingAsset(
                 flameAsset(at: 0),
-                frame: CGRect(x: 60, y: 73, width: 26, height: 36),
+                frame: CGRect(x: 265, y: 375, width: 110, height: 150),
                 baseRotation: -4,
-                yAmplitude: 4,
+                yAmplitude: 18,
                 rotationAmplitude: 2,
                 duration: 2.6,
                 phase: 0,
@@ -133,9 +99,9 @@ struct CollectionFlameJar: View {
             )
             movingAsset(
                 flameAsset(at: 1),
-                frame: CGRect(x: 28, y: 50, width: 22, height: 31),
+                frame: CGRect(x: 160, y: 266, width: 108, height: 148),
                 baseRotation: 7,
-                yAmplitude: 6,
+                yAmplitude: 26,
                 rotationAmplitude: 3,
                 duration: 3.1,
                 phase: 2.1,
@@ -145,9 +111,9 @@ struct CollectionFlameJar: View {
             )
             movingAsset(
                 flameAsset(at: 2),
-                frame: CGRect(x: 33, y: 105, width: 18, height: 25),
+                frame: CGRect(x: 156, y: 560, width: 88, height: 120),
                 baseRotation: -8,
-                yAmplitude: 5,
+                yAmplitude: 22,
                 rotationAmplitude: 4,
                 duration: 2.3,
                 phase: 4.2,
@@ -161,25 +127,6 @@ struct CollectionFlameJar: View {
     private func flameAsset(at index: Int) -> String {
         let emotion = emotions.indices.contains(index) ? emotions[index] : nil
         return FlameCharacter.assetName(for: emotion)
-    }
-
-    private func fixedAsset(
-        _ name: String,
-        frame: CGRect,
-        scaleX: CGFloat,
-        scaleY: CGFloat
-    ) -> some View {
-        Image(name)
-            .resizable()
-            .frame(
-                width: frame.width * scaleX,
-                height: frame.height * scaleY
-            )
-            .position(
-                x: frame.midX * scaleX,
-                y: frame.midY * scaleY
-            )
-            .accessibilityHidden(true)
     }
 
     private func movingAsset(

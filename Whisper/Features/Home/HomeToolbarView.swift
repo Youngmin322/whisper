@@ -41,7 +41,7 @@ struct HomeToolbarView: View {
     private var collectionButton: some View {
         Button(action: onOpenCollection) {
             HStack(spacing: 4) {
-                Image("BottleLineIcon")
+                Image("Jar")
                     .resizable().aspectRatio(contentMode: .fit)
                     .frame(width: 19, height: 23)
                     .accessibilityHidden(true)

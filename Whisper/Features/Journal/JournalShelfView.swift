@@ -101,7 +101,7 @@ struct JournalShelfView: View {
                         if let entry {
                             HStack(alignment: .center, spacing: 0) {
                                 if let journal = entry.journals.first {
-                                    FlameBottle(emotion: journal.emotion, width: entry.hasUncollectedMoments ? 26 : 31)
+                                    FlameBottle(emotion: journal.emotion, width: entry.hasUncollectedMoments ? 26 : 28)
                                 }
                                 if let moment = entry.uncollectedMoments.last {
                                     FlameCharacter(emotion: moment.emotion, size: entry.hasJournal ? 13 : 27)

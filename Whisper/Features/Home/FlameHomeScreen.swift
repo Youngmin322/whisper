@@ -59,7 +59,7 @@ struct FlameHomeScreen: View {
             ToolbarSpacer(.flexible, placement: .bottomBar)
 
             ToolbarItem(placement: .bottomBar) {
-                HomeActionButton(title: String(localized: "병에 담기"), image: Image("BottleLineIcon"), action: collect)
+                HomeActionButton(title: String(localized: "병에 담기"), image: Image("Jar"), usesOriginalColors: true, action: collect)
                     .disabled(records.isEmpty || collectionStartedAt != nil)
                     .accessibilityIdentifier("home.journalButton")
                     .accessibilityHint(String(localized: "오늘 남긴 순간을 모아 일기를 작성해요."))
@@ -173,10 +173,11 @@ struct FlameHomeScreen: View {
     private func collect() {
         guard !records.isEmpty, collectionStartedAt == nil else { return }
         collectionDay = day
+        let duration = FlameCollectionMotion(count: records.count).duration
         collectionStartedAt = .now
         collectionTask = Task { @MainActor in
             do {
-                if !reduceMotion { try await Task.sleep(for: .milliseconds(820)) }
+                if !reduceMotion { try await Task.sleep(for: .seconds(duration)) }
             } catch { return }
             guard !Task.isCancelled else { return }
             isJournalPresented = true
@@ -187,12 +188,13 @@ struct FlameHomeScreen: View {
 private struct HomeActionButton: View {
     let title: String
     let image: Image
+    var usesOriginalColors = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             image
-                .renderingMode(.template)
+                .renderingMode(usesOriginalColors ? .original : .template)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 20, height: 24)

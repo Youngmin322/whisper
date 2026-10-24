@@ -77,7 +77,7 @@ struct IPadWorkspaceView: View {
                 Label {
                     Text(IPadSection.archive.title)
                 } icon: {
-                    Image("BottleLineIcon").renderingMode(.original)
+                    Image("Jar").renderingMode(.original)
                 }
             }
             Tab(String(localized: "기억 찾기"), systemImage: "magnifyingglass", value: IPadSection.search, role: .search) {

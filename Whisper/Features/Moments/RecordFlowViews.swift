@@ -24,7 +24,7 @@ struct WhisperJar: View {
     var emotion: String? = nil
     
     var body: some View {
-        let width = min(size.dimensions.width, size.dimensions.height * 82 / 119)
+        let width = min(size.dimensions.width, size.dimensions.height / WhisperJarDesign.heightToWidth)
         FlameBottle(emotion: emotion, width: width)
             .frame(width: size.dimensions.width, height: size.dimensions.height)
             .accessibilityLabel(String(localized: "불꽃이 담긴 유리병"))

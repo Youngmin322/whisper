@@ -20,24 +20,28 @@ struct TodayFlameField: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+        TimelineView(.animation(minimumInterval: collectionStartedAt == nil ? 1.0 / 30.0 : 1.0 / 60.0,
                                 paused: reduceMotion || isPaused || !isVisible || scenePhase != .active)) { timeline in
             GeometryReader { geometry in
                 let now = timeline.date.timeIntervalSinceReferenceDate
                 let motionTime = collectionStartedAt?.timeIntervalSinceReferenceDate ?? now
-                let progress = collectionProgress(at: timeline.date)
-                let jarPoint = CGPoint(x: geometry.size.width / 2, y: geometry.size.height - 65)
+                let collection = FlameCollectionMotion(count: records.count)
+                let elapsed = reduceMotion ? collection.duration : timeline.date.timeIntervalSince(collectionStartedAt ?? timeline.date)
+                let jar = FlameCollectionJar(layout: FlameCollectionJarLayout(size: geometry.size),
+                                             motion: collection, elapsed: elapsed)
 
                 ZStack {
-                    ForEach(records) { record in
+                    if collectionStartedAt != nil { jar.back }
+
+                    ForEach(Array(records.enumerated()), id: \.element.id) { index, record in
                         if let pose = motion.pose(for: record.id, at: motionTime,
                                                   size: geometry.size, reduceMotion: reduceMotion) {
-                            let point = CGPoint(
-                                x: pose.groundPosition.x + (jarPoint.x - pose.groundPosition.x) * progress,
-                                y: pose.groundPosition.y + (jarPoint.y - pose.groundPosition.y) * progress
-                            )
+                            let flight = collectionStartedAt.map { _ in
+                                collection.flight(at: elapsed, index: index, from: pose.groundPosition, jar: jar.layout)
+                            }
+                            let point = flight?.position ?? pose.groundPosition
 
-                            if !reduceMotion && progress == 0 && pose.dustOpacity > 0 {
+                            if !reduceMotion && collectionStartedAt == nil && pose.dustOpacity > 0 {
                                 landingDust(pose)
                                     .position(
                                         x: point.x - pose.facing * 15,
@@ -46,24 +50,25 @@ struct TodayFlameField: View {
                             }
 
                             Button { onSelect(record.id) } label: {
-                                AnimatedFlameCharacter(emotion: record.emotion, pose: pose)
-                                    .scaleEffect(1 - progress * 0.4)
+                                AnimatedFlameCharacter(emotion: record.emotion,
+                                                       pose: releasedPose(pose, amount: flight?.release ?? 0),
+                                                       shadowOpacity: Double(1 - (flight?.release ?? 0)))
+                                    .scaleEffect(x: flight?.scaleX ?? 1, y: flight?.scaleY ?? 1)
+                                    .rotationEffect(.degrees(flight?.rotation ?? 0))
                             }
                             .buttonStyle(.plain)
                             .frame(width: 72, height: 72)
                             .contentShape(Rectangle())
                             .position(point)
-                            .opacity(progress > 0.84 ? (1 - progress) / 0.16 : 1)
-                            .disabled(progress > 0)
+                            .opacity(flight?.opacity ?? 1)
+                            .disabled(collectionStartedAt != nil)
                             .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: record.emotion) ?? String(localized: "감정 미선택")) 불꽃, \(record.content), 순간 열기"))
                             .accessibilityIdentifier("home.flame.\(record.id.uuidString)")
                         }
                     }
 
                     if collectionStartedAt != nil {
-                        FlameBottle(emotion: JournalDraftComposer.representativeEmotion(in: records), width: 80)
-                            .position(jarPoint)
-                            .accessibilityHidden(true)
+                        jar.front
                     }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -103,11 +108,15 @@ struct TodayFlameField: View {
         }
     }
 
-    private func collectionProgress(at date: Date) -> CGFloat {
-        guard let collectionStartedAt else { return 0 }
-        if reduceMotion { return 1 }
-        let fraction = min(1, max(0, date.timeIntervalSince(collectionStartedAt) / 0.75))
-        return CGFloat(1 - pow(1 - fraction, 3))
+    private func releasedPose(_ pose: FlameHopPose, amount: CGFloat) -> FlameHopPose {
+        let remaining = 1 - amount
+        return FlameHopPose(
+            groundPosition: pose.groundPosition, frameIndex: pose.frameIndex,
+            lift: pose.lift * remaining - 1.5 * amount, lead: pose.lead * remaining,
+            faceRotation: pose.faceRotation * Double(remaining), dustOpacity: 0,
+            dustSpread: 0, shadowScale: pose.shadowScale, facing: pose.facing,
+            body: pose.body, isMoving: pose.isMoving, referenceBlend: pose.referenceBlend * remaining
+        )
     }
 
     private func landingDust(_ pose: FlameHopPose) -> some View {

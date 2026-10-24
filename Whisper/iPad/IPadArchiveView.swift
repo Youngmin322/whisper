@@ -322,7 +322,7 @@ private struct IPadCalendar: View {
             VStack(spacing: WhisperSpacing.xxSmall) {
                 Text("\(calendar.component(.day, from: date))").font(.whisperCaption)
                 HStack(spacing: 0) {
-                    if let journal = entry?.journals.first { FlameBottle(emotion: journal.emotion, width: 19) }
+                    if let journal = entry?.journals.first { FlameBottle(emotion: journal.emotion, width: 18) }
                     if let moment = entry?.uncollectedMoments.last { FlameCharacter(emotion: moment.emotion, size: 19) }
                 }
                 .frame(height: 29)

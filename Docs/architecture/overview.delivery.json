@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "f352d0ae-97f0-4ccd-9c51-99cc3f60f36e",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/overview.architecture.json",
+  "output": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/overview.html",
+  "specification": {
+    "sha256": "53673191427026033e5f940c75c9dc628aef22c60e6ab08111206bfba177e8cd",
+    "bytes": 6541
+  },
+  "artifact": {
+    "sha256": "71e9b7576900c1cf6c1096361084f696f74219f103c7db477e385f0f52300a14",
+    "bytes": 830239
+  }
+}
