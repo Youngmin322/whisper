@@ -135,7 +135,7 @@ struct DiaryTextViewTests {
         defer { window.isHidden = true; window.rootViewController = nil; previousWindow?.makeKey() }
         try await settle()
         let editor = try #require(textViews(in: host.view).first)
-        #expect(editor.isFirstResponder)
+        try await waitForFocus(editor)
         #expect(DiaryTextFormatter.document(from: editor.attributedText).photos.count == 1)
         editor.resignFirstResponder()
         try await settle()
@@ -158,6 +158,14 @@ struct DiaryTextViewTests {
         (view as? UITextView).map { [$0] } ?? view.subviews.flatMap { textViews(in: $0) }
     }
     private func settle() async throws { try await Task.sleep(for: .milliseconds(350)) }
+
+    private func waitForFocus(_ editor: UITextView) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while !editor.isFirstResponder, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(editor.isFirstResponder)
+    }
     private func capture(_ window: UIWindow, name: String) {
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) }
         let url = FileManager.default.temporaryDirectory.appending(path: "\(name).png")

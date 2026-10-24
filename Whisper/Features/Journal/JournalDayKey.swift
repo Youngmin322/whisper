@@ -46,7 +46,7 @@ struct JournalDay: Codable, Equatable {
 }
 
 enum JournalDayKey {
-    static func calendar(timeZone: TimeZone = .current) -> Calendar {
+    nonisolated static func calendar(timeZone: TimeZone = .current) -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         return calendar
