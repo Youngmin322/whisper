@@ -2,6 +2,12 @@ import Foundation
 import Observation
 import SwiftData
 
+/// Metadata only: unreadable payloads and photos stay untouched in their original rows.
+struct UnreadableWritingDraft: Identifiable, Equatable {
+    let id: UUID
+    let updatedAt: Date
+}
+
 /// Shares the record context so publishing a record and removing its draft are atomic.
 @MainActor
 @Observable
@@ -9,6 +15,7 @@ final class WritingDraftStore {
     private(set) var momentDrafts: [RecordDraft] = []
     private(set) var momentEditDrafts: [RecordDraft] = []
     private(set) var journalDrafts: [JournalWritingDraft] = []
+    private(set) var unreadableDrafts: [UnreadableWritingDraft] = []
     private(set) var errorMessage: String?
     @ObservationIgnored private let context: ModelContext?
     // A disappearing editor may outlive its parent store for one render pass.
@@ -26,7 +33,11 @@ final class WritingDraftStore {
         reload()
     }
 
-    var count: Int { momentDrafts.filter(\.hasChanges).count + momentEditDrafts.count + journalDrafts.count }
+    var count: Int {
+        Set(momentDrafts.filter(\.hasChanges).map(\.id)
+            + momentEditDrafts.map(\.id) + journalDrafts.map(\.id)
+            + unreadableDrafts.map(\.id)).count
+    }
 
     /// The most recently saved new-moment draft. The resume list exposes all drafts.
     var momentDraft: RecordDraft? { momentDrafts.first { $0.hasChanges } }
@@ -131,25 +142,33 @@ final class WritingDraftStore {
             var moments: [RecordDraft] = []
             var edits: [RecordDraft] = []
             var journals: [JournalWritingDraft] = []
+            var unreadable: [UnreadableWritingDraft] = []
             for row in rows {
-                if row.storageKey == "moment" || row.storageKey.hasPrefix("moment:new:") || row.storageKey.hasPrefix("moment:edit:") {
-                    var decoded = try JSONDecoder().decode(RecordDraft.self, from: row.payload)
-                    if let snapshot = DiaryDocument.decode(row.photoData) {
-                        decoded.document = decoded.document?.restoringPhotos(from: snapshot)
-                        decoded.photoData = decoded.document?.photos.first?.data
+                do {
+                    if row.storageKey == "moment" || row.storageKey.hasPrefix("moment:new:") || row.storageKey.hasPrefix("moment:edit:") {
+                        var decoded = try JSONDecoder().decode(RecordDraft.self, from: row.payload)
+                        if let snapshot = DiaryDocument.decode(row.photoData) {
+                            decoded.document = decoded.document?.restoringPhotos(from: snapshot)
+                            decoded.photoData = decoded.document?.photos.first?.data
+                        } else {
+                            decoded.photoData = row.photoData
+                        }
+                        if row.storageKey.hasPrefix("moment:edit:") { edits.append(decoded) }
+                        else { moments.append(decoded) }
+                    } else if row.storageKey.hasPrefix("journal:") {
+                        var decoded = try JSONDecoder().decode(JournalWritingDraft.self, from: row.payload)
+                        if let snapshot = DiaryDocument.decode(row.photoData) {
+                            decoded.document = decoded.document?.restoringPhotos(from: snapshot)
+                        }
+                        journals.append(decoded)
                     } else {
-                        decoded.photoData = row.photoData
+                        throw DraftReadFailure.unsupportedKind
                     }
-                    if row.storageKey.hasPrefix("moment:edit:") { edits.append(decoded) }
-                    else { moments.append(decoded) }
-                } else if row.storageKey.hasPrefix("journal:") {
-                    var decoded = try JSONDecoder().decode(JournalWritingDraft.self, from: row.payload)
-                    if let snapshot = DiaryDocument.decode(row.photoData) {
-                        decoded.document = decoded.document?.restoringPhotos(from: snapshot)
-                    }
-                    journals.append(decoded)
+                } catch {
+                    unreadable.append(UnreadableWritingDraft(id: row.id, updatedAt: row.updatedAt))
                 }
             }
+            unreadableDrafts = unreadable
             let momentIDs = Set(pendingMoments.map(\.id))
             momentDrafts = pendingMoments + moments.filter { !momentIDs.contains($0.id) }
             let editKeys = Set(pendingMomentEdits.keys)
@@ -169,6 +188,10 @@ final class WritingDraftStore {
         // Legacy new-moment rows use the shared "moment" key. Match their ID
         // before upgrading the key so editing them cannot create a duplicate row.
         if let row = rows.first(where: { $0.id == id }) ?? rows.first(where: { $0.storageKey == key }) {
+            // A new journal for the same day must not silently replace an unreadable draft.
+            guard !unreadableDrafts.contains(where: { $0.id == row.id }) else {
+                throw DraftReadFailure.unreadableRow
+            }
             row.id = id
             row.storageKey = key
             row.payload = payload
@@ -203,4 +226,6 @@ final class WritingDraftStore {
         pendingMomentEdits = pendingMomentEdits.filter { $0.value.id != id }
         pendingJournals = pendingJournals.filter { $0.value.id != id }
     }
+
+    private enum DraftReadFailure: Error { case unsupportedKind, unreadableRow }
 }

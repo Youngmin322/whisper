@@ -1,6 +1,70 @@
 {
   "sourceLanguage" : "ko",
   "strings" : {
+    "읽을 수 없는 초안" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drafts that could not be opened"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "읽을 수 없는 초안"
+          }
+        }
+      }
+    },
+    "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The original draft data and photos are still on this device. You can continue writing your other drafts."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요."
+          }
+        }
+      }
+    },
+    "초안 다시 불러오기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload drafts"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "초안 다시 불러오기"
+          }
+        }
+      }
+    },
+    "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If reloading does not help, keep this app and its data until the original draft can be recovered."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요."
+          }
+        }
+      }
+    },
     "“%@”" : {
       "localizations" : {
         "en" : {
