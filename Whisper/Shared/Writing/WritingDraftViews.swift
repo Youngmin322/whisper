@@ -80,7 +80,7 @@ struct WritingDraftListView: View {
                             Label {
                                 Text(draft.updatedAt.whisperDateTimeDescription)
                             } icon: {
-                                Image(systemName: "exclamationmark.document")
+                                Image(systemName: "exclamationmark.triangle")
                             }
                             .accessibilityIdentifier("draft.unreadable.\(draft.id)")
                         }
