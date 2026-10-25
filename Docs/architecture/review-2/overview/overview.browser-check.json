@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "browser-check",
+  "evidenceKind": "automated-browser",
+  "status": "fail",
+  "visualReview": "not-requested",
+  "provenance": "current",
+  "deliveryReceiptId": "f352d0ae-97f0-4ccd-9c51-99cc3f60f36e",
+  "artifact": {
+    "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/overview.html",
+    "sha256": "71e9b7576900c1cf6c1096361084f696f74219f103c7db477e385f0f52300a14",
+    "bytes": 830239
+  },
+  "state": {
+    "detail": "read",
+    "motion": "still"
+  },
+  "chrome": {
+    "status": "available",
+    "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  },
+  "diagnostics": [
+    {
+      "code": "viewer/browser-check-runtime",
+      "severity": "error",
+      "message": "browser-check could not complete its Chrome inspection.",
+      "subject": {
+        "artifact": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/overview.html"
+      },
+      "evidence": {
+        "reason": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.0.0, libuv 1.52.1, darwin; pid=5125, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+      },
+      "supportedFixes": [
+        "resolve the reported Chrome inspection error, then rerun browser-check"
+      ]
+    }
+  ],
+  "containment": {
+    "status": "fail",
+    "policy": "fit-or-reader-declared-readable-vertical-scroll",
+    "viewports": []
+  },
+  "themeStates": {
+    "status": "fail",
+    "viewports": []
+  },
+  "readability": {
+    "status": "fail",
+    "minimumProjectedNodeTextPx": 6,
+    "viewports": []
+  },
+  "viewerChrome": {
+    "status": "fail",
+    "viewports": []
+  },
+  "captures": {
+    "status": "not-requested",
+    "screenshots": [],
+    "contactSheet": null
+  },
+  "sidecars": {
+    "directory": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/overview",
+    "receipt": "overview.browser-check.json",
+    "files": []
+  },
+  "error": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.0.0, libuv 1.52.1, darwin; pid=5125, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+}

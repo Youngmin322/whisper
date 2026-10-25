@@ -34,24 +34,24 @@ struct HomeToolbarView: View {
                 .contentShape(Rectangle())
         }
         .foregroundStyle(Color.whisperTextSecondary)
-        .accessibilityLabel(String(localized: "설정"))
+        .accessibilityLabel(String(localized: "설정", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         .accessibilityIdentifier("home.settingsButton")
     }
 
     private var collectionButton: some View {
         Button(action: onOpenCollection) {
             HStack(spacing: 4) {
-                Image("BottleLineIcon")
+                Image("Jar")
                     .resizable().aspectRatio(contentMode: .fit)
                     .frame(width: 19, height: 23)
                     .accessibilityHidden(true)
-                Text(String(localized: "보관함")).font(.whisperControl).lineLimit(1).minimumScaleFactor(0.85)
+                Text(String(localized: "보관함", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)).font(.whisperControl).lineLimit(1).minimumScaleFactor(0.85)
             }
             .frame(minWidth: 76, minHeight: 48)
             .contentShape(Rectangle())
         }
         .foregroundStyle(Color.whisperTextSecondary)
-        .accessibilityLabel(String(localized: "보관함"))
+        .accessibilityLabel(String(localized: "보관함", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         .accessibilityIdentifier("home.collectionButton")
     }
 

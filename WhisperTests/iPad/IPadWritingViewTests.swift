@@ -15,7 +15,7 @@ struct IPadWritingViewTests {
         defer { close(window) }
         try await settle()
         let editor = try #require(textViews(in: host.view).first { $0.accessibilityIdentifier == "record.contentField" })
-        #expect(editor.accessibilityLabel == (Bundle.main.preferredLocalizations.first == "en" ? "Moment text" : "순간 본문"))
+        #expect(editor.accessibilityLabel == (WhisperLocalization.languageCode == "en" ? "Moment text" : "순간 본문"))
         let inserted = "처음의 마음\n"
         editor.textStorage.insert(NSAttributedString(string: inserted, attributes: DiaryTextFormatter.attributes(font: .systemFont(ofSize: 18))), at: 0)
         editor.delegate?.textViewDidChange?(editor)
@@ -53,7 +53,7 @@ struct IPadWritingViewTests {
         defer { close(window) }
         try await settle()
         let editor = try #require(textViews(in: host.view).first { $0.accessibilityIdentifier == "journal.bodyField" })
-        #expect(editor.accessibilityLabel == (Bundle.main.preferredLocalizations.first == "en" ? "Journal entry text" : "일기 본문"))
+        #expect(editor.accessibilityLabel == (WhisperLocalization.languageCode == "en" ? "Journal entry text" : "일기 본문"))
         editor.textStorage.append(NSAttributedString(string: "\n집에 돌아와 다시 떠올렸다.", attributes: DiaryTextFormatter.attributes(font: .systemFont(ofSize: 18))))
         editor.delegate?.textViewDidChange?(editor)
         try await settle()

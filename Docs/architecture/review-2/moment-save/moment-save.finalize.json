@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "workflow",
+  "quality": "showcase",
+  "startedAt": "2026-10-24T06:06:47.055Z",
+  "specification": {
+    "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.workflow.json",
+    "sha256": "64fe184a483d5aa9f7c0ed7535d014f011dd2a92f8884653b610b395b66ca8f4",
+    "bytes": 9298
+  },
+  "artifact": {
+    "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+    "sha256": "dd7c57cfed2e188af3d1d12b71b3755b9b0485ab25584e0ab70b30ab787759b8",
+    "bytes": 837264
+  },
+  "stages": {
+    "validate": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": null,
+      "execution": "embedded-in-deliver",
+      "command": [
+        "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+        "/Users/youngmin/.codex/skills/archify/bin/archify.mjs",
+        "deliver",
+        "workflow",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.workflow.json",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "validate",
+        "specification": {
+          "sha256": "64fe184a483d5aa9f7c0ed7535d014f011dd2a92f8884653b610b395b66ca8f4",
+          "bytes": 9298
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        }
+      }
+    },
+    "deliver": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 435,
+      "command": [
+        "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+        "/Users/youngmin/.codex/skills/archify/bin/archify.mjs",
+        "deliver",
+        "workflow",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.workflow.json",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "receiptId": "f01957b5-14c2-4e3b-86bf-c91137c85550",
+        "ok": true,
+        "command": "deliver",
+        "type": "workflow",
+        "input": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.workflow.json",
+        "output": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+        "specification": {
+          "sha256": "64fe184a483d5aa9f7c0ed7535d014f011dd2a92f8884653b610b395b66ca8f4",
+          "bytes": 9298
+        },
+        "artifact": {
+          "sha256": "dd7c57cfed2e188af3d1d12b71b3755b9b0485ab25584e0ab70b30ab787759b8",
+          "bytes": 837264
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        },
+        "evidence": {
+          "verified": true,
+          "repository": "https://github.com/Youngmin322/whisper",
+          "revision": "522355051c08d96dfa2455ca7b7a1d0466894a74",
+          "references": 25
+        },
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      }
+    },
+    "check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 154,
+      "command": [
+        "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+        "/Users/youngmin/.codex/skills/archify/bin/archify.mjs",
+        "check",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+        "--require-provenance"
+      ],
+      "receipt": {
+        "ok": true,
+        "file": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+        "artifact": {
+          "sha256": "dd7c57cfed2e188af3d1d12b71b3755b9b0485ab25584e0ab70b30ab787759b8",
+          "bytes": 837264
+        },
+        "checks": [
+          {
+            "name": "single_svg",
+            "ok": true,
+            "details": [
+              "found 1 <svg> block(s)"
+            ]
+          },
+          {
+            "name": "finite_svg",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "orthogonal_arrows",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "label_route_clearance",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_crossings",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_corridors",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "container_border_runs",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "route_rhythm",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "legend_clearance",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "composition": {
+          "schemaVersion": 1,
+          "profile": "showcase",
+          "status": "pass",
+          "summary": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "metrics": {
+            "properCrossings": 0,
+            "resolvedCrossovers": 0,
+            "ambiguousCorridors": 0,
+            "arrowheadCollisions": 0,
+            "containerBorderRuns": 0,
+            "labelRouteClearanceIssues": 0,
+            "labelCanvasOverflowIssues": 0,
+            "minLabelRouteClearance": 22,
+            "desktopReadabilityIssues": 0,
+            "viewportHeightIssues": 0,
+            "minProjectedNodeTextPx": 6,
+            "maxBends": 0,
+            "routesOverSuggestedBends": 0,
+            "maxStretch": 1,
+            "routesOverSuggestedStretch": 0,
+            "minSegmentPx": 8,
+            "minInteriorSegmentPx": null,
+            "shortSegmentCount": 4,
+            "shortEndpointSegmentCount": 4,
+            "shortInteriorSegmentCount": 0,
+            "microSegmentCount": 0
+          },
+          "suggestedLimits": {
+            "bendsPerRelationship": 2,
+            "stretch": 1.35,
+            "segmentPx": 16,
+            "microSegmentPx": 8
+          },
+          "routeReview": {
+            "crossings": [],
+            "detours": []
+          },
+          "leadingSpace": {
+            "measured": false,
+            "reviewSuggested": false
+          },
+          "desktopReadability": {
+            "budgetBasis": "legacy-930",
+            "readerContract": "declared-wide-v1",
+            "availableDiagramWidth": 930,
+            "actualBudgetPx": 930,
+            "limit": "legacy",
+            "requestedTargetPx": null,
+            "requestedTargetMet": null,
+            "hardFloorPx": 6,
+            "hardFloorMet": true,
+            "minimumOwner": {
+              "kind": "node",
+              "id": "done"
+            },
+            "minimumSourceTextPx": 6,
+            "minimumProjectedTextPx": 6,
+            "semanticTextCount": 31
+          },
+          "issues": []
+        },
+        "provenance": "current",
+        "deliveryReceiptId": "f01957b5-14c2-4e3b-86bf-c91137c85550"
+      }
+    },
+    "browser-check": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 32,
+      "command": [
+        "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+        "/Users/youngmin/.codex/skills/archify/bin/archify.mjs",
+        "browser-check",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+        "--json",
+        "--require-provenance",
+        "--out-dir",
+        "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save"
+      ],
+      "execution": "in-process",
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "browser-check",
+        "evidenceKind": "automated-browser",
+        "status": "fail",
+        "visualReview": "not-requested",
+        "provenance": "current",
+        "deliveryReceiptId": "f01957b5-14c2-4e3b-86bf-c91137c85550",
+        "artifact": {
+          "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+          "sha256": "dd7c57cfed2e188af3d1d12b71b3755b9b0485ab25584e0ab70b30ab787759b8",
+          "bytes": 837264
+        },
+        "state": {
+          "detail": "read",
+          "motion": "still"
+        },
+        "chrome": {
+          "status": "available",
+          "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        },
+        "diagnostics": [
+          {
+            "code": "viewer/browser-check-runtime",
+            "severity": "error",
+            "message": "browser-check could not complete its Chrome inspection.",
+            "subject": {
+              "artifact": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html"
+            },
+            "evidence": {
+              "reason": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.0.0, libuv 1.52.1, darwin; pid=5189, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+            },
+            "supportedFixes": [
+              "resolve the reported Chrome inspection error, then rerun browser-check"
+            ]
+          }
+        ],
+        "containment": {
+          "status": "fail",
+          "policy": "fit-or-reader-declared-readable-vertical-scroll",
+          "viewports": []
+        },
+        "themeStates": {
+          "status": "fail",
+          "viewports": []
+        },
+        "readability": {
+          "status": "fail",
+          "minimumProjectedNodeTextPx": 6,
+          "viewports": []
+        },
+        "viewerChrome": {
+          "status": "fail",
+          "viewports": []
+        },
+        "captures": {
+          "status": "not-requested",
+          "screenshots": [],
+          "contactSheet": null
+        },
+        "sidecars": {
+          "directory": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save",
+          "receipt": "moment-save.browser-check.json",
+          "files": []
+        },
+        "error": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.0.0, libuv 1.52.1, darwin; pid=5189, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+      }
+    }
+  },
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  },
+  "diagnostics": [
+    {
+      "code": "viewer/browser-check-runtime",
+      "severity": "error",
+      "message": "browser-check could not complete its Chrome inspection.",
+      "subject": {
+        "artifact": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html"
+      },
+      "evidence": {
+        "reason": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.0.0, libuv 1.52.1, darwin; pid=5189, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+      },
+      "supportedFixes": [
+        "resolve the reported Chrome inspection error, then rerun browser-check"
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save/moment-save.finalize.json",
+    "summaryReceipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save/moment-save.finalize-summary.json",
+    "browserCheckReceipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save/moment-save.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "browser-check",
+  "finishedAt": "2026-10-24T06:06:47.803Z",
+  "durationMs": 748,
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-valid"
+  }
+}

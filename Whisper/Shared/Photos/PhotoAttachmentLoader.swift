@@ -76,7 +76,7 @@ final class PhotoAttachmentLoader {
                 for transfer in transfers {
                     try Task.checkCancellation()
                     guard let originalData = try await transfer() else {
-                        self?.finish(request, error: String(localized: "지원하지 않는 사진 형식이에요."))
+                        self?.finish(request, error: String(localized: "지원하지 않는 사진 형식이에요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                         return
                     }
                     try Task.checkCancellation()
@@ -89,8 +89,8 @@ final class PhotoAttachmentLoader {
                     try Task.checkCancellation()
                     guard let optimized else {
                         self?.finish(request, error: originalData.count > PhotoAttachmentProcessor.maximumInputByteCount
-                            ? String(localized: "사진 파일이 너무 커요. 다른 사진으로 다시 시도해 주세요.")
-                            : String(localized: "지원하지 않는 사진 형식이에요."))
+                            ? String(localized: "사진 파일이 너무 커요. 다른 사진으로 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+                            : String(localized: "지원하지 않는 사진 형식이에요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                         return
                     }
                     images.append(optimized)

@@ -50,7 +50,7 @@ struct FlameMotionPreview: View {
                 Button("병에 담기 전환 확인") {
                     collectionStartedAt = .now
                     Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(1200))
+                        try? await Task.sleep(for: .seconds(FlameCollectionMotion(count: count).duration + 0.6))
                         collectionStartedAt = nil
                     }
                 }

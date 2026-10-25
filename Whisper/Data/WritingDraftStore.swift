@@ -16,7 +16,8 @@ final class WritingDraftStore {
     private(set) var momentEditDrafts: [RecordDraft] = []
     private(set) var journalDrafts: [JournalWritingDraft] = []
     private(set) var unreadableDrafts: [UnreadableWritingDraft] = []
-    private(set) var errorMessage: String?
+    private var failure: DraftFailure?
+    var errorMessage: String? { failure?.message }
     @ObservationIgnored private let context: ModelContext?
     // A disappearing editor may outlive its parent store for one render pass.
     @ObservationIgnored private let modelContainer: ModelContainer?
@@ -134,7 +135,7 @@ final class WritingDraftStore {
 
     func reload() {
         guard let context else {
-            errorMessage = String(localized: "초안을 보관할 저장소를 사용할 수 없어요.")
+            failure = .unavailable
             return
         }
         do {
@@ -177,9 +178,9 @@ final class WritingDraftStore {
             let keys = Set(pendingJournals.keys)
             journalDrafts = journals.filter { !keys.contains($0.storageKey) }
                 + pendingJournals.values.sorted { $0.day.key > $1.day.key }
-            if pendingMoments.isEmpty && pendingMomentEdits.isEmpty && pendingJournals.isEmpty { errorMessage = nil }
+            if pendingMoments.isEmpty && pendingMomentEdits.isEmpty && pendingJournals.isEmpty { failure = nil }
         } catch {
-            errorMessage = String(localized: "보관한 초안을 불러오지 못했어요. 현재 작성 내용은 화면에 남아 있어요.")
+            failure = .reload
         }
     }
 
@@ -204,7 +205,7 @@ final class WritingDraftStore {
 
     private func write(_ change: () throws -> Void, onSuccess: () -> Void) -> Bool {
         guard let context else {
-            errorMessage = String(localized: "초안을 보관할 저장소를 사용할 수 없어요.")
+            failure = .unavailable
             return false
         }
         do {
@@ -216,7 +217,7 @@ final class WritingDraftStore {
         } catch {
             context.rollback()
             reload()
-            errorMessage = String(localized: "초안을 임시 저장하지 못했어요. 앱을 닫기 전에 다시 시도해 주세요.")
+            failure = .save
             return false
         }
     }
@@ -225,6 +226,21 @@ final class WritingDraftStore {
         pendingMoments.removeAll { $0.id == id }
         pendingMomentEdits = pendingMomentEdits.filter { $0.value.id != id }
         pendingJournals = pendingJournals.filter { $0.value.id != id }
+    }
+
+    private enum DraftFailure {
+        case unavailable, reload, save
+
+        var message: String {
+            switch self {
+            case .unavailable:
+                String(localized: "초안을 보관할 저장소를 사용할 수 없어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+            case .reload:
+                String(localized: "보관한 초안을 불러오지 못했어요. 현재 작성 내용은 화면에 남아 있어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+            case .save:
+                String(localized: "초안을 임시 저장하지 못했어요. 앱을 닫기 전에 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+            }
+        }
     }
 
     private enum DraftReadFailure: Error { case unsupportedKind, unreadableRow }

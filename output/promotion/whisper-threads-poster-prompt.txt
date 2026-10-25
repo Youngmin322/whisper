@@ -1,0 +1,10 @@
+Tool: built-in ImageGen
+Purpose: Threads promotional illustration for Whisper. This is not an app screenshot.
+
+Use case: ads-marketing / compositing. Create one finished portrait promotional poster for the Korean personal journaling app Whisper, approximately 4:5 aspect ratio. The supplied four local PNGs are supporting brand assets: image 1 is the exact orange smiling joy flame, image 2 is the exact green peaceful flame, image 3 is the app's exact pale blue rounded glass jar, image 4 is its brown cork. Preserve their recognizable silhouettes, simple facial features, palette, and friendly hand-drawn flat illustration style. Composite these into an elegant, airy cream-paper poster. This is a conceptual brand illustration, not a screenshot and not a phone mockup. At top left, use large highly legible warm charcoal Korean typography with this exact headline over two lines: '오늘의 마음을' then '불꽃으로 모아요.' Center/lower hero: the recognizable blue jar with its cork slightly lifted above the opening; several small orange and green flame characters are gathering inside the jar, with one or two floating nearby to evoke collecting the day's moments. Preserve a visible face for the orange and green characters and a clearly readable jar silhouette. Delicate peach accent, plenty of negative space, no clutter, no photorealism, no neon, no heavy gradients. At bottom left put the app name exactly 'Whisper' in refined understated lettering, then the exact smaller Korean line '순간을 남기고, 하루를 모아요.' Render Korean letters accurately. Keep all typography at least 8% from edges. Do not invent app interfaces, ratings, downloads, pricing, store badges, testimonials, QR codes, or extra words. Opaque warm off-white background.
+
+References (relative to project root):
+- Whisper/Resources/Assets.xcassets/EmotionFlameJoy.imageset/EmotionFlameJoy.png
+- Whisper/Resources/Assets.xcassets/EmotionFlameCalm.imageset/EmotionFlameCalm.png
+- Whisper/Resources/Assets.xcassets/WhisperJar.imageset/WhisperJar.png
+- Whisper/Resources/Assets.xcassets/WhisperCorkscrew.imageset/WhisperCorkscrew.png

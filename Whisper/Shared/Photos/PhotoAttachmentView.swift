@@ -40,7 +40,7 @@ struct PhotoAttachmentEditor: View {
                             )
 
                         if isLoading {
-                            ProgressView(String(localized: "사진을 불러오는 중이에요"))
+                            ProgressView(String(localized: "사진을 불러오는 중이에요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                                 .font(.whisperCaption)
                         }
 
@@ -58,11 +58,11 @@ struct PhotoAttachmentEditor: View {
                             HStack(spacing: WhisperSpacing.xxSmall) {
                                 Image(systemName: "photo")
                                     .resizable().scaledToFit().frame(width: 18, height: 18)
-                                Text(String(localized: "사진 추가"))
+                                Text(String(localized: "사진 추가", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             }
                             .font(.whisperControl)
                         } else {
-                            Label(String(localized: "사진 추가"), systemImage: "photo")
+                            Label(String(localized: "사진 추가", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "photo")
                                 .font(.whisperControl)
                         }
                         Spacer()
@@ -92,15 +92,15 @@ struct PhotoAttachmentEditor: View {
             }
         }
         .alert(
-            String(localized: "사진을 불러올 수 없어요"),
+            String(localized: "사진을 불러올 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
             isPresented: Binding(
                 get: { showsErrorAlert && loader.errorMessage != nil },
                 set: { if !$0 { loader.dismissError() } }
             )
         ) {
-            Button(String(localized: "확인"), role: .cancel) {}
+            Button(String(localized: "확인", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
         } message: {
-            Text(loader.errorMessage ?? String(localized: "다른 사진으로 다시 시도해 주세요."))
+            Text(loader.errorMessage ?? String(localized: "다른 사진으로 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
     }
 
@@ -112,14 +112,14 @@ struct PhotoAttachmentEditor: View {
                     .scaledToFill()
                     .frame(width: 52, height: 52)
                     .clipShape(RoundedRectangle(cornerRadius: WhisperRadius.small))
-                    .accessibilityLabel(String(localized: "첨부한 사진"))
+                    .accessibilityLabel(String(localized: "첨부한 사진", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
 
                 PhotosPicker(selection: selection, matching: .images) {
-                    Text(String(localized: "바꾸기"))
+                    Text(String(localized: "바꾸기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                         .font(.whisperControl)
                         .frame(minWidth: 44, minHeight: 44)
                 }
-                .accessibilityLabel(String(localized: "사진 바꾸기"))
+                .accessibilityLabel(String(localized: "사진 바꾸기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
 
                 Spacer(minLength: 0)
 
@@ -130,13 +130,13 @@ struct PhotoAttachmentEditor: View {
                         .frame(width: 18, height: 18)
                         .frame(width: 44, height: 44)
                 }
-                .accessibilityLabel(String(localized: "사진 삭제"))
+                .accessibilityLabel(String(localized: "사진 삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color.whisperTextSecondary)
 
             if loader.isLoading {
-                ProgressView(String(localized: "사진을 불러오는 중이에요"))
+                ProgressView(String(localized: "사진을 불러오는 중이에요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                     .font(.whisperCaption)
             }
         }
@@ -145,7 +145,7 @@ struct PhotoAttachmentEditor: View {
     @ViewBuilder
     private var photoActions: some View {
         PhotosPicker(selection: selection, matching: .images) {
-            Label(String(localized: "사진 바꾸기"), systemImage: "photo")
+            Label(String(localized: "사진 바꾸기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "photo")
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
@@ -153,7 +153,7 @@ struct PhotoAttachmentEditor: View {
         Button(role: .destructive) {
             loader.replacePhoto(with: nil)
         } label: {
-            Label(String(localized: "삭제"), systemImage: "trash")
+            Label(String(localized: "삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "trash")
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
@@ -175,7 +175,7 @@ struct RecordPhotoView: View {
                         style: .continuous
                     )
                 )
-                .accessibilityLabel(String(localized: "기록에 첨부된 사진"))
+                .accessibilityLabel(String(localized: "기록에 첨부된 사진", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
     }
 }

@@ -27,6 +27,7 @@ struct ContentView: View {
                     .transition(.opacity)
             }
         }
+        .environment(\.locale, WhisperLocalization.locale)
         .animation(.easeInOut(duration: 0.28), value: hasSeenWelcome)
         .tint(.whisperAccent)
     }
@@ -41,23 +42,23 @@ private struct PersistenceUnavailableView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label(String(localized: "기록을 불러올 수 없어요"), systemImage: "externaldrive.badge.xmark")
+            Label(String(localized: "기록을 불러올 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "externaldrive.badge.xmark")
         } description: {
             VStack(spacing: 8) {
-                Text(String(localized: "작성한 기록을 보호하기 위해 저장 기능을 멈췄어요. 잠시 후 다시 시도해 주세요."))
+                Text(String(localized: "작성한 기록을 보호하기 위해 저장 기능을 멈췄어요. 잠시 후 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 if let supportCode {
-                    Text(String(localized: "지원 코드: \(supportCode)"))
+                    Text(String(localized: "지원 코드: \(supportCode)", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                         .font(.caption.monospaced())
                         .textSelection(.enabled)
                 }
             }
         } actions: {
             VStack(spacing: 12) {
-                Button(String(localized: "다시 시도"), action: onRetry)
+                Button(String(localized: "다시 시도", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), action: onRetry)
                     .buttonStyle(.whisperPrimary(size: .compact))
 
                 if let diagnosticSummary {
-                    Button(didCopyDiagnostics ? String(localized: "진단 정보 복사됨") : String(localized: "진단 정보 복사")) {
+                    Button(didCopyDiagnostics ? String(localized: "진단 정보 복사됨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "진단 정보 복사", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                         UIPasteboard.general.string = diagnosticSummary
                         didCopyDiagnostics = true
                     }
@@ -85,7 +86,7 @@ private struct MainTabView: View {
                             NotificationRecordDestination(route: route, recordStore: recordStore)
                                 .toolbar {
                                     ToolbarItem(placement: .cancellationAction) {
-                                        Button(String(localized: "닫기")) { iPadNotificationRoute = nil }
+                                        Button(String(localized: "닫기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) { iPadNotificationRoute = nil }
                                     }
                                 }
                         }
@@ -187,17 +188,17 @@ private struct NotificationRecordDestination: View {
             )
         } else {
             ContentUnavailableView {
-                Label(String(localized: "기록을 찾을 수 없어요"), systemImage: "flame")
+                Label(String(localized: "기록을 찾을 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "flame")
             } description: {
-                Text(String(localized: "삭제되었거나 더 이상 존재하지 않는 기록이에요."))
+                Text(String(localized: "삭제되었거나 더 이상 존재하지 않는 기록이에요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             } actions: {
                 if CommitmentReminderFeature.isEnabled {
-                    NavigationLink(String(localized: "결심 알림 관리")) {
+                    NavigationLink(String(localized: "결심 알림 관리", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                         SettingsView(recordStore: recordStore)
                     }
                 }
             }
-            .navigationTitle(String(localized: "기록"))
+            .navigationTitle(String(localized: "기록", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             .navigationBarTitleDisplayMode(.inline)
             .background(Color.whisperBackground)
         }
@@ -254,16 +255,16 @@ private struct WelcomeView: View {
             ZStack {
                 if stage == 0 {
                     onboardingMessage(
-                        title: String(localized: "오늘의 순간을\n남겨보세요"),
-                        description: String(localized: "한 문장만 남겨도 괜찮아요.\n있었던 일과 마음을 내 말로 적어보세요."),
+                        title: String(localized: "오늘의 순간을\n남겨보세요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+                        description: String(localized: "한 문장만 남겨도 괜찮아요.\n있었던 일과 마음을 내 말로 적어보세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
                         trustNote: nil
                     )
                     .transition(messageTransition)
                 } else {
                     onboardingMessage(
-                        title: String(localized: "언제든\n다시 읽어요"),
-                        description: String(localized: "직접 하루를 일기로 정리하고,\n보관함에서 일기와 지난 순간을 다시 읽어요."),
-                        trustNote: String(localized: "기록은 이 기기 안에서만 처리돼요.")
+                        title: String(localized: "언제든\n다시 읽어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+                        description: String(localized: "직접 하루를 일기로 정리하고,\n보관함에서 일기와 지난 순간을 다시 읽어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+                        trustNote: String(localized: "기록은 이 기기 안에서만 처리돼요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
                     )
                     .transition(messageTransition)
                 }
@@ -274,7 +275,7 @@ private struct WelcomeView: View {
 
             Spacer()
 
-            Button(stage == 0 ? String(localized: "계속") : String(localized: "시작하기"), action: advance)
+            Button(stage == 0 ? String(localized: "계속", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "시작하기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), action: advance)
                 .buttonStyle(.whisperPrimary)
             .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
             .padding(.bottom, 26)
@@ -360,6 +361,7 @@ private struct WelcomeView: View {
 
 struct SettingsView: View {
     let recordStore: RecordStore
+    @Bindable private var languageSettings = WhisperLanguageSettings.shared
 
     @AppStorage(CommitmentReminderScheduler.showPreviewStorageKey)
     private var showCommitmentPreview = false
@@ -375,22 +377,22 @@ struct SettingsView: View {
     var body: some View {
         List {
             if CommitmentReminderFeature.isEnabled {
-                Section(String(localized: "다시 만나기")) {
-                    LabeledContent(String(localized: "알림"), value: notificationStatusDescription)
+                Section(String(localized: "다시 만나기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
+                    LabeledContent(String(localized: "알림", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), value: notificationStatusDescription)
 
-                    Toggle(String(localized: "알림에 기록 내용 표시"), isOn: $showCommitmentPreview)
+                    Toggle(String(localized: "알림에 기록 내용 표시", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isOn: $showCommitmentPreview)
 
                     if notificationStatus == .notDetermined {
-                        Button(String(localized: "다시 만나기 알림 허용")) {
+                        Button(String(localized: "다시 만나기 알림 허용", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                             Task { await requestNotificationAuthorization() }
                         }
                     } else if notificationStatus == .denied {
-                        Button(String(localized: "알림 설정 열기"), action: openAppSettings)
+                        Button(String(localized: "알림 설정 열기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), action: openAppSettings)
                     }
                 }
 
                 if !recordStore.commitments.isEmpty {
-                    Section(String(localized: "간직한 결심")) {
+                    Section(String(localized: "간직한 결심", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                         ForEach(recordStore.commitments, id: \.id) { commitment in
                             if let record = recordStore.record(withID: commitment.sourceRecordID) {
                                 NavigationLink {
@@ -398,36 +400,36 @@ struct SettingsView: View {
                                 } label: {
                                     LabeledContent(commitment.name, value: commitmentStatus(commitment))
                                 }
-                                .accessibilityLabel(String(localized: "\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리"))
+                                .accessibilityLabel(String(localized: "\(commitment.name), \(commitmentStatus(commitment)), 기록과 알림 관리", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             } else {
-                                LabeledContent(commitment.name, value: String(localized: "원본 기록 없음"))
+                                LabeledContent(commitment.name, value: String(localized: "원본 기록 없음", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                                 if commitment.lifecycleStatus() != .released {
-                                    Button(String(localized: "이 결심 알림 중단"), role: .destructive) {
+                                    Button(String(localized: "이 결심 알림 중단", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive) {
                                         orphanCommitmentToStop = commitment.id
                                     }
-                                    .accessibilityLabel(String(localized: "\(commitment.name) 결심 알림 중단"))
+                                    .accessibilityLabel(String(localized: "\(commitment.name) 결심 알림 중단", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                                 }
                             }
                         }
-                        Text(String(localized: "결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요."))
+                        Text(String(localized: "결심 알림은 원본 기록에서 쉬거나 중단할 수 있어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Section(String(localized: "집중 모드")) {
-                    Button(String(localized: "iPhone 집중 모드에 연결하기")) {
+                Section(String(localized: "집중 모드", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
+                    Button(String(localized: "iPhone 집중 모드에 연결하기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                         isFocusGuidePresented = true
                     }
                 }
 
 #if DEBUG
-                Section(String(localized: "결심 알림 테스트")) {
+                Section(String(localized: "결심 알림 테스트", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                     Button {
                         Task { await scheduleDebugReminder() }
                     } label: {
                         HStack {
-                            Text(String(localized: "10초 뒤 테스트 알림 보내기"))
+                            Text(String(localized: "10초 뒤 테스트 알림 보내기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             Spacer()
                             if isSchedulingDebugReminder {
                                 ProgressView()
@@ -436,14 +438,14 @@ struct SettingsView: View {
                     }
                     .disabled(isSchedulingDebugReminder)
 
-                    Button(String(localized: "예약된 테스트 알림 취소"), role: .destructive) {
+                    Button(String(localized: "예약된 테스트 알림 취소", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive) {
                         Task { await cancelDebugReminders() }
                     }
                     .disabled(isSchedulingDebugReminder)
 
                     Text(
                         debugReminderMessage
-                            ?? String(localized: "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요.")
+                            ?? String(localized: "가장 최근에 기억한 결심으로 실제 알림 흐름을 테스트해요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -452,21 +454,27 @@ struct SettingsView: View {
             }
 
             Section {
-                Button(String(localized: "언어 설정 열기"), action: openAppSettings)
+                Picker(String(localized: "앱 표시 언어", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), selection: $languageSettings.selection) {
+                    ForEach(WhisperAppLanguage.allCases) { language in
+                        Text(language.title).tag(language)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings.languagePicker")
             } header: {
-                Text(String(localized: "언어"))
+                Text(String(localized: "언어", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             } footer: {
-                Text(String(localized: "기기 설정에서 한국어 또는 영어를 선택할 수 있어요. 작성한 기록은 원래 언어 그대로 남아요."))
+                Text(String(localized: "선택한 언어는 앱에 바로 적용돼요. 작성한 기록은 원래 언어 그대로 남아요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             }
 
-            Section(String(localized: "앱 정보")) {
-                LabeledContent(String(localized: "기록 저장"), value: String(localized: "이 기기"))
+            Section(String(localized: "앱 정보", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
+                LabeledContent(String(localized: "기록 저장", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), value: String(localized: "이 기기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.whisperBackground)
-        .navigationTitle(String(localized: "설정"))
+        .navigationTitle(String(localized: "설정", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if CommitmentReminderFeature.isEnabled {
@@ -479,48 +487,48 @@ struct SettingsView: View {
             .presentationDragIndicator(.visible)
         }
         .alert(
-            String(localized: "알림을 설정할 수 없어요"),
+            String(localized: "알림을 설정할 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
             isPresented: Binding(
                 get: { notificationErrorMessage != nil },
                 set: { if !$0 { notificationErrorMessage = nil } }
             )
         ) {
-            Button(String(localized: "확인"), role: .cancel) {}
+            Button(String(localized: "확인", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
         } message: {
-            Text(notificationErrorMessage ?? String(localized: "잠시 후 다시 시도해 주세요."))
+            Text(notificationErrorMessage ?? String(localized: "잠시 후 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
         .alert(
-            String(localized: "원본이 없는 결심 알림을 중단할까요?"),
+            String(localized: "원본이 없는 결심 알림을 중단할까요?", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
             isPresented: Binding(
                 get: { orphanCommitmentToStop != nil },
                 set: { if !$0 { orphanCommitmentToStop = nil } }
             )
         ) {
-            Button(String(localized: "취소"), role: .cancel) { orphanCommitmentToStop = nil }
-            Button(String(localized: "알림 중단"), role: .destructive) {
+            Button(String(localized: "취소", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) { orphanCommitmentToStop = nil }
+            Button(String(localized: "알림 중단", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive) {
                 stopOrphanCommitment()
             }
         } message: {
-            Text(String(localized: "결심 상태와 예약을 중단해요. 남아 있는 다른 기록은 삭제하지 않아요."))
+            Text(String(localized: "결심 상태와 예약을 중단해요. 남아 있는 다른 기록은 삭제하지 않아요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
     }
     
     private var notificationStatusDescription: String {
         switch notificationStatus {
-        case .authorized: String(localized: "허용됨")
-        case .provisional: String(localized: "조용히 허용됨")
-        case .denied: String(localized: "허용 안 됨")
-        case .notDetermined: String(localized: "설정 필요")
-        case .ephemeral: String(localized: "일시 허용")
-        @unknown default: String(localized: "확인 필요")
+        case .authorized: String(localized: "허용됨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .provisional: String(localized: "조용히 허용됨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .denied: String(localized: "허용 안 됨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .notDetermined: String(localized: "설정 필요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .ephemeral: String(localized: "일시 허용", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        @unknown default: String(localized: "확인 필요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
     }
 
     private func commitmentStatus(_ commitment: WhisperCommitment) -> String {
         switch commitment.lifecycleStatus() {
-        case .active: String(localized: "알림 중")
-        case .paused: String(localized: "쉬는 중")
-        case .released: String(localized: "중단됨")
+        case .active: String(localized: "알림 중", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .paused: String(localized: "쉬는 중", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .released: String(localized: "중단됨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
     }
 
@@ -533,12 +541,12 @@ struct SettingsView: View {
         }
         orphanCommitmentToStop = nil
         guard recordStore.forgetCommitment(commitment) else {
-            notificationErrorMessage = String(localized: "결심 상태를 저장하지 못했어요. 다시 시도해 주세요.")
+            notificationErrorMessage = String(localized: "결심 상태를 저장하지 못했어요. 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
             return
         }
         Task {
             if !(await CommitmentReminderCoordinator.cancel(commitmentIDs: [id], in: recordStore)) {
-                notificationErrorMessage = String(localized: "예약된 알림을 정리하지 못했어요. 다시 시도해 주세요.")
+                notificationErrorMessage = String(localized: "예약된 알림을 정리하지 못했어요. 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
             }
         }
     }
@@ -576,14 +584,14 @@ struct SettingsView: View {
             in: recordStore
         ) {
         case let .scheduled(date):
-            debugReminderMessage = String(localized: "테스트 알림을 \(date.formatted(date: .omitted, time: .standard))에 보낼게요.")
+            debugReminderMessage = String(localized: "테스트 알림을 \(date.formatted(date: .omitted, time: .standard))에 보낼게요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         case .noActiveCommitment:
-            debugReminderMessage = String(localized: "먼저 기록에서 결심 하나를 간직해 주세요.")
+            debugReminderMessage = String(localized: "먼저 기록에서 결심 하나를 간직해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         case .authorizationUnavailable:
-            debugReminderMessage = String(localized: "알림 권한을 허용한 뒤 다시 시도해 주세요.")
+            debugReminderMessage = String(localized: "알림 권한을 허용한 뒤 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
             await refreshNotificationStatus()
         case .failed:
-            debugReminderMessage = String(localized: "테스트 알림을 예약하지 못했어요. 잠시 후 다시 시도해 주세요.")
+            debugReminderMessage = String(localized: "테스트 알림을 예약하지 못했어요. 잠시 후 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
     }
 
@@ -592,9 +600,9 @@ struct SettingsView: View {
         defer { isSchedulingDebugReminder = false }
 
         if await CommitmentReminderCoordinator.cancelDebugReminders(in: recordStore) {
-            debugReminderMessage = String(localized: "예약된 테스트 알림을 취소했어요.")
+            debugReminderMessage = String(localized: "예약된 테스트 알림을 취소했어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         } else {
-            debugReminderMessage = String(localized: "테스트 알림을 취소하지 못했어요.")
+            debugReminderMessage = String(localized: "테스트 알림을 취소하지 못했어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
     }
 #endif
@@ -607,39 +615,39 @@ private struct FocusFilterGuideView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(String(localized: "집중 모드가 시작될 때 Whisper가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요."))
+                    Text(String(localized: "집중 모드가 시작될 때 Whisper가 연결된 기록을 다시 보여주려면 iPhone 설정에서 Focus Filter를 한 번 추가해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                         .font(.whisperBody)
                         .foregroundStyle(Color.whisperTextSecondary)
                     
                     guideStep(
                         number: 1,
-                        title: String(localized: "iPhone 설정에서 집중 모드 선택"),
-                        description: String(localized: "설정 > 집중 모드에서 Whisper와 연결할 모드를 열어요.")
+                        title: String(localized: "iPhone 설정에서 집중 모드 선택", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+                        description: String(localized: "설정 > 집중 모드에서 Whisper와 연결할 모드를 열어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
                     )
                     guideStep(
                         number: 2,
-                        title: String(localized: "집중 모드 필터에 Whisper 추가"),
-                        description: String(localized: "화면 아래의 필터 추가를 누르고 Whisper를 선택해요.")
+                        title: String(localized: "집중 모드 필터에 Whisper 추가", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+                        description: String(localized: "화면 아래의 필터 추가를 누르고 Whisper를 선택해요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
                     )
                     guideStep(
                         number: 3,
-                        title: String(localized: "다시 만날 마음 선택"),
-                        description: String(localized: "이 집중 모드가 시작될 때 다시 만날 마음을 하나 이상 선택하고 추가해요.")
+                        title: String(localized: "다시 만날 마음 선택", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+                        description: String(localized: "이 집중 모드가 시작될 때 다시 만날 마음을 하나 이상 선택하고 추가해요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
                     )
                     guideStep(
                         number: 4,
-                        title: String(localized: "Whisper 알림 허용"),
-                        description: String(localized: "집중 모드의 알림 허용 앱에 Whisper를 넣으면 시작과 함께 알림을 받을 수 있어요.")
+                        title: String(localized: "Whisper 알림 허용", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+                        description: String(localized: "집중 모드의 알림 허용 앱에 Whisper를 넣으면 시작과 함께 알림을 받을 수 있어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
                     )
                 }
                 .padding(.horizontal, WhisperLayout.screenHorizontalPadding)
                 .padding(.vertical, 20)
             }
-            .navigationTitle(String(localized: "집중 모드 연결 방법"))
+            .navigationTitle(String(localized: "집중 모드 연결 방법", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "완료")) { dismiss() }
+                    Button(String(localized: "완료", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) { dismiss() }
                 }
             }
         }

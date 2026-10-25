@@ -25,15 +25,15 @@ enum WhisperEmotion: String, CaseIterable, Identifiable {
     // rawValue is persisted in records and drafts; only the display name is translated.
     var displayName: String {
         switch self {
-        case .calm: String(localized: "평온")
-        case .joy: String(localized: "기쁨")
-        case .proud: String(localized: "뿌듯함")
-        case .excitement: String(localized: "설렘")
-        case .tired: String(localized: "지침")
-        case .anxiety: String(localized: "불안")
-        case .depression: String(localized: "우울")
-        case .anger: String(localized: "분노")
-        case .sadness: String(localized: "슬픔")
+        case .calm: String(localized: "평온", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .joy: String(localized: "기쁨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .proud: String(localized: "뿌듯함", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .excitement: String(localized: "설렘", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .tired: String(localized: "지침", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .anxiety: String(localized: "불안", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .depression: String(localized: "우울", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .anger: String(localized: "분노", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case .sadness: String(localized: "슬픔", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
     }
 
@@ -113,11 +113,11 @@ struct EmotionPickerView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle(String(localized: "지금의 감정"))
+            .navigationTitle(String(localized: "지금의 감정", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "닫기")) { dismiss() }
+                    Button(String(localized: "닫기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) { dismiss() }
                 }
             }
         }
@@ -133,7 +133,7 @@ struct EmotionPickerView: View {
                 FlameCharacter(emotion: emotion?.rawValue, size: 32)
             }
 
-            Text(emotion?.displayName ?? String(localized: "선택 안 함"))
+            Text(emotion?.displayName ?? String(localized: "선택 안 함", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 .font(.whisperBodyEmphasis)
                 .foregroundStyle(Color.whisperTextPrimary)
 

@@ -63,7 +63,7 @@ struct SearchLocalizationTests {
         if !isEnglish { #expect(!text.contains("noresults") && !text.contains("cancel")) }
     }
 
-    private var isEnglish: Bool { Bundle.main.preferredLocalizations.first == "en" }
+    private var isEnglish: Bool { WhisperLocalization.languageCode == "en" }
 
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
@@ -75,7 +75,7 @@ struct SearchLocalizationTests {
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: isPad ? 1194 : 393, height: isPad ? 834 : 852)
         window.overrideUserInterfaceStyle = .light
-        let host = UIHostingController(rootView: root)
+        let host = UIHostingController(rootView: AnyView(root.environment(\.locale, WhisperLocalization.locale)))
         window.rootViewController = host
         window.makeKeyAndVisible()
         return (window, host)

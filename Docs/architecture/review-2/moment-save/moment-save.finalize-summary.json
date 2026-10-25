@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "workflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.workflow.json",
+    "sha256": "64fe184a483d5aa9f7c0ed7535d014f011dd2a92f8884653b610b395b66ca8f4",
+    "bytes": 9298
+  },
+  "artifact": {
+    "path": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html",
+    "sha256": "dd7c57cfed2e188af3d1d12b71b3755b9b0485ab25584e0ab70b30ab787759b8",
+    "bytes": 837264
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "fail"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/browser-check-runtime",
+      "severity": "error",
+      "message": "browser-check could not complete its Chrome inspection.",
+      "subject": {
+        "artifact": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/moment-save.html"
+      },
+      "evidence": {
+        "reason": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.0.0, libuv 1.52.1, darwin; pid=5189, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+      },
+      "supportedFixes": [
+        "resolve the reported Chrome inspection error, then rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save/moment-save.finalize.json",
+    "summaryReceipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save/moment-save.finalize-summary.json",
+    "browserCheckReceipt": "/Users/youngmin/Desktop/Apple Developer Academy/Challenge/Challenge5/Whisper/Docs/architecture/review-2/moment-save/moment-save.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 748,
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  }
+}

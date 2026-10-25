@@ -64,9 +64,9 @@ struct IPadEmotionChoices: View {
 
     private var choices: some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.large) {
-            Text(String(localized: "지금 내 마음은 어떤가요?"))
+            Text(String(localized: "지금 내 마음은 어떤가요?", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 .font(.whisperHandwriting(28))
-            Text(String(localized: "가장 가까운 감정 하나를 골라보세요."))
+            Text(String(localized: "가장 가까운 감정 하나를 골라보세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: WhisperSpacing.small),

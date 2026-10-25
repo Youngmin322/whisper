@@ -9,7 +9,7 @@ struct WritingDraftErrorView: View {
             VStack(alignment: .leading, spacing: WhisperSpacing.small) {
                 Text(message)
                     .font(.whisperBody)
-                Button(String(localized: "임시 저장 다시 시도"), action: onRetry)
+                Button(String(localized: "임시 저장 다시 시도", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), action: onRetry)
                     .font(.whisperControl)
                     .accessibilityIdentifier("draft.retryButton")
             }
@@ -36,11 +36,12 @@ struct WritingDraftListView: View {
                     WritingDraftErrorView(message: error, onRetry: draftStore.retry)
                 }
                 if draftStore.momentDrafts.contains(where: \.hasChanges) {
-                    Section(String(localized: "순간")) {
+                    Section(String(localized: "drafts.section.moments", defaultValue: "순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale,
+                                   comment: "Section heading for a list of moment drafts.")) {
                         ForEach(draftStore.momentDrafts.filter(\.hasChanges)) { moment in
                             Button { onOpenMoment(moment) } label: {
-                                draftLabel(title: moment.title.isEmpty ? String(localized: "작성 중인 순간") : moment.title,
-                                           subtitle: moment.content.isEmpty ? (moment.emotion ?? String(localized: "이어서 작성하기")) : moment.content)
+                                draftLabel(title: moment.title.isEmpty ? String(localized: "작성 중인 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : moment.title,
+                                           subtitle: moment.content.isEmpty ? (WhisperEmotion.displayName(for: moment.emotion) ?? String(localized: "이어서 작성하기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) : moment.content)
                             }
                             .accessibilityIdentifier("draft.resumeMomentButton")
                             .swipeActions { discardButton(id: moment.id) }
@@ -48,10 +49,10 @@ struct WritingDraftListView: View {
                     }
                 }
                 if !draftStore.momentEditDrafts.isEmpty {
-                    Section(String(localized: "수정 중인 순간")) {
+                    Section(String(localized: "수정 중인 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                         ForEach(draftStore.momentEditDrafts) { moment in
                             Button { onOpenMoment(moment) } label: {
-                                draftLabel(title: moment.title.isEmpty ? String(localized: "수정 중인 순간") : moment.title,
+                                draftLabel(title: moment.title.isEmpty ? String(localized: "수정 중인 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : moment.title,
                                            subtitle: moment.content)
                             }
                             .accessibilityIdentifier("draft.resumeMomentEditButton")
@@ -60,7 +61,8 @@ struct WritingDraftListView: View {
                     }
                 }
                 if !draftStore.journalDrafts.isEmpty {
-                    Section(String(localized: "일기")) {
+                    Section(String(localized: "drafts.section.journals", defaultValue: "일기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale,
+                                   comment: "Section heading for a list of journal entry drafts.")) {
                         ForEach(draftStore.journalDrafts) { journal in
                             Button { onOpenJournal(journal) } label: {
                                 draftLabel(title: journal.day.fullDescription,
@@ -72,8 +74,8 @@ struct WritingDraftListView: View {
                     }
                 }
                 if !draftStore.unreadableDrafts.isEmpty {
-                    Section(String(localized: "읽을 수 없는 초안")) {
-                        Text(String(localized: "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요."))
+                    Section(String(localized: "읽을 수 없는 초안", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
+                        Text(String(localized: "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             .font(.whisperBody)
                             .foregroundStyle(Color.whisperTextSecondary)
                         ForEach(draftStore.unreadableDrafts) { draft in
@@ -84,33 +86,33 @@ struct WritingDraftListView: View {
                             }
                             .accessibilityIdentifier("draft.unreadable.\(draft.id)")
                         }
-                        Button(String(localized: "초안 다시 불러오기"), action: draftStore.retry)
+                        Button(String(localized: "초안 다시 불러오기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), action: draftStore.retry)
                             .accessibilityIdentifier("draft.reloadUnreadableButton")
-                        Text(String(localized: "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요."))
+                        Text(String(localized: "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             .font(.whisperCaption)
                             .foregroundStyle(Color.whisperTextSecondary)
                     }
                 }
                 if draftStore.count == 0 {
-                    Text(String(localized: "작성 중인 초안이 없어요."))
+                    Text(String(localized: "작성 중인 초안이 없어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                         .foregroundStyle(Color.whisperTextSecondary)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Color.whisperBackground)
-            .navigationTitle(String(localized: "작성 중인 기록"))
+            .navigationTitle(String(localized: "작성 중인 기록", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "닫기")) { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "닫기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) { dismiss() } }
             }
-            .confirmationDialog(String(localized: "이 초안을 버릴까요?"), isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
-                Button(String(localized: "초안 버리기"), role: .destructive) {
+            .confirmationDialog(String(localized: "이 초안을 버릴까요?", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
+                Button(String(localized: "초안 버리기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive) {
                     if let id = draftToDiscard { draftStore.discard(id: id) }
                     draftToDiscard = nil
                 }
-                Button(String(localized: "계속 보관"), role: .cancel) { draftToDiscard = nil }
+                Button(String(localized: "계속 보관", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) { draftToDiscard = nil }
             } message: {
-                Text(String(localized: "이미 저장한 기록은 그대로 남아요."))
+                Text(String(localized: "이미 저장한 기록은 그대로 남아요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             }
         }
     }
@@ -118,7 +120,7 @@ struct WritingDraftListView: View {
     private func draftLabel(title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: WhisperSpacing.small) {
             Text(title).font(.whisperControl).foregroundStyle(Color.whisperTextPrimary)
-            Text(subtitle.isEmpty ? String(localized: "이어서 작성하기") : subtitle)
+            Text(subtitle.isEmpty ? String(localized: "이어서 작성하기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : subtitle)
                 .font(.whisperBody)
                 .foregroundStyle(Color.whisperTextSecondary)
                 .lineLimit(2)
@@ -129,7 +131,7 @@ struct WritingDraftListView: View {
     }
 
     private func discardButton(id: UUID) -> some View {
-        Button(String(localized: "초안 버리기"), role: .destructive) {
+        Button(String(localized: "초안 버리기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive) {
             draftToDiscard = id
             isDiscardConfirmationPresented = true
         }

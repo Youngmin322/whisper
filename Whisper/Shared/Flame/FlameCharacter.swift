@@ -21,6 +21,7 @@ struct AnimatedFlameCharacter: View {
     let emotion: String?
     let pose: FlameHopPose
     var size: CGFloat = 48
+    var shadowOpacity: Double = 1
 
     private var canvasSize: CGFloat { size * 5 / 3 }
     private var motionKind: FlameMotionKind { FlameMotionKind.resolve(emotion) }
@@ -32,6 +33,7 @@ struct AnimatedFlameCharacter: View {
                 .fill(Color.whisperTextSecondary.opacity(0.10))
                 .frame(width: size * 0.48 * pose.shadowScale, height: 5)
                 .offset(y: size * 0.50)
+                .opacity(shadowOpacity)
 
             animatedArtwork(bounds: bounds)
                 // Joy mirrors its motion, not the approved asymmetric artwork.
@@ -105,18 +107,15 @@ struct FlameBottle: View {
     var width: CGFloat = 82
 
     var body: some View {
+        let jar = OriginalWhisperJar(width: width)
         ZStack {
-            Image("WhisperJarBack")
-                .resizable()
-            FlameCharacter(emotion: emotion, size: width * 0.46)
-                .offset(y: width * 0.18)
-            Image("WhisperJarFront")
-                .resizable()
-            Image("WhisperJarCork")
-                .resizable()
+            jar.back
+            FlameCharacter(emotion: emotion, size: width * 0.40)
+                .offset(y: width * 0.13)
+            jar.front
         }
-        .frame(width: width, height: width * 119 / 82)
+        .frame(width: width, height: width * WhisperJarDesign.heightToWidth)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: emotion) ?? WhisperEmotion.joy.displayName) 불꽃이 담긴 유리병"))
+        .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: emotion) ?? WhisperEmotion.joy.displayName) 불꽃이 담긴 유리병", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
     }
 }

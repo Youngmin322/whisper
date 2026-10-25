@@ -1,0 +1,295 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Whisper · 기록과 일기 구조",
+    "locale": "ko",
+    "output": "Docs/architecture/overview.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/Youngmin322/whisper.git",
+      "revision": "522355051c08d96dfa2455ca7b7a1d0466894a74"
+    },
+    "legend": {
+      "entries": {
+        "frontend": {
+          "label": "화면"
+        },
+        "backend": {
+          "label": "앱 로직"
+        },
+        "database": {
+          "label": "저장소·데이터"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "app",
+      "type": "frontend",
+      "label": "앱·화면 전환",
+      "sublabel": "ContentView · MainTabView",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "sources": [
+        {
+          "path": "Whisper/App/WhisperApp.swift",
+          "line": 10,
+          "end_line": 24
+        },
+        {
+          "path": "Whisper/App/ContentView.swift",
+          "line": 10,
+          "end_line": 29
+        },
+        {
+          "path": "Whisper/App/ContentView.swift",
+          "line": 73,
+          "end_line": 108
+        }
+      ]
+    },
+    {
+      "id": "editors",
+      "type": "frontend",
+      "label": "기록·일기 작성",
+      "sublabel": "QuickRecord · JournalEditor",
+      "pos": [
+        40,
+        260
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "sources": [
+        {
+          "path": "Whisper/Features/Home/HomeView.swift",
+          "line": 71,
+          "end_line": 95
+        },
+        {
+          "path": "Whisper/Features/Home/HomeView.swift",
+          "line": 176,
+          "end_line": 193
+        },
+        {
+          "path": "Whisper/Features/Journal/JournalViews.swift",
+          "line": 157,
+          "end_line": 172
+        }
+      ]
+    },
+    {
+      "id": "records",
+      "type": "backend",
+      "label": "RecordStore",
+      "sublabel": "기록 확정 · 일기 구성 · 조회",
+      "pos": [
+        440,
+        260
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "sources": [
+        {
+          "path": "Whisper/Data/RecordStore.swift",
+          "line": 51,
+          "end_line": 81
+        },
+        {
+          "path": "Whisper/Data/RecordStore.swift",
+          "line": 127,
+          "end_line": 237
+        },
+        {
+          "path": "Whisper/Data/RecordStore.swift",
+          "line": 1690,
+          "end_line": 1707
+        }
+      ]
+    },
+    {
+      "id": "archive",
+      "type": "frontend",
+      "label": "보관함·검색",
+      "sublabel": "JournalShelf · MemorySearch",
+      "pos": [
+        840,
+        260
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "sources": [
+        {
+          "path": "Whisper/Features/Journal/JournalShelfView.swift",
+          "line": 12,
+          "end_line": 53
+        },
+        {
+          "path": "Whisper/Features/Journal/JournalMemorySearchView.swift",
+          "line": 3,
+          "end_line": 29
+        }
+      ]
+    },
+    {
+      "id": "drafts",
+      "type": "backend",
+      "label": "WritingDraftStore",
+      "sublabel": "초안 보관 · 복원 · 재시도",
+      "pos": [
+        40,
+        480
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "sources": [
+        {
+          "path": "Whisper/Data/WritingDraftStore.swift",
+          "line": 43,
+          "end_line": 107
+        },
+        {
+          "path": "Whisper/Data/WritingDraftStore.swift",
+          "line": 110,
+          "end_line": 161
+        },
+        {
+          "path": "Whisper/Data/WritingDraftStore.swift",
+          "line": 167,
+          "end_line": 198
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "type": "database",
+      "label": "기기 내 SwiftData",
+      "sublabel": "기록 · 일기 · 초안 · 사진 문서",
+      "pos": [
+        440,
+        480
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "sources": [
+        {
+          "path": "Whisper/Data/RecordStore.swift",
+          "line": 51,
+          "end_line": 67
+        },
+        {
+          "path": "Whisper/Data/WhisperSchema.swift",
+          "line": 798,
+          "end_line": 835
+        },
+        {
+          "path": "Whisper/Data/RecordStore.swift",
+          "line": 1672,
+          "end_line": 1707
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "app-editors",
+      "from": "app",
+      "to": "editors",
+      "label": "작성 화면",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-records",
+      "from": "app",
+      "to": "records",
+      "label": "소유·주입"
+    },
+    {
+      "id": "app-archive",
+      "from": "app",
+      "to": "archive",
+      "label": "보관함 탐색"
+    },
+    {
+      "id": "editors-records",
+      "from": "editors",
+      "to": "records",
+      "label": "기록 확정",
+      "variant": "emphasis"
+    },
+    {
+      "id": "editors-drafts",
+      "from": "editors",
+      "to": "drafts",
+      "label": "초안 보관"
+    },
+    {
+      "id": "archive-records",
+      "from": "archive",
+      "to": "records",
+      "label": "기록 조회"
+    },
+    {
+      "id": "records-drafts",
+      "from": "records",
+      "to": "drafts",
+      "label": "확정 시 초안 정리"
+    },
+    {
+      "id": "records-storage",
+      "from": "records",
+      "to": "storage",
+      "label": "저장·조회",
+      "variant": "emphasis"
+    },
+    {
+      "id": "drafts-storage",
+      "from": "drafts",
+      "to": "storage",
+      "label": "초안 저장·조회"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "한 저장 문맥 공유",
+      "items": [
+        "RecordStore가 만든 mainContext를 WritingDraftStore도 사용한다.",
+        "최종 저장에서는 기록 반영과 초안 삭제를 함께 저장한다."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "그림의 범위",
+      "items": [
+        "기록 작성 → 초안 보관 → 기록 확정 → 보관함 탐색의 개요다.",
+        "iPad 화면도 같은 RecordStore를 전달받는다. UI 세부 구성은 생략했다."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "현재 제외한 경로",
+      "items": [
+        "결심 알림은 기능 플래그가 false인 상태라 주 흐름에서 제외했다.",
+        "현지화·디자인 리소스·배포 자동화는 이 저장 흐름의 범위 밖이다."
+      ]
+    }
+  ]
+}

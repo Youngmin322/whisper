@@ -2,6 +2,17 @@
 
 순간의 글과 사진을 남기고 하루의 일기로 모으는 iOS 앱입니다.
 
+## 앱 구조
+
+화면에서 작성한 내용을 `WritingDraftStore`가 초안으로 보관하고, `RecordStore`가 기록·일기로 확정합니다. 두 저장소는 같은 SwiftData `ModelContext`를 공유합니다.
+
+![Whisper 기록과 일기 구조](Docs/architecture/overview.png)
+
+- [새 순간의 초안 저장과 확정 흐름](Docs/architecture/moment-save.png)
+- [다이어그램 원본·HTML 열기와 재생성 안내](Docs/architecture/README.md)
+
+구조도는 코드 기준 `5223550`을 바탕으로 Archify로 생성했습니다.
+
 ## 개발 환경
 
 - Xcode 26 이상(Swift 6.2 이상)
@@ -14,7 +25,9 @@
 
 한국어(`ko`)와 영어(`en`)를 지원하며, 개발 언어와 최종 폴백은 한국어입니다. iOS의 선호 언어 순서와 앱별 언어 설정을 따릅니다. 앱의 설정 → 언어 설정 열기에서 시스템 설정으로 이동할 수 있으며, 시스템 검색 안내와 취소 버튼도 선택한 앱 언어로 표시됩니다.
 
-화면·오류·접근성 문구는 `Whisper/Resources/Localizable.xcstrings`, 사진 접근 권한 안내는 `Whisper/Resources/InfoPlist.xcstrings`에서 관리합니다. 새 문구는 SwiftUI와 UIKit 모두 `String(localized: "한국어 원문")`으로 작성하고 Xcode의 String Catalog에 영어 번역을 추가합니다. App Intents의 `LocalizedStringResource` 문구도 같은 카탈로그에 포함됩니다. 숫자가 들어간 문구는 정수를 보간하고 영어의 `one`·`other` 복수형을 번역하세요. 문장을 조각내거나 사용자 글을 현지화 키로 사용하지 않습니다.
+앱 설정의 언어 메뉴에서 ‘시스템 설정 따르기’, ‘한국어’, ‘English’를 선택할 수 있습니다. 선택은 기기에 보관하고 앱을 다시 실행하지 않아도 문구와 날짜 표시에 반영합니다. 화면을 다시 생성하지 않으므로 탐색 위치와 작성 중인 초안 상태를 유지합니다. ‘시스템 설정 따르기’는 iOS가 이 앱에 선택한 언어를 사용하며, 지원하지 않는 언어는 한국어로 표시합니다. 사진 선택기·권한 팝업·설정 앱·App Intents 같은 시스템 화면은 iOS의 언어 설정을 따릅니다.
+
+화면·오류·접근성 문구는 `Whisper/Resources/Localizable.xcstrings`, 사진 접근 권한 안내는 `Whisper/Resources/InfoPlist.xcstrings`에서 관리합니다. 앱에서 생성하는 새 문구는 SwiftUI와 UIKit 모두 `String(localized: "한국어 원문", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)`으로 작성하고 Xcode의 String Catalog에 영어 번역을 추가합니다. 언어 변경에 반응하도록 번역 문구를 `static let`에 보관하지 않고 계산 프로퍼티에서 읽습니다. App Intents의 `LocalizedStringResource` 문구도 같은 카탈로그에 포함됩니다. 숫자가 들어간 문구는 정수를 보간하고 영어의 `one`·`other` 복수형을 번역하세요. 문장을 조각내거나 사용자 글을 현지화 키로 사용하지 않습니다.
 
 빌드 시 Swift 컴파일러가 추출한 `.stringsdata`를 Xcode에서 카탈로그와 동기화합니다. CLI에서 새 키를 확인할 때는 `xcstringstool sync <카탈로그 경로> --stringsdata <빌드에서 생성한 .stringsdata 경로들>`을 사용할 수 있습니다. 번역 누락 시 한국어 원문으로 표시되므로, 배포 전 두 카탈로그에서 영어 번역 누락·오래된 키와 보간 인자를 확인하세요. 언어를 추가할 때는 카탈로그, 프로젝트의 `knownRegions`, `Info.plist`의 `CFBundleLocalizations`를 함께 갱신합니다.
 

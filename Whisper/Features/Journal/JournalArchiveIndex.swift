@@ -11,12 +11,12 @@ struct JournalArchiveDay: Identifiable {
     var canCollect: Bool { hasUncollectedMoments && journals.count <= 1 }
 
     var collectionTitle: String {
-        hasJournal ? String(localized: "새 순간 \(uncollectedMoments.count)개 함께 담기") : String(localized: "이날의 순간 병에 담기")
+        hasJournal ? String(localized: "새 순간 \(uncollectedMoments.count)개 함께 담기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "이날의 순간 병에 담기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
     }
 
     var accessibilityDescription: String {
-        let journalText = hasJournal ? String(localized: "담긴 하루 \(journals.count)개") : ""
-        let momentText = hasUncollectedMoments ? String(localized: "아직 담지 않은 순간 \(uncollectedMoments.count)개") : ""
+        let journalText = hasJournal ? String(localized: "담긴 하루 \(journals.count)개", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : ""
+        let momentText = hasUncollectedMoments ? String(localized: "아직 담지 않은 순간 \(uncollectedMoments.count)개", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : ""
         return [day.fullDescription, journalText, momentText].filter { !$0.isEmpty }.joined(separator: ", ")
     }
 }
@@ -25,7 +25,7 @@ struct JournalArchiveSearchResult: Identifiable {
     enum Kind: String {
         case journal, moment
 
-        var label: String { self == .journal ? String(localized: "일기") : String(localized: "미보관 순간") }
+        var label: String { self == .journal ? String(localized: "일기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "미보관 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) }
     }
 
     let kind: Kind
@@ -69,16 +69,16 @@ struct JournalSearchContext: Equatable {
     func description(for kind: JournalArchiveSearchResult.Kind) -> String? {
         guard let first = matches.first else { return nil }
         if first.sourceID != nil {
-            return sourceIDs.count > 1 ? String(localized: "담아 둔 순간 \(sourceIDs.count)개에서 찾았어요") : String(localized: "담아 둔 순간에서 찾았어요")
+            return sourceIDs.count > 1 ? String(localized: "담아 둔 순간 \(sourceIDs.count)개에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "담아 둔 순간에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
         switch (kind, first.field) {
-        case (.journal, .body): return String(localized: "일기 본문에서 찾았어요")
-        case (.moment, .body): return String(localized: "순간 본문에서 찾았어요")
-        case (_, .reflection): return String(localized: "일기 회고에서 찾았어요")
-        case (.journal, .title): return String(localized: "일기 제목에서 찾았어요")
-        case (.moment, .title): return String(localized: "순간 제목에서 찾았어요")
-        case (.journal, .emotion): return String(localized: "일기 감정에서 찾았어요")
-        case (.moment, .emotion): return String(localized: "순간 감정에서 찾았어요")
+        case (.journal, .body): return String(localized: "일기 본문에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case (.moment, .body): return String(localized: "순간 본문에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case (_, .reflection): return String(localized: "일기 회고에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case (.journal, .title): return String(localized: "일기 제목에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case (.moment, .title): return String(localized: "순간 제목에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case (.journal, .emotion): return String(localized: "일기 감정에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+        case (.moment, .emotion): return String(localized: "순간 감정에서 찾았어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
     }
 }
@@ -144,7 +144,7 @@ struct JournalArchiveIndex {
                 let title = journal.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 results.append(JournalArchiveSearchResult(
                     kind: .journal, recordID: journal.id, day: entry.day, createdAt: journal.date,
-                    title: title.isEmpty ? String(localized: "이날의 하루") : title, preview: journal.body,
+                    title: title.isEmpty ? String(localized: "이날의 하루", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : title, preview: journal.body,
                     emotion: journal.emotion, searchableTexts: texts
                 ))
             }
@@ -152,7 +152,7 @@ struct JournalArchiveIndex {
                 let title = moment.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 results.append(JournalArchiveSearchResult(
                     kind: .moment, recordID: moment.id, day: entry.day, createdAt: moment.createdAt,
-                    title: title.isEmpty ? String(localized: "남겨둔 순간") : title, preview: moment.content,
+                    title: title.isEmpty ? String(localized: "남겨둔 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : title, preview: moment.content,
                     emotion: moment.emotion,
                     searchableTexts: [
                         JournalSearchText(field: .body, sourceID: nil, text: moment.content),

@@ -16,7 +16,7 @@ struct JournalArchiveDayView: View {
                 if let entry {
                     if entry.hasJournal {
                         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-                            Text(String(localized: "담긴 하루")).font(.whisperSectionTitle)
+                            Text(String(localized: "담긴 하루", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)).font(.whisperSectionTitle)
                             ForEach(entry.journals) { journal in
                                 NavigationLink {
                                     JournalDetailView(journalID: journal.id, recordStore: recordStore)
@@ -30,7 +30,7 @@ struct JournalArchiveDayView: View {
                     }
                     if entry.hasUncollectedMoments {
                         VStack(alignment: .leading, spacing: WhisperSpacing.medium) {
-                            Text(String(localized: "아직 담지 않은 순간 · \(entry.uncollectedMoments.count)개"))
+                            Text(String(localized: "아직 담지 않은 순간 · \(entry.uncollectedMoments.count)개", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                                 .font(.whisperSectionTitle)
                             ForEach(entry.uncollectedMoments) { moment in
                                 NavigationLink {
@@ -44,7 +44,7 @@ struct JournalArchiveDayView: View {
                         }
                     }
                 } else {
-                    ContentUnavailableView(String(localized: "이날의 기록이 없어요"), systemImage: "calendar")
+                    ContentUnavailableView(String(localized: "이날의 기록이 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "calendar")
                 }
             }
             .foregroundStyle(Color.whisperTextPrimary)
@@ -54,7 +54,7 @@ struct JournalArchiveDayView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.whisperBackground)
-        .navigationTitle(String(localized: "날짜별 기록"))
+        .navigationTitle(String(localized: "날짜별 기록", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom) {
@@ -80,12 +80,12 @@ struct JournalArchiveDayView: View {
         HStack(spacing: WhisperSpacing.medium) {
             FlameBottle(emotion: journal.emotion, width: 42)
             VStack(alignment: .leading, spacing: WhisperSpacing.small) {
-                Text(journal.title.isEmpty ? String(localized: "이날의 하루") : journal.title)
+                Text(journal.title.isEmpty ? String(localized: "이날의 하루", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : journal.title)
                     .font(.whisperHandwriting(22))
                     .lineLimit(2)
                 Text(journal.body).font(.whisperBody).lineLimit(3)
                     .foregroundStyle(Color.whisperTextSecondary)
-                Text(String(localized: "담긴 순간 \(journal.sourceRecordIDs.count)개"))
+                Text(String(localized: "담긴 순간 \(journal.sourceRecordIDs.count)개", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                     .font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
             }
             Spacer(minLength: 0)
@@ -104,11 +104,11 @@ struct JournalArchiveDayView: View {
                     Text(moment.createdAt.formatted(Date.FormatStyle(
                         locale: WhisperLocalization.locale, calendar: day.calendar,
                         timeZone: day.calendar.timeZone).hour().minute()))
-                    if let emotion = moment.emotion { Text(emotion) }
-                    if moment.photoData != nil { Image(systemName: "photo").accessibilityLabel(String(localized: "사진 있음")) }
+                    if let emotion = WhisperEmotion.displayName(for: moment.emotion) { Text(emotion) }
+                    if moment.photoData != nil { Image(systemName: "photo").accessibilityLabel(String(localized: "사진 있음", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) }
                 }
                 .font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
-                Text(moment.title.isEmpty ? String(localized: "남겨둔 순간") : moment.title).font(.whisperControl).lineLimit(1)
+                Text(moment.title.isEmpty ? String(localized: "남겨둔 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : moment.title).font(.whisperControl).lineLimit(1)
                 Text(moment.content).font(.whisperDiaryBody).lineLimit(2).foregroundStyle(Color.whisperTextSecondary)
             }
             Spacer(minLength: 0)
