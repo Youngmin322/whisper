@@ -71,6 +71,26 @@ struct WritingDraftListView: View {
                         }
                     }
                 }
+                if !draftStore.unreadableDrafts.isEmpty {
+                    Section(String(localized: "읽을 수 없는 초안")) {
+                        Text(String(localized: "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요."))
+                            .font(.whisperBody)
+                            .foregroundStyle(Color.whisperTextSecondary)
+                        ForEach(draftStore.unreadableDrafts) { draft in
+                            Label {
+                                Text(draft.updatedAt.whisperDateTimeDescription)
+                            } icon: {
+                                Image(systemName: "exclamationmark.triangle")
+                            }
+                            .accessibilityIdentifier("draft.unreadable.\(draft.id)")
+                        }
+                        Button(String(localized: "초안 다시 불러오기"), action: draftStore.retry)
+                            .accessibilityIdentifier("draft.reloadUnreadableButton")
+                        Text(String(localized: "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요."))
+                            .font(.whisperCaption)
+                            .foregroundStyle(Color.whisperTextSecondary)
+                    }
+                }
                 if draftStore.count == 0 {
                     Text(String(localized: "작성 중인 초안이 없어요."))
                         .foregroundStyle(Color.whisperTextSecondary)
