@@ -60,9 +60,9 @@ struct JournalEditorView: View {
                             FlameCharacter(emotion: draft.representativeEmotion, size: 38)
                                 .frame(minWidth: 44, minHeight: 44)
                         }
-                        .accessibilityLabel(String(localized: "대표 감정 바꾸기, 현재 \(WhisperEmotion.displayName(for: draft.representativeEmotion) ?? String(localized: "선택 안 함"))"))
+                        .accessibilityLabel(String(localized: "대표 감정 바꾸기, 현재 \(WhisperEmotion.displayName(for: draft.representativeEmotion) ?? String(localized: "선택 안 함", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                     }
-                    TextField(String(localized: "이 하루의 제목 · 선택 사항"), text: $draft.title, axis: .vertical)
+                    TextField(String(localized: "이 하루의 제목 · 선택 사항", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), text: $draft.title, axis: .vertical)
                         .font(.whisperHandwriting(28))
                         .foregroundStyle(Color.whisperTextPrimary)
                         .accessibilityIdentifier("journal.titleField")
@@ -71,11 +71,11 @@ struct JournalEditorView: View {
                 WritingDraftErrorView(message: recordStore.writingDraftStore.errorMessage) { persistDraft() }
                 if isOriginalDeleted {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(String(localized: "원본 일기가 삭제되었어요"))
+                        Text(String(localized: "원본 일기가 삭제되었어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             .font(.whisperAction)
-                        Text(String(localized: "작성한 초안은 남아 있어요. 날짜를 선택해 새 일기로 저장할 수 있어요."))
+                        Text(String(localized: "작성한 초안은 남아 있어요. 날짜를 선택해 새 일기로 저장할 수 있어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             .font(.whisperBody)
-                        DatePicker(String(localized: "복구할 날짜"), selection: $recoveryDate, displayedComponents: .date)
+                        DatePicker(String(localized: "복구할 날짜", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), selection: $recoveryDate, displayedComponents: .date)
                             .environment(\.calendar, draft.day.calendar)
                             .environment(\.timeZone, draft.day.calendar.timeZone)
                             .accessibilityIdentifier("journal.recoveryDatePicker")
@@ -86,7 +86,7 @@ struct JournalEditorView: View {
                     get: { draft.document ?? DiaryDocument(text: draft.body) },
                     set: { draft.document = $0; draft.body = $0.text }
                 ), isFocused: $isBodyFocused, minimumHeight: 260, showsRules: true,
-                   placeholder: String(localized: "오늘을 돌아보며 적어보세요."),
+                   placeholder: String(localized: "오늘을 돌아보며 적어보세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
                    accessibilityIdentifier: "journal.bodyField",
                    onPhotoTap: { selectedPhoto = $0 })
                 DiarySourcesView(ids: draft.sourceRecordIDs, recordStore: recordStore)
@@ -100,7 +100,7 @@ struct JournalEditorView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color.whisperBackground)
-        .navigationTitle(String(localized: "나의 하루"))
+        .navigationTitle(String(localized: "나의 하루", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -109,16 +109,16 @@ struct JournalEditorView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.whisperTextSecondary)
-                .accessibilityLabel(String(localized: "초안 삭제"))
-                .accessibilityHint(String(localized: "작성 중인 초안만 삭제해요."))
+                .accessibilityLabel(String(localized: "초안 삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
+                .accessibilityHint(String(localized: "작성 중인 초안만 삭제해요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 .accessibilityIdentifier("journal.discardDraftButton")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(isOriginalDeleted ? String(localized: "새 일기로 저장") : String(localized: "저장"), action: save)
+                Button(isOriginalDeleted ? String(localized: "새 일기로 저장", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "저장", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), action: save)
                     .font(.whisperAction)
                     .tint(Color.whisperAccent)
                     .disabled(draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityLabel(isOriginalDeleted ? String(localized: "새 일기로 저장") : String(localized: "일기 저장"))
+                    .accessibilityLabel(isOriginalDeleted ? String(localized: "새 일기로 저장", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "일기 저장", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                     .accessibilityIdentifier("journal.saveButton")
             }
 
@@ -128,8 +128,8 @@ struct JournalEditorView: View {
         .onChange(of: draft) { _, _ in persistDraft() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { persistDraft() } }
         .onDisappear { persistDraft() }
-        .confirmationDialog(String(localized: "작성 중인 일기 초안을 삭제할까요?"), isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
-            Button(String(localized: "삭제"), role: .destructive) {
+        .confirmationDialog(String(localized: "작성 중인 일기 초안을 삭제할까요?", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isDiscardConfirmationPresented, titleVisibility: .visible) {
+            Button(String(localized: "삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive) {
                 guard recordStore.writingDraftStore.discard(id: draft.id) else {
                     isDraftErrorPresented = true
                     return
@@ -137,17 +137,17 @@ struct JournalEditorView: View {
                 didFinish = true
                 dismiss()
             }
-            Button(String(localized: "계속 작성"), role: .cancel) {}
+            Button(String(localized: "계속 작성", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
         } message: {
-            Text(String(localized: "이미 저장한 일기와 원본 순간은 그대로 남아요."))
+            Text(String(localized: "이미 저장한 일기와 원본 순간은 그대로 남아요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
-        .alert(String(localized: "초안을 보관할 수 없어요"), isPresented: $isDraftErrorPresented) {
-            Button(String(localized: "확인"), role: .cancel) {}
+        .alert(String(localized: "초안을 보관할 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isDraftErrorPresented) {
+            Button(String(localized: "확인", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
         } message: {
-            Text(String(localized: "작성한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요."))
+            Text(String(localized: "작성한 내용은 이 화면에 남아 있어요. 임시 저장을 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
-        .alert(String(localized: "일기를 저장할 수 없어요"), isPresented: $isSaveErrorPresented) {
-            Button(String(localized: "확인"), role: .cancel) {}
+        .alert(String(localized: "일기를 저장할 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isSaveErrorPresented) {
+            Button(String(localized: "확인", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
         } message: {
             Text(recordStore.journalDraftSaveFailure?.message ?? JournalDraftSaveFailure.storageFailure.message)
         }
@@ -183,7 +183,7 @@ struct DiaryPageHeader: View {
                 Text(date).font(.whisperMetadata).foregroundStyle(Color.whisperTextSecondary)
                 Spacer(minLength: 12)
                 FlameCharacter(emotion: emotion, size: 38)
-                    .accessibilityLabel(WhisperEmotion.displayName(for: emotion) ?? String(localized: "남긴 마음"))
+                    .accessibilityLabel(WhisperEmotion.displayName(for: emotion) ?? String(localized: "남긴 마음", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             }
             if !title.isEmpty {
                 Text(title).font(.whisperHandwriting(28)).foregroundStyle(Color.whisperTextPrimary)
@@ -215,7 +215,7 @@ struct DiarySourcesView: View {
 
     var body: some View {
         if !ids.isEmpty {
-            DisclosureGroup(String(localized: "담아 둔 순간 · \(ids.count)개"), isExpanded: $isExpanded) {
+            DisclosureGroup(String(localized: "담아 둔 순간 · \(ids.count)개", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isExpanded: $isExpanded) {
                 ForEach(orderedIDs, id: \.self) { id in sourceRow(id).padding(.vertical, 6) }
             }
             .font(.whisperControl)
@@ -237,7 +237,7 @@ struct DiarySourcesView: View {
                     Text(record.createdAt.whisperDateTimeDescription)
                         .font(.whisperCaption)
                         .foregroundStyle(Color.whisperTextSecondary)
-                    if record.photoData != nil { Label(String(localized: "사진 있음"), systemImage: "photo").font(.whisperCaption) }
+                    if record.photoData != nil { Label(String(localized: "사진 있음", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "photo").font(.whisperCaption) }
                     if let context = searchContext,
                        let snippet = matchedSnippet(for: record) {
                         JournalSearchHighlightedText(text: snippet, query: context.query)
@@ -247,10 +247,10 @@ struct DiarySourcesView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .accessibilityLabel(String(localized: "출처 순간, \(record.title), \(matchedSnippet(for: record) ?? ""), 원본 상세 열기"))
+            .accessibilityLabel(String(localized: "출처 순간, \(record.title), \(matchedSnippet(for: record) ?? ""), 원본 상세 열기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             .accessibilityIdentifier("archive.search.source.\(id)")
         } else {
-            Label(String(localized: "삭제된 순간 · 원본을 볼 수 없어요"), systemImage: "minus.circle")
+            Label(String(localized: "삭제된 순간 · 원본을 볼 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "minus.circle")
         }
     }
 }
@@ -286,43 +286,43 @@ struct JournalDetailView: View {
                     .frame(maxWidth: .infinity)
                 }
             } else {
-                ContentUnavailableView(String(localized: "일기를 찾을 수 없어요"), systemImage: "book.closed")
+                ContentUnavailableView(String(localized: "일기를 찾을 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "book.closed")
             }
         }
         .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
         .background(Color.whisperBackground)
-        .navigationTitle(String(localized: "나의 하루"))
+        .navigationTitle(String(localized: "나의 하루", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let journal {
                 ToolbarItem(placement: .confirmationAction) {
-                    NavigationLink(String(localized: "수정")) {
+                    NavigationLink(String(localized: "수정", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) {
                         JournalEditorView(journal: journal, recordStore: recordStore)
                     }
-                    .accessibilityLabel(String(localized: "일기 수정"))
+                    .accessibilityLabel(String(localized: "일기 수정", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button(String(localized: "일기 삭제"), systemImage: "trash", role: .destructive) {
+                        Button(String(localized: "일기 삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "trash", role: .destructive) {
                             isDeleteConfirmationPresented = true
                         }
                     } label: {
                         Image(systemName: "ellipsis")
                     }
-                    .accessibilityLabel(String(localized: "일기 메뉴"))
+                    .accessibilityLabel(String(localized: "일기 메뉴", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 }
             }
         }
-        .alert(String(localized: "이 일기를 삭제할까요?"), isPresented: $isDeleteConfirmationPresented) {
-            Button(String(localized: "취소"), role: .cancel) {}
-            Button(String(localized: "일기 삭제"), role: .destructive, action: delete)
+        .alert(String(localized: "이 일기를 삭제할까요?", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isDeleteConfirmationPresented) {
+            Button(String(localized: "취소", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
+            Button(String(localized: "일기 삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive, action: delete)
         } message: {
-            Text(String(localized: "완성한 일기의 본문, 감정, 회고와 출처 연결이 삭제돼요. 순간 원본과 그 사진은 그대로 남아요. 삭제한 일기는 복구할 수 없어요."))
+            Text(String(localized: "완성한 일기의 본문, 감정, 회고와 출처 연결이 삭제돼요. 순간 원본과 그 사진은 그대로 남아요. 삭제한 일기는 복구할 수 없어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
-        .alert(String(localized: "일기를 삭제할 수 없어요"), isPresented: $isDeleteErrorPresented) {
-            Button(String(localized: "확인"), role: .cancel) {}
+        .alert(String(localized: "일기를 삭제할 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isDeleteErrorPresented) {
+            Button(String(localized: "확인", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
         } message: {
-            Text(String(localized: "일기는 그대로 남아 있어요. 잠시 후 다시 시도해 주세요."))
+            Text(String(localized: "일기는 그대로 남아 있어요. 잠시 후 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
     }
 

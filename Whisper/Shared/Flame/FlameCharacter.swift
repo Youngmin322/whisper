@@ -116,6 +116,6 @@ struct FlameBottle: View {
         }
         .frame(width: width, height: width * WhisperJarDesign.heightToWidth)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: emotion) ?? WhisperEmotion.joy.displayName) 불꽃이 담긴 유리병"))
+        .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: emotion) ?? WhisperEmotion.joy.displayName) 불꽃이 담긴 유리병", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
     }
 }

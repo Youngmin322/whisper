@@ -62,7 +62,7 @@ struct TodayFlameField: View {
                             .position(point)
                             .opacity(flight?.opacity ?? 1)
                             .disabled(collectionStartedAt != nil)
-                            .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: record.emotion) ?? String(localized: "감정 미선택")) 불꽃, \(record.content), 순간 열기"))
+                            .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: record.emotion) ?? String(localized: "감정 미선택", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) 불꽃, \(record.content), 순간 열기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                             .accessibilityIdentifier("home.flame.\(record.id.uuidString)")
                         }
                     }

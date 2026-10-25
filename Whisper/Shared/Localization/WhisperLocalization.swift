@@ -1,10 +1,40 @@
 import Foundation
 
 enum WhisperLocalization {
+    nonisolated static var languageCode: String {
+        languageCode(for: WhisperLanguageSettings.shared.selection)
+    }
+
+    nonisolated static func languageCode(
+        for selection: WhisperAppLanguage,
+        systemLocalizations: [String] = Bundle.main.preferredLocalizations
+    ) -> String {
+        switch selection {
+        case .korean: "ko"
+        case .english: "en"
+        case .system:
+            systemLocalizations.lazy.compactMap { Locale(identifier: $0).language.languageCode?.identifier }
+                .first { $0 == "ko" || $0 == "en" } ?? "ko"
+        }
+    }
+
+    nonisolated static var bundle: Bundle {
+        resourceBundles[languageCode] ?? .main
+    }
+
+    nonisolated private static let resourceBundles = ["ko": bundle(for: "ko"), "en": bundle(for: "en")]
+
+    nonisolated static func bundle(for language: String, in resources: Bundle = .main) -> Bundle {
+        let supportedLanguage = language == "en" ? "en" : "ko"
+        guard let path = resources.path(forResource: supportedLanguage, ofType: "lproj"),
+              let bundle = Bundle(path: path) else { return resources }
+        return bundle
+    }
+
     /// Match the app's selected language while retaining the user's region preferences.
     /// Storage calendars and civil-day keys must never depend on this display locale.
     nonisolated static var locale: Locale {
-        displayLocale(language: Bundle.main.preferredLocalizations.first ?? "ko", preferences: .current)
+        displayLocale(language: languageCode, preferences: .current)
     }
 
     nonisolated static func displayLocale(language: String, preferences: Locale) -> Locale {

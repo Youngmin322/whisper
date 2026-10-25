@@ -34,7 +34,7 @@ struct JournalShelfView: View {
             .padding(.bottom, 48)
         }
         .background(Color.whisperBackground.ignoresSafeArea())
-        .navigationTitle(String(localized: "보관함"))
+        .navigationTitle(String(localized: "보관함", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
@@ -44,7 +44,7 @@ struct JournalShelfView: View {
                 } label: {
                     Image(systemName: "magnifyingglass").frame(minWidth: 44, minHeight: 44)
                 }
-                .accessibilityLabel(String(localized: "기억 찾기"))
+                .accessibilityLabel(String(localized: "기억 찾기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 .accessibilityIdentifier("archive.searchButton")
             }
         }
@@ -55,7 +55,7 @@ struct JournalShelfView: View {
 
     private var monthHeader: some View {
         HStack(spacing: 12) {
-            monthButton(systemName: "chevron.left", accessibilityLabel: String(localized: "이전 달")) { changeMonth(by: -1) }
+            monthButton(systemName: "chevron.left", accessibilityLabel: String(localized: "이전 달", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) { changeMonth(by: -1) }
             Spacer(minLength: 8)
             VStack(spacing: 1) {
                 Text(displayedMonth.formatted(JournalCalendar.yearStyle))
@@ -68,7 +68,7 @@ struct JournalShelfView: View {
                     }
             }
             Spacer(minLength: 8)
-            monthButton(systemName: "chevron.right", accessibilityLabel: String(localized: "다음 달")) { changeMonth(by: 1) }
+            monthButton(systemName: "chevron.right", accessibilityLabel: String(localized: "다음 달", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) { changeMonth(by: 1) }
         }
         .padding(.horizontal, 16)
     }
@@ -119,8 +119,8 @@ struct JournalShelfView: View {
             }
             .buttonStyle(.plain)
             .disabled(entry == nil)
-            .accessibilityLabel(entry?.accessibilityDescription ?? String(localized: "\(targetDay.fullDescription), 기록 없음"))
-            .accessibilityHint(entry == nil ? "" : String(localized: "두 번 탭하면 이날의 기록이 열려요"))
+            .accessibilityLabel(entry?.accessibilityDescription ?? String(localized: "\(targetDay.fullDescription), 기록 없음", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
+            .accessibilityHint(entry == nil ? "" : String(localized: "두 번 탭하면 이날의 기록이 열려요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             .accessibilityIdentifier("archive.day.\(targetDay.key)")
         } else {
             Color.clear.frame(height: 66).accessibilityHidden(true)
@@ -129,8 +129,8 @@ struct JournalShelfView: View {
 
     private var calendarLegend: some View {
         HStack(spacing: 20) {
-            HStack(spacing: 5) { FlameBottle(emotion: nil, width: 13); Text(String(localized: "담긴 하루")) }
-            HStack(spacing: 5) { FlameCharacter(emotion: WhisperEmotion.joy.rawValue, size: 18); Text(String(localized: "미보관 순간")) }
+            HStack(spacing: 5) { FlameBottle(emotion: nil, width: 13); Text(String(localized: "담긴 하루", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) }
+            HStack(spacing: 5) { FlameCharacter(emotion: WhisperEmotion.joy.rawValue, size: 18); Text(String(localized: "미보관 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) }
         }
         .font(.whisperCaption).foregroundStyle(Color.whisperTextSecondary)
         .accessibilityElement(children: .combine)
@@ -141,15 +141,15 @@ struct JournalShelfView: View {
         let momentCount = entries.reduce(0) { $0 + $1.uncollectedMoments.count }
         return VStack(spacing: 8) {
             if entries.isEmpty {
-                Text(String(localized: "이 달은 아직 비어 있어요")).font(.whisperHandwriting(22))
+                Text(String(localized: "이 달은 아직 비어 있어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)).font(.whisperHandwriting(22))
                     .foregroundStyle(Color.whisperTextPrimary)
-                Text(String(localized: "순간을 남기면 불꽃이, 일기로 담으면 병이 놓여요")).font(.whisperBody)
+                Text(String(localized: "순간을 남기면 불꽃이, 일기로 담으면 병이 놓여요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)).font(.whisperBody)
                     .foregroundStyle(Color.whisperTextSecondary)
             } else {
                 if journalCount > 0 {
-                    Text(String(localized: "\(journalCount)개의 하루가 차곡차곡 담겼어요")).font(.whisperHandwriting(21))
+                    Text(String(localized: "\(journalCount)개의 하루가 차곡차곡 담겼어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)).font(.whisperHandwriting(21))
                 }
-                if momentCount > 0 { Text(String(localized: "아직 담지 않은 순간 \(momentCount)개")).font(.whisperBody) }
+                if momentCount > 0 { Text(String(localized: "아직 담지 않은 순간 \(momentCount)개", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)).font(.whisperBody) }
             }
         }
         .foregroundStyle(Color.whisperTextSecondary)

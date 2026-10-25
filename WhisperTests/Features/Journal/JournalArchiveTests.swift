@@ -33,8 +33,8 @@ struct JournalArchiveTests {
         #expect(both.hasJournal && both.hasUncollectedMoments)
         #expect(both.uncollectedMoments.map(\.id) == [newMoment.id])
         #expect(index.entry(for: "2026-10-01") == nil)
-        #expect(both.accessibilityDescription.contains(Bundle.main.preferredLocalizations.first == "en" ? "1 saved day" : "담긴 하루 1개"))
-        #expect(both.accessibilityDescription.contains(Bundle.main.preferredLocalizations.first == "en" ? "1 uncollected moment" : "아직 담지 않은 순간 1개"))
+        #expect(both.accessibilityDescription.contains(WhisperLocalization.languageCode == "en" ? "1 journal entry" : "담긴 하루 1개"))
+        #expect(both.accessibilityDescription.contains(WhisperLocalization.languageCode == "en" ? "1 uncollected moment" : "아직 담지 않은 순간 1개"))
     }
 
     @Test("일기를 하나도 만들지 않아도 미보관 순간을 제목·내용·감정으로 검색한다")
@@ -90,7 +90,7 @@ struct JournalArchiveTests {
         let second = try #require(store.addAndReturn(title: "새 순간", content: "새 원문", createdAt: target.date.addingTimeInterval(7200), emotion: "기쁨"))
         let entry = try #require(archive(store, calendar: target.calendar).entry(for: target.key))
         #expect(entry.canCollect)
-        #expect(entry.collectionTitle == (Bundle.main.preferredLocalizations.first == "en"
+        #expect(entry.collectionTitle == (WhisperLocalization.languageCode == "en"
             ? (existing ? "Add 1 new moment" : "Gather this day's moments")
             : (existing ? "새 순간 1개 함께 담기" : "이날의 순간 병에 담기")))
         let draft = JournalWritingDraft(day: entry.day, existing: entry.journals.first, records: entry.uncollectedMoments)

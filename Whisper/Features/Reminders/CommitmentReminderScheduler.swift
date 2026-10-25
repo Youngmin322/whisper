@@ -115,7 +115,7 @@ enum CommitmentReminderSchedulerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noAvailableSchedule:
-            String(localized: "알림이 너무 많이 겹쳐 다음 리마인드 시간을 정하지 못했어요.")
+            String(localized: "알림이 너무 많이 겹쳐 다음 리마인드 시간을 정하지 못했어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         }
     }
 }
@@ -514,7 +514,7 @@ enum CommitmentReminderScheduler {
         showPreview: Bool
     ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "과거의 불꽃")
+        content.title = String(localized: "과거의 불꽃", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
         content.body = WhisperNotificationContentPolicy.commitmentReminderBody(
             quote: plan.quote,
             showPreview: showPreview

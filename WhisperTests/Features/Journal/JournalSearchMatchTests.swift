@@ -98,7 +98,7 @@ struct JournalSearchMatchTests {
         #expect(JournalSearchSnippet.make(in: "👨‍👩‍👧‍👦 민수", query: "민수") == "👨‍👩‍👧‍👦 민수")
     }
 
-    private var isEnglish: Bool { Bundle.main.preferredLocalizations.first == "en" }
+    private var isEnglish: Bool { WhisperLocalization.languageCode == "en" }
 
     private func index(_ store: RecordStore) -> JournalArchiveIndex {
         JournalArchiveIndex(records: store.records, journals: store.journals)

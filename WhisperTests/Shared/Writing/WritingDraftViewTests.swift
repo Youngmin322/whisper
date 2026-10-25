@@ -51,7 +51,7 @@ struct WritingDraftViewTests {
         try VNImageRequestHandler(cgImage: cgImage).perform([request])
         let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
             .joined().filter { !$0.isWhitespace }
-        let english = Bundle.main.preferredLocalizations.first == "en"
+        let english = WhisperLocalization.languageCode == "en"
         #expect(text.contains(english ? "Draftsthatcouldnotbeopened" : "읽을수없는초안"))
         #expect(text.contains(english ? "Reloaddrafts" : "초안다시불러오기"))
         #expect(!text.contains(english ? "Nodraftsinprogress" : "작성중인초안이없어요"))

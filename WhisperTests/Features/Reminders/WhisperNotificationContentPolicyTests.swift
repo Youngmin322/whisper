@@ -40,7 +40,7 @@ struct WhisperNotificationContentPolicyTests {
             showPreview: false
         )
 
-        #expect(body == (Bundle.main.preferredLocalizations.first == "en" ? "Take a moment to revisit these words." : "기억해 둔 마음이 다시 찾아왔어요."))
+        #expect(body == (WhisperLocalization.languageCode == "en" ? "Take a moment to revisit these words." : "기억해 둔 마음이 다시 찾아왔어요."))
         #expect(!body.contains("노출되면 안 되는"))
     }
 
@@ -51,7 +51,7 @@ struct WhisperNotificationContentPolicyTests {
             showPreview: true
         )
 
-        #expect(body == (Bundle.main.preferredLocalizations.first == "en" ? "A moment to revisit: “매일 조금씩 걷자”" : "“매일 조금씩 걷자” 그날의 마음이 다시 찾아왔어요."))
+        #expect(body == (WhisperLocalization.languageCode == "en" ? "A moment to revisit: “매일 조금씩 걷자”" : "“매일 조금씩 걷자” 그날의 마음이 다시 찾아왔어요."))
     }
 
     @Test("미리보기를 끄면 Focus 알림에서 기록 제목과 내용을 숨긴다")

@@ -1,70 +1,6 @@
 {
   "sourceLanguage" : "ko",
   "strings" : {
-    "읽을 수 없는 초안" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drafts that could not be opened"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "읽을 수 없는 초안"
-          }
-        }
-      }
-    },
-    "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The original draft data and photos are still on this device. You can continue writing your other drafts."
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요."
-          }
-        }
-      }
-    },
-    "초안 다시 불러오기" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reload drafts"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "초안 다시 불러오기"
-          }
-        }
-      }
-    },
-    "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "If reloading does not help, keep this app and its data until the original draft can be recovered."
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요."
-          }
-        }
-      }
-    },
     "“%@”" : {
       "localizations" : {
         "en" : {
@@ -491,6 +427,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Components"
+          }
+        }
+      }
+    },
+    "drafts.section.journals" : {
+      "comment" : "Section heading for a list of journal entry drafts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Journal entries"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일기"
+          }
+        }
+      }
+    },
+    "drafts.section.moments" : {
+      "comment" : "Section heading for a list of moment drafts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moments"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "순간"
           }
         }
       }
@@ -1012,6 +984,7 @@
       }
     },
     "기기 설정에서 한국어 또는 영어를 선택할 수 있어요. 작성한 기록은 원래 언어 그대로 남아요." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1843,6 +1816,22 @@
         }
       }
     },
+    "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If reloading does not help, keep this app and its data until the original draft can be recovered."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 불러와도 열리지 않으면 원본을 복구할 때까지 이 앱과 데이터를 삭제하지 말아 주세요."
+          }
+        }
+      }
+    },
     "다시 시도" : {
       "localizations" : {
         "en" : {
@@ -1875,6 +1864,24 @@
         }
       }
     },
+    "단계: %@" : {
+      "comment" : "Diagnostic operation identifier; keep the identifier unchanged.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operation: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단계: %@"
+          }
+        }
+      }
+    },
     "닫기" : {
       "localizations" : {
         "en" : {
@@ -1899,13 +1906,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld included moment"
+                  "value" : "%lld moment included"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld included moments"
+                  "value" : "%lld moments included"
                 }
               }
             }
@@ -1924,7 +1931,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Collected days"
+            "value" : "Journal entries"
           }
         },
         "ko" : {
@@ -1943,13 +1950,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld saved day"
+                  "value" : "%lld journal entry"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld saved days"
+                  "value" : "%lld journal entries"
                 }
               }
             }
@@ -1971,13 +1978,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld included moment"
+                  "value" : "%lld moment included"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld included moments"
+                  "value" : "%lld moments included"
                 }
               }
             }
@@ -2542,7 +2549,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete photo"
+            "value" : "Remove photo"
           }
         },
         "ko" : {
@@ -2885,6 +2892,23 @@
         }
       }
     },
+    "선택한 언어는 앱에 바로 적용돼요. 작성한 기록은 원래 언어 그대로 남아요." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your choice takes effect immediately. Your writing stays in its original language."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 언어는 앱에 바로 적용돼요. 작성한 기록은 원래 언어 그대로 남아요."
+          }
+        }
+      }
+    },
     "설렘" : {
       "localizations" : {
         "en" : {
@@ -3014,6 +3038,7 @@
       }
     },
     "순간" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3282,6 +3307,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "슬픔"
+          }
+        }
+      }
+    },
+    "시스템 설정 따르기" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow system settings"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템 설정 따르기"
           }
         }
       }
@@ -3599,6 +3641,23 @@
         }
       }
     },
+    "앱 표시 언어" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App language"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 표시 언어"
+          }
+        }
+      }
+    },
     "어떤 기억을 찾고 있나요?" : {
       "localizations" : {
         "en" : {
@@ -3632,6 +3691,7 @@
       }
     },
     "언어 설정 열기" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3933,6 +3993,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "오늘의 순간을 일기로 모아볼까요?"
+          }
+        }
+      }
+    },
+    "오류: %@ / %@" : {
+      "comment" : "Diagnostic error domain and code; keep both values unchanged.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error: %@ / %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오류: %@ / %@"
           }
         }
       }
@@ -4431,6 +4509,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "이 초안을 버릴까요?"
+          }
+        }
+      }
+    },
+    "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The original draft data and photos are still on this device. You can continue writing your other drafts."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 초안의 원본과 사진은 기기에 그대로 보관하고 있어요. 다른 초안은 계속 작성할 수 있어요."
           }
         }
       }
@@ -5084,6 +5178,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "읽을 기록을 선택해 주세요"
+          }
+        }
+      }
+    },
+    "읽을 수 없는 초안" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drafts that could not be opened"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "읽을 수 없는 초안"
           }
         }
       }
@@ -6052,6 +6162,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "첫 기록이 쌓이면 이곳에 나타나요"
+          }
+        }
+      }
+    },
+    "초안 다시 불러오기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload drafts"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "초안 다시 불러오기"
           }
         }
       }

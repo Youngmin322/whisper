@@ -53,48 +53,48 @@ struct IPadEntryReader: View {
                     .frame(maxWidth: .infinity)
                 }
             } else {
-                IPadEmptyState(title: String(localized: "기록을 찾을 수 없어요"))
+                IPadEmptyState(title: String(localized: "기록을 찾을 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
             }
         }
         .background(Color.whisperBackground)
-        .modifier(IPadReaderTitle(isPresented: presentsNavigationTitle, title: journal != nil ? String(localized: "나의 하루") : String(localized: "남긴 순간")))
+        .modifier(IPadReaderTitle(isPresented: presentsNavigationTitle, title: journal != nil ? String(localized: "나의 하루", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "남긴 순간", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)))
         .toolbar {
             if moment != nil || journal != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button(String(localized: "수정"), systemImage: "pencil", action: edit)
+                        Button(String(localized: "수정", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "pencil", action: edit)
                             .accessibilityIdentifier("ipad.reader.editButton")
-                        Button(String(localized: "삭제"), systemImage: "trash", role: .destructive) { isDeleteConfirmationPresented = true }
+                        Button(String(localized: "삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "trash", role: .destructive) { isDeleteConfirmationPresented = true }
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(Color.whisperTextPrimary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(String(localized: "기록 메뉴"))
+                    .accessibilityLabel(String(localized: "기록 메뉴", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
         }
         .accessibilityIdentifier("ipad.reader")
         .sheet(item: $selectedPhoto) { DiaryPhotoViewer(photo: $0) }
-        .alert(journal != nil ? String(localized: "이 일기를 삭제할까요?") : String(localized: "이 순간을 삭제할까요?"), isPresented: $isDeleteConfirmationPresented) {
-            Button(String(localized: "취소"), role: .cancel) {}
-            Button(String(localized: "삭제"), role: .destructive, action: delete)
+        .alert(journal != nil ? String(localized: "이 일기를 삭제할까요?", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "이 순간을 삭제할까요?", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isDeleteConfirmationPresented) {
+            Button(String(localized: "취소", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
+            Button(String(localized: "삭제", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .destructive, action: delete)
         } message: {
             Text(journal != nil
-                 ? String(localized: "완성한 일기와 출처 연결이 삭제돼요. 원본 순간과 그 사진은 그대로 남아요. 삭제한 일기는 복구할 수 없어요.")
-                 : String(localized: "순간 원본과 사진이 삭제돼요. 이미 일기에 담은 글과 사진은 그대로 남아요. 삭제한 순간은 복구할 수 없어요."))
+                 ? String(localized: "완성한 일기와 출처 연결이 삭제돼요. 원본 순간과 그 사진은 그대로 남아요. 삭제한 일기는 복구할 수 없어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+                 : String(localized: "순간 원본과 사진이 삭제돼요. 이미 일기에 담은 글과 사진은 그대로 남아요. 삭제한 순간은 복구할 수 없어요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
         }
-        .alert(String(localized: "기록을 삭제할 수 없어요"), isPresented: $isDeleteErrorPresented) {
-            Button(String(localized: "확인"), role: .cancel) {}
-        } message: { Text(String(localized: "기록은 그대로 남아 있어요. 잠시 후 다시 시도해 주세요.")) }
+        .alert(String(localized: "기록을 삭제할 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: $isDeleteErrorPresented) {
+            Button(String(localized: "확인", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), role: .cancel) {}
+        } message: { Text(String(localized: "기록은 그대로 남아 있어요. 잠시 후 다시 시도해 주세요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) }
     }
 
     private func document(_ value: DiaryDocument) -> some View {
         DiaryTextView(document: .constant(value), isFocused: .constant(false), isEditable: false, minimumHeight: 0,
                       showsRules: journal != nil,
-                      editorAccessibilityLabel: moment != nil ? String(localized: "순간 본문") : String(localized: "일기 내용"),
+                      editorAccessibilityLabel: moment != nil ? String(localized: "순간 본문", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) : String(localized: "일기 내용", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
                       onPhotoTap: { selectedPhoto = $0 })
     }
 

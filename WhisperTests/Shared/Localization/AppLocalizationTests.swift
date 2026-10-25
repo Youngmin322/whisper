@@ -6,7 +6,7 @@ import SwiftData
 @MainActor
 @Suite("한국어·영어 현지화와 저장 데이터 보존", .serialized)
 struct AppLocalizationTests {
-    private var isEnglish: Bool { Bundle.main.preferredLocalizations.first == "en" }
+    private var isEnglish: Bool { WhisperLocalization.languageCode == "en" }
 
     @Test("실제 번들의 화면·권한 문구와 영어 복수형을 읽는다")
     func bundledTranslations() throws {
@@ -19,8 +19,8 @@ struct AppLocalizationTests {
         }
         let count = 1
         let many = 2
-        #expect(String(localized: "\(count)장 첨부됨") == (isEnglish ? "1 photo attached" : "1장 첨부됨"))
-        #expect(String(localized: "\(many)장 첨부됨") == (isEnglish ? "2 photos attached" : "2장 첨부됨"))
+        #expect(String(localized: "\(count)장 첨부됨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) == (isEnglish ? "1 photo attached" : "1장 첨부됨"))
+        #expect(String(localized: "\(many)장 첨부됨", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale) == (isEnglish ? "2 photos attached" : "2장 첨부됨"))
         #expect(WhisperEmotion.joy.displayName == (isEnglish ? "Joy" : "기쁨"))
         #expect(WhisperEmotion.displayName(for: "차분함") == WhisperEmotion.calm.displayName)
         #expect(WhisperLocalization.locale.language.languageCode?.identifier == (isEnglish ? "en" : "ko"))

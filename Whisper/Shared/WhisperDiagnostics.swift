@@ -37,12 +37,14 @@ enum WhisperDiagnostics {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "unknown"
         let build = info?["CFBundleVersion"] as? String ?? "unknown"
+        // Error codes are identifiers; avoid locale-specific number formatting.
+        let errorCode = String(nsError.code)
 
         return [
             "Whisper \(version) (\(build))",
-            "지원 코드: \(persistenceSupportCode(for: error))",
-            "단계: \(operation)",
-            "오류: \(nsError.domain) / \(nsError.code)",
+            String(localized: "지원 코드: \(persistenceSupportCode(for: error))", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+            String(localized: "단계: \(operation)", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
+            String(localized: "오류: \(nsError.domain) / \(errorCode)", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale),
             "OS: \(ProcessInfo.processInfo.operatingSystemVersionString)"
         ].joined(separator: "\n")
     }

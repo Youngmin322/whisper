@@ -25,7 +25,7 @@ struct JournalSearchMatchViewTests {
         #expect(search.searchBar.text == "민수")
         let preview = try capture(window, name: "iphone-results")
         #expect(preview.contains("편안한하루"))
-        #expect(preview.contains(Bundle.main.preferredLocalizations.first == "en" ? "Foundinamomentfromthisentry" : "담아둔순간에서찾았어요"))
+        #expect(preview.contains(WhisperLocalization.languageCode == "en" ? "Foundinamomentfromthisentry" : "담아둔순간에서찾았어요"))
         #expect(preview.contains("민수와강변에서산책했다"))
         host.rootView = themed(NavigationStack {
             JournalDetailView(journalID: result.recordID, recordStore: store, searchContext: result.searchContext)
