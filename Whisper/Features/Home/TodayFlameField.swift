@@ -11,6 +11,7 @@ struct TodayFlameField: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var motion = FlameFieldMotion()
     @State private var isVisible = false
+    @State private var gatherCount = 0
 
     private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
 
@@ -20,7 +21,7 @@ struct TodayFlameField: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: collectionStartedAt == nil ? 1.0 / 30.0 : 1.0 / 60.0,
+        TimelineView(.animation(minimumInterval: nil,
                                 paused: reduceMotion || isPaused || !isVisible || scenePhase != .active)) { timeline in
             GeometryReader { geometry in
                 let now = timeline.date.timeIntervalSinceReferenceDate
@@ -56,10 +57,12 @@ struct TodayFlameField: View {
                                     .scaleEffect(x: flight?.scaleX ?? 1, y: flight?.scaleY ?? 1)
                                     .rotationEffect(.degrees(flight?.rotation ?? 0))
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(FlamePressStyle(reduceMotion: reduceMotion))
                             .frame(width: 72, height: 72)
                             .contentShape(Rectangle())
                             .position(point)
+                            // Flames lower on the field stand in front.
+                            .zIndex(Double(point.y))
                             .opacity(flight?.opacity ?? 1)
                             .disabled(collectionStartedAt != nil)
                             .accessibilityLabel(String(localized: "\(WhisperEmotion.displayName(for: record.emotion) ?? String(localized: "감정 미선택", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)) 불꽃, \(record.content), 순간 열기", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))
@@ -72,6 +75,12 @@ struct TodayFlameField: View {
                     }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    guard collectionStartedAt == nil, !reduceMotion, !isPaused else { return }
+                    motion.gather(at: location, time: Date.now.timeIntervalSinceReferenceDate, size: geometry.size)
+                    gatherCount += 1
+                }
                 .onChange(of: timeline.date) { _, date in
                     let time = date.timeIntervalSinceReferenceDate
                     if collectionStartedAt == nil, let nextEvent = motion.nextEventAt, nextEvent <= time {
@@ -93,6 +102,7 @@ struct TodayFlameField: View {
                 }
             }
         }
+        .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.6), trigger: gatherCount)
         .onChange(of: reduceMotion) { _, _ in updatePlayback() }
         .onChange(of: isPaused) { _, _ in updatePlayback() }
         .onChange(of: scenePhase) { _, _ in updatePlayback() }
@@ -111,11 +121,12 @@ struct TodayFlameField: View {
     private func releasedPose(_ pose: FlameHopPose, amount: CGFloat) -> FlameHopPose {
         let remaining = 1 - amount
         return FlameHopPose(
-            groundPosition: pose.groundPosition, frameIndex: pose.frameIndex,
+            groundPosition: pose.groundPosition,
             lift: pose.lift * remaining - 1.5 * amount, lead: pose.lead * remaining,
-            faceRotation: pose.faceRotation * Double(remaining), dustOpacity: 0,
+            dustOpacity: 0,
             dustSpread: 0, shadowScale: pose.shadowScale, facing: pose.facing,
-            body: pose.body, isMoving: pose.isMoving, referenceBlend: pose.referenceBlend * remaining
+            body: pose.body.faded(by: remaining), isMoving: pose.isMoving,
+            facingScale: pose.facingScale, blinkScale: 1 + (pose.blinkScale - 1) * remaining
         )
     }
 
@@ -132,5 +143,17 @@ struct TodayFlameField: View {
         .opacity(pose.dustOpacity)
         .scaleEffect(x: pose.facing)
         .accessibilityHidden(true)
+    }
+}
+
+/// A touched flame squashes under the finger and springs back, before the moment opens.
+private struct FlamePressStyle: ButtonStyle {
+    let reduceMotion: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed && !reduceMotion
+        configuration.label
+            .scaleEffect(x: pressed ? 1.12 : 1, y: pressed ? 0.86 : 1, anchor: UnitPoint(x: 0.5, y: 0.8))
+            .animation(.spring(response: 0.24, dampingFraction: 0.45), value: pressed)
     }
 }

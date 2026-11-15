@@ -57,7 +57,7 @@ struct FlameFieldMotionTests {
         }
     }
 
-    @Test("다른 불꽃의 수와 동작은 자신의 이동 시작 시점에 영향을 주지 않는다")
+    @Test("다른 불꽃의 수와 동작은 자신의 이동 시작 시점과 걸음 박자에 영향을 주지 않는다")
     func schedulesAreIndependent() throws {
         let participants = makeParticipants(count: 10)
         let first = try #require(participants.first)
@@ -72,181 +72,132 @@ struct FlameFieldMotionTests {
             let soloPose = try #require(alone.pose(for: first.id, at: time, size: field, reduceMotion: false))
             let groupPose = try #require(together.pose(for: first.id, at: time, size: field, reduceMotion: false))
             #expect(soloPose.isMoving == groupPose.isMoving)
-            #expect(soloPose.frameIndex == groupPose.frameIndex)
-            #expect(soloPose.body == groupPose.body)
+            #expect(soloPose.lift == groupPose.lift)
+            // Company may change where a flame heads, never its timing or bounce.
+            #expect(soloPose.body.stretch == groupPose.body.stretch)
         }
     }
 
-    @Test("새로 만든 첫 불꽃은 등장 직후 자신의 감정 동작을 시작한다", arguments: FlameMotionKind.allCases)
-    func newlyCreatedFlameMovesImmediately(kind: FlameMotionKind) throws {
-        var participant = try #require(makeParticipants(count: 1, sameKind: kind).first)
-        participant.createdAt = 100
-        var motion = FlameFieldMotion()
-        motion.updateParticipants([participant], at: 100, size: field)
-        let first = try #require(motion.pose(for: participant.id, at: 100, size: field, reduceMotion: false))
-        let next = try #require(motion.pose(for: participant.id, at: 100.2, size: field, reduceMotion: false))
-        #expect(first.isMoving && next.isMoving)
-        #expect(next.frameIndex > 0)
-        #expect(next.lift > 0 || next.body != .rest)
-    }
-
-    @Test("여러 새 불꽃도 기존 불꽃을 기다리지 않고 즉시 함께 움직일 수 있다")
-    func newFlamesHaveNoConcurrencyLimit() throws {
-        let participants = makeParticipants(count: 10, sameKind: .joy)
-        var motion = FlameFieldMotion()
-        motion.updateParticipants(Array(participants.prefix(1)), at: 0, size: field)
-        motion.updateParticipants(participants, at: 1, size: field)
-        let added = participants.dropFirst()
-        let moving = added.filter {
-            motion.pose(for: $0.id, at: 1.1, size: field, reduceMotion: false)?.isMoving == true
-        }
-        #expect(moving.count == added.count)
-    }
-
-    @Test("작성 화면에서 추가된 불꽃의 첫 동작은 홈으로 돌아올 때 이어진다")
-    func newFlameWaitsForVisibleHome() throws {
-        let participants = makeParticipants(count: 2, sameKind: .joy)
-        var motion = FlameFieldMotion()
-        motion.updateParticipants(Array(participants.prefix(1)), at: 0, size: field)
-        motion.advance(to: 1, size: field)
-        motion.pause(at: 1)
-        motion.updateParticipants(participants, at: 30, size: field)
-        motion.resume(at: 50)
-        let id = participants[1].id
-        let first = try #require(motion.pose(for: id, at: 50, size: field, reduceMotion: false))
-        let next = try #require(motion.pose(for: id, at: 50.2, size: field, reduceMotion: false))
-        #expect(first.isMoving && next.isMoving)
-        #expect(first.groundPosition != next.groundPosition)
-    }
-
-    @Test("같은 감정의 불꽃들도 각자 다른 시점과 경로로 움직인다")
-    func sameEmotionIsIndependent() throws {
-        let participants = makeParticipants(count: 6, sameKind: .joy)
+    @Test("떨어져 있던 불꽃은 서로에게 다가가 곁에 머물되 겹치지 않는다")
+    func flamesKeepEachOtherCompany() throws {
+        let participants = makeParticipants(count: 3, sameKind: .joy)
         var motion = FlameFieldMotion()
         motion.updateParticipants(participants, at: 0, size: field)
-        var firstStart: [UUID: Double] = [:]
-        var finalPoints: [CGPoint] = []
-        for tick in 0...600 {
+        func nearestGap(at time: Double) throws -> CGFloat {
+            let points = try participants.map {
+                try #require(motion.pose(for: $0.id, at: time, size: field, reduceMotion: false)).groundPosition
+            }
+            var gap = CGFloat.greatestFiniteMagnitude
+            for a in points.indices {
+                for b in points.indices where a < b {
+                    gap = min(gap, hypot(points[a].x - points[b].x, points[a].y - points[b].y))
+                }
+            }
+            return gap
+        }
+        let initial = try nearestGap(at: 0)
+        var closest = initial
+        var restingClosest = CGFloat.greatestFiniteMagnitude
+        for tick in 0...2400 {
+            let time = Double(tick) * 0.05
+            motion.advance(to: time, size: field)
+            let gap = try nearestGap(at: time)
+            closest = min(closest, gap)
+            let anyMoving = try participants.contains {
+                try #require(motion.pose(for: $0.id, at: time, size: field, reduceMotion: false)).isMoving
+            }
+            if !anyMoving { restingClosest = min(restingClosest, gap) }
+        }
+        #expect(initial > 76)
+        #expect(closest < FlameFieldMotion.companionDistance + 14)
+        #expect(restingClosest > 30)
+    }
+
+    @Test("곁에 온 불꽃이 있으면 쉬던 불꽃이 그쪽으로 돌아본다")
+    func restingFlameTurnsToVisitor() throws {
+        let participants = makeParticipants(count: 4, sameKind: .calm)
+        var motion = FlameFieldMotion()
+        motion.updateParticipants(participants, at: 0, size: field)
+        var previous: [UUID: FlameHopPose] = [:]
+        var restTurns = 0
+        for tick in 0...4800 {
             let time = Double(tick) * 0.05
             motion.advance(to: time, size: field)
             for participant in participants {
                 let pose = try #require(motion.pose(for: participant.id, at: time, size: field, reduceMotion: false))
-                if pose.isMoving && firstStart[participant.id] == nil { firstStart[participant.id] = time }
-            }
-        }
-        #expect(firstStart.count == participants.count)
-        #expect(Set(firstStart.values).count >= 5)
-        for participant in participants {
-            finalPoints.append(try #require(motion.pose(for: participant.id, at: 30, size: field, reduceMotion: false)).groundPosition)
-        }
-        #expect(Set(finalPoints.map(\.x)).count == participants.count)
-    }
-
-    @Test("여러 기쁨 불꽃은 착지와 휴식 중 방향을 유지하고 실제 다음 이동에서만 변경한다")
-    func joyDirectionChangesOnlyWhenNewJourneyStarts() throws {
-        let participants = makeParticipants(count: 6, sameKind: .joy)
-        var motion = FlameFieldMotion()
-        motion.updateParticipants(participants, at: 0, size: field)
-        var previous: [UUID: FlameHopPose] = [:]
-        var landedDirections = Set<CGFloat>()
-        var turns = 0
-
-        for tick in 0...3600 {
-            let time = Double(tick) / 30
-            motion.advance(to: time, size: field)
-            for participant in participants {
-                let pose = try #require(motion.pose(for: participant.id, at: time, size: field, reduceMotion: false))
-                if let earlier = previous[participant.id] {
-                    if !pose.isMoving {
-                        #expect(pose.facing == earlier.facing)
-                        #expect(pose.referenceBlend == 0)
-                        if earlier.isMoving { landedDirections.insert(pose.facing) }
-                    } else if pose.facing != earlier.facing {
-                        #expect(!earlier.isMoving)
-                        turns += 1
-                    }
+                if let earlier = previous[participant.id], !pose.isMoving, !earlier.isMoving,
+                   pose.facing != earlier.facing {
+                    restTurns += 1
+                    #expect(pose.groundPosition == earlier.groundPosition)
                 }
                 previous[participant.id] = pose
             }
         }
-        #expect(landedDirections == [-1, 1])
-        #expect(turns > 0)
+        #expect(restTurns > 0)
     }
 
-    @Test("렌더링 빈도와 기록 순서가 달라도 같은 위치와 자세를 유지한다")
-    func renderingDoesNotChangeJourneys() throws {
-        let participants = makeParticipants(count: 10)
-        var frequent = FlameFieldMotion()
-        var sparse = FlameFieldMotion()
-        frequent.updateParticipants(participants, at: 0, size: field)
-        sparse.updateParticipants(participants.reversed(), at: 0, size: field)
-        for tick in 0...900 { frequent.advance(to: Double(tick) / 30, size: field) }
-        sparse.advance(to: 30, size: field)
-        for participant in participants {
-            let a = try #require(frequent.pose(for: participant.id, at: 30, size: field, reduceMotion: false))
-            let b = try #require(sparse.pose(for: participant.id, at: 30, size: field, reduceMotion: false))
-            #expect(a.groundPosition == b.groundPosition)
-            #expect(a.frameIndex == b.frameIndex && a.facing == b.facing)
-            #expect(a.body == b.body)
+    @Test("빈 곳을 누르면 모든 불꽃이 그 주위로 모인 뒤 각자의 박자로 돌아간다", arguments: [1, 3, 6, 10])
+    func touchGathersFlames(count: Int) throws {
+        let participants = makeParticipants(count: count, sameKind: .joy)
+        var motion = FlameFieldMotion()
+        motion.updateParticipants(participants, at: 0, size: field)
+        motion.advance(to: 2, size: field)
+        let point = CGPoint(x: 200, y: 300)
+        motion.gather(at: point, time: 2, size: field)
+        var previous: [UUID: CGPoint] = [:]
+        var arrived = Set<UUID>()
+        let reach = max(40, CGFloat(count) * 9) + 8
+        for tick in 0...300 {
+            let time = 2 + Double(tick) * 0.05
+            motion.advance(to: time, size: field)
+            for participant in participants {
+                let pose = try #require(motion.pose(for: participant.id, at: time, size: field, reduceMotion: false))
+                if let earlier = previous[participant.id] {
+                    #expect(hypot(pose.groundPosition.x - earlier.x, pose.groundPosition.y - earlier.y) < 12)
+                }
+                #expect(pose.groundPosition.x >= 48 && pose.groundPosition.x <= field.width - 48)
+                #expect(pose.groundPosition.y >= 56 && pose.groundPosition.y <= field.height - 56)
+                previous[participant.id] = pose.groundPosition
+                if hypot(pose.groundPosition.x - point.x, pose.groundPosition.y - point.y) <= reach {
+                    arrived.insert(participant.id)
+                }
+            }
         }
-        let id = participants[0].id
-        let before = try #require(frequent.pose(for: id, at: 30, size: field, reduceMotion: false))
-        frequent.updateParticipants(participants.reversed(), at: 30, size: field)
-        let after = try #require(frequent.pose(for: id, at: 30, size: field, reduceMotion: false))
-        #expect(before.groundPosition == after.groundPosition)
-        #expect(before.frameIndex == after.frameIndex)
+        #expect(arrived.count == count)
+        var moved = false
+        for tick in 0...1200 where !moved {
+            let time = 17 + Double(tick) * 0.05
+            motion.advance(to: time, size: field)
+            moved = try participants.contains {
+                try #require(motion.pose(for: $0.id, at: time, size: field, reduceMotion: false)).isMoving
+            }
+        }
+        #expect(moved)
     }
 
-    @Test("화면을 떠나거나 병에 담는 동안 멈추고 돌아오면 같은 위치에서 이어간다")
-    func pauseAndResumeKeepPose() throws {
+    @Test("멈춘 동안에는 누르기에 반응하지 않는다")
+    func pausedFieldIgnoresTouch() throws {
         let participants = makeParticipants(count: 3, sameKind: .joy)
-        var motion = FlameFieldMotion()
-        motion.updateParticipants(participants, at: 0, size: field)
-        let time = try #require(motion.nextEventAt) + 0.2
-        motion.advance(to: time, size: field)
-        let id = try #require(participants.first {
-            motion.pose(for: $0.id, at: time, size: field, reduceMotion: false)?.isMoving == true
-        }).id
-        let before = try #require(motion.pose(for: id, at: time, size: field, reduceMotion: false))
-        motion.pause(at: time)
-        motion.advance(to: 1000, size: field)
-        let paused = try #require(motion.pose(for: id, at: 1000, size: field, reduceMotion: false))
-        #expect(paused.groundPosition == before.groundPosition)
-        #expect(paused.frameIndex == before.frameIndex && paused.lift == before.lift)
-        #expect(motion.nextEventAt == nil)
-        let reduced = try #require(motion.pose(for: id, at: 2000, size: field, reduceMotion: true))
-        #expect(reduced.groundPosition == before.groundPosition)
-        #expect(reduced.frameIndex == 0 && reduced.lift == 0 && reduced.dustOpacity == 0)
-        #expect(reduced.body == .rest && !reduced.isMoving)
-        motion.resume(at: 1000)
-        let resumed = try #require(motion.pose(for: id, at: 1000, size: field, reduceMotion: false))
-        #expect(hypot(resumed.groundPosition.x - before.groundPosition.x,
-                      resumed.groundPosition.y - before.groundPosition.y) < 0.000001)
-        #expect(resumed.frameIndex == before.frameIndex)
-        motion.advance(to: 1000.1, size: field)
-        let later = try #require(motion.pose(for: id, at: 1000.1, size: field, reduceMotion: false))
-        #expect(later.groundPosition != resumed.groundPosition)
-    }
-
-    @Test("순간 추가·삭제와 감정 수정은 다른 불꽃의 위치를 바꾸지 않는다")
-    func recordChangesPreserveExistingPositions() throws {
-        let participants = makeParticipants(count: 3)
-        var motion = FlameFieldMotion()
-        motion.updateParticipants(participants, at: 0, size: field)
-        motion.advance(to: 5, size: field)
-        let before = try participants.map {
-            try #require(motion.pose(for: $0.id, at: 5, size: field, reduceMotion: false)).groundPosition
+        var touched = FlameFieldMotion()
+        var untouched = FlameFieldMotion()
+        for index in 0..<2 {
+            var motion = FlameFieldMotion()
+            motion.updateParticipants(participants, at: 0, size: field)
+            motion.pause(at: 1)
+            if index == 0 { motion.gather(at: CGPoint(x: 200, y: 300), time: 1, size: field) }
+            motion.resume(at: 1)
+            if index == 0 { touched = motion } else { untouched = motion }
         }
-        let larger = makeParticipants(count: 6)
-        motion.updateParticipants(larger, at: 5, size: field)
-        for (index, participant) in participants.enumerated() {
-            #expect(motion.pose(for: participant.id, at: 5, size: field, reduceMotion: false)?.groundPosition == before[index])
+        for tick in 0...200 {
+            let time = 1 + Double(tick) * 0.05
+            touched.advance(to: time, size: field)
+            untouched.advance(to: time, size: field)
+            for participant in participants {
+                let a = try #require(touched.pose(for: participant.id, at: time, size: field, reduceMotion: false))
+                let b = try #require(untouched.pose(for: participant.id, at: time, size: field, reduceMotion: false))
+                #expect(a.groundPosition == b.groundPosition && a.isMoving == b.isMoving)
+            }
         }
-        let changed = FlameMotionParticipant(id: participants[0].id, kind: .anger)
-        motion.updateParticipants([changed, participants[1]], at: 5, size: field)
-        #expect(motion.pose(for: changed.id, at: 5, size: field, reduceMotion: false)?.groundPosition == before[0])
-        #expect(motion.pose(for: participants[1].id, at: 5, size: field, reduceMotion: false)?.groundPosition == before[1])
-        #expect(motion.pose(for: participants[2].id, at: 5, size: field, reduceMotion: false) == nil)
     }
 
     private func makeParticipants(count: Int, sameKind: FlameMotionKind? = nil) -> [FlameMotionParticipant] {

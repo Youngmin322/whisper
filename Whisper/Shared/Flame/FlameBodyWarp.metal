@@ -1,50 +1,6 @@
 #include <metal_stdlib>
+#include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
-
-static float thinPlateRadial(float2 delta) {
-    float radiusSquared = dot(delta, delta);
-    return 0.5f * radiusSquared * log(max(radiusSquared, 1e-12f));
-}
-
-// The committed GitHub gait stores an inverse thin-plate-spline mapping for
-// each of its 16 frames.  Apply it only to the body layer; the approved face is
-// rendered separately and receives the original rigid rotation/scale.
-[[ stitchable ]] float2 flameReferenceWarp(
-    float2 position,
-    float4 bounds,
-    device const float *mapping,
-    int count,
-    float blend,
-    float facing
-) {
-    if (count < 10 || bounds.z <= 0.0f || bounds.w <= 0.0f || blend <= 0.0f) {
-        return position;
-    }
-
-    float2 target = (position - bounds.xy) / bounds.zw;
-    // Reflect the deformation's coordinates in both directions, so an identity
-    // warp always samples the original artwork, even after a leftward journey.
-    bool movingLeft = facing < 0.0f;
-    if (movingLeft) {
-        target.x = 1.0f - target.x;
-    }
-    int controlCount = (count - 6) / 4;
-    int affine = controlCount * 4;
-    float2 source = float2(mapping[affine], mapping[affine + 1]);
-    source += target.x * float2(mapping[affine + 2], mapping[affine + 3]);
-    source += target.y * float2(mapping[affine + 4], mapping[affine + 5]);
-
-    for (int index = 0; index < controlCount; ++index) {
-        int offset = index * 4;
-        float2 control = float2(mapping[offset], mapping[offset + 1]);
-        float2 weight = float2(mapping[offset + 2], mapping[offset + 3]);
-        source += weight * thinPlateRadial(target - control);
-    }
-    if (movingLeft) {
-        source.x = 1.0f - source.x;
-    }
-    return mix(position, bounds.xy + source * bounds.zw, clamp(blend, 0.0f, 1.0f));
-}
 
 // Work on the approved, flattened PNG without sampling a different texture.
 // The face lies in the middle of the body: the crown ends before it, and the
@@ -52,6 +8,7 @@ static float thinPlateRadial(float2 delta) {
 [[ stitchable ]] float2 flameBodyWarp(
     float2 position, float4 bounds, float3 motion
 ) {
+    if (bounds.z <= 0.0f || bounds.w <= 0.0f) return position;
     float2 normalized = (position - bounds.xy) / bounds.zw;
     float crown = 1.0f - smoothstep(0.35f, 0.54f, normalized.y);
     float foot = smoothstep(0.84f, 0.96f, normalized.y);
@@ -62,4 +19,41 @@ static float thinPlateRadial(float2 delta) {
         sourceY = hinge + (position.y - hinge) / max(0.8f, 1.0f - motion.z);
     }
     return float2(sourceX, sourceY);
+}
+
+// Closes an eye inside its ellipse only. Vacated pixels take the face colour between the eyes,
+// so nearby brows are never stretched; a guard line keeps brows that overlap the eye intact.
+static float browSide(float2 position, float4 guard) {
+    float2 direction = guard.zw - guard.xy;
+    if (dot(direction, direction) <= 0.0f) return 1.0f;
+    float2 normal = normalize(float2(-direction.y, direction.x));
+    if (normal.y < 0.0f) normal = -normal;
+    return dot(position - guard.xy, normal);
+}
+
+static half4 blinkEye(float2 position, SwiftUI::Layer layer, half4 color,
+                      float4 eye, float4 guard, float2 skinPoint, float scale) {
+    float2 radius = eye.zw * 0.5f;
+    if (radius.x <= 0.0f || radius.y <= 0.0f) return color;
+    float2 center = eye.xy + radius;
+    float2 offset = (position - center) / radius;
+    float mask = (1.0f - smoothstep(1.0f, 1.06f, length(offset)))
+        * smoothstep(-0.4f, 0.4f, browSide(position, guard));
+    if (mask <= 0.0f) return color;
+    float2 source = float2(position.x, center.y + offset.y / max(scale, 0.08f) * radius.y);
+    float2 sourceOffset = (source - center) / radius;
+    bool isEye = dot(sourceOffset, sourceOffset) <= 1.0f && browSide(source, guard) > 0.0f;
+    half4 closed = isEye ? layer.sample(source) : layer.sample(float2(skinPoint.x, center.y));
+    return mix(color, closed, half(mask));
+}
+
+[[ stitchable ]] half4 flameBlink(
+    float2 position, SwiftUI::Layer layer,
+    float4 leftEye, float4 leftGuard, float4 rightEye, float4 rightGuard, float scale
+) {
+    half4 color = layer.sample(position);
+    if (scale >= 1.0f) return color;
+    float2 skinPoint = float2((leftEye.x + leftEye.z + rightEye.x) * 0.5f, 0.0f);
+    color = blinkEye(position, layer, color, leftEye, leftGuard, skinPoint, scale);
+    return blinkEye(position, layer, color, rightEye, rightGuard, skinPoint, scale);
 }

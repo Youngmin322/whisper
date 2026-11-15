@@ -6520,6 +6520,38 @@
           }
         }
       }
+    },
+    "사진 보관함에서 선택" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose from Library"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진 보관함에서 선택"
+          }
+        }
+      }
+    },
+    "카메라로 촬영" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take Photo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "카메라로 촬영"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -27,7 +27,9 @@ struct AnimatedFlameCharacter: View {
     private var motionKind: FlameMotionKind { FlameMotionKind.resolve(emotion) }
 
     var body: some View {
-        let bounds = FlameAppearance.resolve(emotion).rigBounds(characterSize: size, canvasSize: canvasSize)
+        let appearance = FlameAppearance.resolve(emotion)
+        let bounds = appearance.rigBounds(characterSize: size, canvasSize: canvasSize)
+        let eyes = appearance.blinkEyes(characterSize: size, canvasSize: canvasSize)
         ZStack {
             Ellipse()
                 .fill(Color.whisperTextSecondary.opacity(0.10))
@@ -35,53 +37,17 @@ struct AnimatedFlameCharacter: View {
                 .offset(y: size * 0.50)
                 .opacity(shadowOpacity)
 
-            animatedArtwork(bounds: bounds)
-                // Joy mirrors its motion, not the approved asymmetric artwork.
-                .scaleEffect(x: motionKind == .joy ? 1 : pose.facing, y: 1)
-                .offset(x: pose.facing * pose.lead, y: -pose.lift - 1.5)
-        }
-        .frame(width: canvasSize, height: canvasSize)
-        .accessibilityHidden(true)
-    }
-
-    @ViewBuilder
-    private func animatedArtwork(bounds: CGRect) -> some View {
-        if motionKind == .joy && (!pose.isMoving || pose.referenceBlend == 0) {
-            // Rest uses the approved image itself, without layer reconstruction or deformation.
             FlameCharacter(emotion: emotion, size: size)
                 .frame(width: canvasSize, height: canvasSize)
-        } else if motionKind == .joy {
-            let reference = FlameReferenceRig.frames[pose.frameIndex]
-            ZStack {
-                Image("EmotionFlameJoyBody")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: size, height: size * 1.1)
-                    .frame(width: canvasSize, height: canvasSize)
-                    .distortionEffect(
-                        ShaderLibrary.flameReferenceWarp(
-                            .float4(Float(bounds.minX), Float(bounds.minY), Float(bounds.width), Float(bounds.height)),
-                            .floatArray(reference.mapping),
-                            .float(Float(pose.referenceBlend)),
-                            .float(Float(pose.facing))
-                        ),
-                        maxSampleOffset: CGSize(width: size * 0.8, height: size * 0.8),
-                        isEnabled: pose.referenceBlend > 0
-                    )
-
-                Image("EmotionFlameJoyFace")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: size, height: size * 1.1)
-                    .scaleEffect(1 + (reference.faceScale - 1) * pose.referenceBlend,
-                                 anchor: UnitPoint(x: 0.5, y: 0.68))
-                    .rotationEffect(.degrees(reference.faceRotation * Double(pose.referenceBlend * pose.facing)),
-                                    anchor: UnitPoint(x: 0.5, y: 0.68))
-                    .frame(width: canvasSize, height: canvasSize)
-            }
-        } else {
-            FlameCharacter(emotion: emotion, size: size)
-                .frame(width: canvasSize, height: canvasSize)
+                .layerEffect(
+                    ShaderLibrary.flameBlink(
+                        ellipseArgument(eyes.first), guardArgument(eyes.first),
+                        ellipseArgument(eyes.last), guardArgument(eyes.last),
+                        .float(Float(pose.blinkScale))
+                    ),
+                    maxSampleOffset: .zero,
+                    isEnabled: pose.blinkScale < 1 && eyes.count == 2
+                )
                 .distortionEffect(
                     ShaderLibrary.flameBodyWarp(
                         .float4(Float(bounds.minX), Float(bounds.minY), Float(bounds.width), Float(bounds.height)),
@@ -90,15 +56,29 @@ struct AnimatedFlameCharacter: View {
                     maxSampleOffset: CGSize(width: size * 0.28, height: size * 0.12),
                     isEnabled: pose.body.tipBend != 0 || pose.body.footPush != 0 || pose.body.baseCompression != 0
                 )
-                .rotationEffect(
-                    .degrees(pose.body.rotation),
-                    anchor: UnitPoint(x: bounds.midX / canvasSize, y: bounds.maxY / canvasSize)
-                )
-                .scaleEffect(
-                    pose.body.uniformScale,
-                    anchor: UnitPoint(x: bounds.midX / canvasSize, y: bounds.maxY / canvasSize)
-                )
+                .scaleEffect(x: 1 / sqrt(1 + pose.body.stretch), y: 1 + pose.body.stretch,
+                             anchor: UnitPoint(x: bounds.midX / canvasSize, y: bounds.maxY / canvasSize))
+                .rotationEffect(.degrees(pose.body.rotation),
+                                anchor: UnitPoint(x: bounds.midX / canvasSize, y: bounds.maxY / canvasSize))
+                .scaleEffect(pose.body.uniformScale,
+                             anchor: UnitPoint(x: bounds.midX / canvasSize, y: bounds.maxY / canvasSize))
+                // Joy mirrors its motion, not the approved asymmetric artwork.
+                .scaleEffect(x: motionKind.mirrorsArtwork ? pose.facingScale : 0.94 + 0.06 * abs(pose.facingScale), y: 1)
+                .offset(x: pose.facing * pose.lead, y: -pose.lift - 1.5)
         }
+        .frame(width: canvasSize, height: canvasSize)
+        .accessibilityHidden(true)
+    }
+
+    private func ellipseArgument(_ eye: FlameBlinkEye?) -> Shader.Argument {
+        let rect = eye?.ellipse ?? .zero
+        return .float4(Float(rect.minX), Float(rect.minY), Float(rect.width), Float(rect.height))
+    }
+
+    /// A zero-length guard disables the brow test in the shader.
+    private func guardArgument(_ eye: FlameBlinkEye?) -> Shader.Argument {
+        guard let start = eye?.browGuardStart, let end = eye?.browGuardEnd else { return .float4(0, 0, 0, 0) }
+        return .float4(Float(start.x), Float(start.y), Float(end.x), Float(end.y))
     }
 }
 

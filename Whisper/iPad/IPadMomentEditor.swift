@@ -14,6 +14,7 @@ struct IPadMomentEditor: View {
     @State private var isBodyFocused = false
     @FocusState private var isTitleFocused: Bool
     @State private var isPhotoPickerPresented = false
+    @State private var isCameraPresented = false
     @State private var isEmotionPickerPresented = false
     @State private var selectedPhoto: DiaryPhoto?
     @State private var photoInsertionOffset: Int
@@ -103,6 +104,7 @@ struct IPadMomentEditor: View {
         .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
             get: { photoLoader.selectedItems }, set: { photoLoader.select($0) }
         ), selectionBehavior: .ordered, matching: .images)
+        .cameraCapture(isPresented: $isCameraPresented, loader: photoLoader)
         .onAppear { persistDraft() }
         .onChange(of: draft) { _, _ in persistDraft() }
         .onChange(of: photoLoader.completedImport) { _, _ in applyPendingPhotos() }
@@ -177,11 +179,18 @@ struct IPadMomentEditor: View {
 
     private var accessories: some View {
         HStack(spacing: WhisperSpacing.large) {
-            Button {
-                isBodyFocused = false
-                isTitleFocused = false
-                isPhotoPickerPresented = true
-            } label: {
+            PhotoSourceMenu(
+                onLibrary: {
+                    isBodyFocused = false
+                    isTitleFocused = false
+                    isPhotoPickerPresented = true
+                },
+                onCamera: {
+                    isBodyFocused = false
+                    isTitleFocused = false
+                    isCameraPresented = true
+                }
+            ) {
                 if photoLoader.isLoading { ProgressView() }
                 else { Label(String(localized: "사진 추가", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "photo") }
             }
