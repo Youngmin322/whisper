@@ -18,6 +18,7 @@ struct QuickRecordView: View {
     @State private var isSaveErrorPresented = false
     @State private var isTitleVisible: Bool
     @State private var isPhotoPickerPresented = false
+    @State private var isCameraPresented = false
     @State private var isEmotionPickerPresented = false
     @State private var photoLoader: PhotoAttachmentLoader
     @State private var appliedPhotoImportID: UUID?
@@ -112,7 +113,7 @@ struct QuickRecordView: View {
         }
         .task(id: selectedEmotion) {
             guard selectedEmotion != nil, !isEmotionPickerPresented,
-                  !isPhotoPickerPresented, !didFinish else { return }
+                  !isPhotoPickerPresented, !isCameraPresented, !didFinish else { return }
             await Task.yield()
             focusedField = .content
         }
@@ -127,7 +128,11 @@ struct QuickRecordView: View {
             get: { photoLoader.selectedItems },
             set: { photoLoader.select($0) }
         ), selectionBehavior: .ordered, matching: .images)
+        .cameraCapture(isPresented: $isCameraPresented, loader: photoLoader)
         .onChange(of: isPhotoPickerPresented) { _, isPresented in
+            if !isPresented && !didFinish { focusedField = .content }
+        }
+        .onChange(of: isCameraPresented) { _, isPresented in
             if !isPresented && !didFinish { focusedField = .content }
         }
         .onAppear { persistDraft() }
@@ -439,7 +444,10 @@ struct QuickRecordView: View {
     @ViewBuilder
     private var optionalButtons: some View {
         if selectedEmotion != nil {
-            Button { focusedField = nil; isPhotoPickerPresented = true } label: { photoButtonLabel }
+            PhotoSourceMenu(
+                onLibrary: { focusedField = nil; isPhotoPickerPresented = true },
+                onCamera: { focusedField = nil; isCameraPresented = true }
+            ) { photoButtonLabel }
             .fixedSize(horizontal: true, vertical: false)
             .disabled(photoLoader.isLoading)
             .accessibilityLabel(String(localized: "사진", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale))

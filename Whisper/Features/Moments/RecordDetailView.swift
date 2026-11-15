@@ -28,6 +28,7 @@ struct RecordDetailView: View {
     @State private var appliedPhotoImportID: UUID?
     @State private var isEmotionPickerPresented = false
     @State private var isPhotoPickerPresented = false
+    @State private var isCameraPresented = false
     @State private var selectedPhoto: DiaryPhoto?
     @State private var isBodyFocused = false
     @State private var photoInsertionOffset = 0
@@ -217,6 +218,7 @@ struct RecordDetailView: View {
         .photosPicker(isPresented: $isPhotoPickerPresented, selection: Binding(
             get: { photoLoader.selectedItems }, set: { photoLoader.select($0) }
         ), selectionBehavior: .ordered, matching: .images)
+        .cameraCapture(isPresented: $isCameraPresented, loader: photoLoader)
         .onChange(of: photoLoader.completedImport) { _, _ in applyPendingPhotos() }
         .alert(String(localized: "사진을 불러올 수 없어요", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), isPresented: Binding<Bool>(
             get: { photoLoader.errorMessage != nil },
@@ -328,7 +330,10 @@ struct RecordDetailView: View {
                     .foregroundStyle(draft.content.count > contentLimit ? .red : Color.whisperTextSecondary)
             }
             HStack {
-                Button { isBodyFocused = false; isPhotoPickerPresented = true } label: {
+                PhotoSourceMenu(
+                    onLibrary: { isBodyFocused = false; isPhotoPickerPresented = true },
+                    onCamera: { isBodyFocused = false; isCameraPresented = true }
+                ) {
                     if photoLoader.isLoading { ProgressView() }
                     else { Label(String(localized: "사진 추가", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale), systemImage: "photo") }
                 }

@@ -40,6 +40,15 @@ final class PhotoAttachmentLoader {
         })
     }
 
+    /// Imports a camera capture as a one-photo batch so editors insert it like a library pick.
+    func importCapturedImage(_ image: UIImage) {
+        guard let data = image.jpegData(compressionQuality: 0.9) else {
+            errorMessage = String(localized: "지원하지 않는 사진 형식이에요.", bundle: WhisperLocalization.bundle, locale: WhisperLocalization.locale)
+            return
+        }
+        loadBatch(transfers: [{ data }])
+    }
+
     @discardableResult
     func load(
         transfer: @escaping @Sendable () async throws -> Data?,
